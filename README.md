@@ -82,20 +82,20 @@ docker compose version
 ## Installation & Démarrage
 
 ```bash
-git clone https://github.com/Naylm/DispatchDocker.git
-cd DispatchDocker
+git clone https://github.com/Naylm/DispatchDockerWorking.git
+cd DispatchDockerWorking
 
-# 1) Arrêter toute ancienne stack
+# 1) Arrêter toute ancienne stack éventuelle
 docker compose down --remove-orphans
 
 # 2) Lancer (build + run)
 docker compose up --build
 
-# Option : mode détaché
+# Option : mode détaché (en arrière-plan)
 docker compose up -d --build
 ```
 
-> L’application est disponible sur [http://localhost](http://localhost)
+> Une fois les conteneurs démarrés, l’application est accessible sur [http://localhost](http://localhost)
 
 ### Arrêter les conteneurs
 
@@ -174,7 +174,7 @@ GUNICORN_WORKERS=2
 ### Mettre à jour l’image
 
 ```bash
-git pull origin main
+git pull origin master
 docker compose down
 docker compose up --build
 ```
@@ -237,4 +237,4 @@ docker compose logs -f nginx      # Logs Nginx
 
 ---
 
-Merci d’utiliser **DispatchDocker**. Bon déploiement ! 🚀
+Merci d’utiliser **DispatchDockerWorking**, la version Docker de Dispatch Manager prête pour la production. Bon déploiement ! 🚀
