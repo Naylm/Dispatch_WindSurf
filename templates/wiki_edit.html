@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modifier: {{ article.title }} - Wiki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet">
+    <style>
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            height: 600px;
+        }
+        .editor-pane, .preview-pane {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .preview-pane {
+            background: var(--bg-hover);
+        }
+        textarea.form-control {
+            font-family: 'Courier New', monospace;
+            resize: none;
+        }
+        .toolbar {
+            background: var(--bg-hover);
+            padding: 0.5rem;
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 1rem;
+        }
+        .toolbar button {
+            padding: 0.25rem 0.5rem;
+            margin: 0 0.25rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .toolbar button:hover {
+            background: var(--primary);
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="container py-4">
+    <!-- Navbar -->
+    <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold">✏️ Modifier l'article</span>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('view_wiki_article', id=article.id) }}" class="btn btn-outline-secondary btn-sm">← Annuler</a>
+                <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <form method="POST" id="editForm">
+        <div class="mb-3">
+            <label class="form-label">Titre</label>
+            <input type="text" class="form-control" name="title" value="{{ article.title }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Dossier</label>
+            <select class="form-select" name="folder_id">
+                <option value="">Sans dossier</option>
+                {% for folder in folders %}
+                <option value="{{ folder.id }}" {% if article.folder_id == folder.id %}selected{% endif %}>
+                    {{ folder.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Barre d'outils Markdown -->
+        <div class="toolbar">
+            <button type="button" data-action="bold" title="Gras">**B**</button>
+            <button type="button" data-action="italic" title="Italique">*I*</button>
+            <button type="button" data-action="heading" title="Titre"># H</button>
+            <button type="button" data-action="link" title="Lien">🔗</button>
+            <button type="button" data-action="code" title="Code">&lt;/&gt;</button>
+            <button type="button" data-action="list" title="Liste">• Liste</button>
+            <button type="button" data-action="quote" title="Citation">" Citation</button>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Contenu (Markdown)</label>
+            <div class="editor-container">
+                <div class="editor-pane">
+                    <textarea class="form-control h-100" name="content" id="contentEditor" required>{{ article.content }}</textarea>
+                </div>
+                <div class="preview-pane">
+                    <div id="preview"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">💾 Enregistrer</button>
+            <a href="{{ url_for('view_wiki_article', id=article.id) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.onclick = () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        };
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark');
+        }
+
+        // Editeur Markdown
+        const editor = document.getElementById('contentEditor');
+        const preview = document.getElementById('preview');
+
+        // Mise à jour de la prévisualisation
+        function updatePreview() {
+            preview.innerHTML = marked.parse(editor.value);
+        }
+        
+        editor.addEventListener('input', updatePreview);
+        updatePreview();
+
+        // Actions de la barre d'outils
+        document.querySelectorAll('.toolbar button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const action = btn.dataset.action;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const selectedText = editor.value.substring(start, end);
+                let replacement = '';
+                
+                switch(action) {
+                    case 'bold':
+                        replacement = `**${selectedText || 'texte en gras'}**`;
+                        break;
+                    case 'italic':
+                        replacement = `*${selectedText || 'texte en italique'}*`;
+                        break;
+                    case 'heading':
+                        replacement = `## ${selectedText || 'Titre'}`;
+                        break;
+                    case 'link':
+                        replacement = `[${selectedText || 'texte du lien'}](URL)`;
+                        break;
+                    case 'code':
+                        if (selectedText.includes('\n')) {
+                            replacement = '```\n' + selectedText + '\n```';
+                        } else {
+                            replacement = '`' + (selectedText || 'code') + '`';
+                        }
+                        break;
+                    case 'list':
+                        replacement = selectedText.split('\n').map(line => '- ' + line).join('\n');
+                        break;
+                    case 'quote':
+                        replacement = selectedText.split('\n').map(line => '> ' + line).join('\n');
+                        break;
+                }
+                
+                editor.value = editor.value.substring(0, start) + replacement + editor.value.substring(end);
+                editor.selectionStart = start;
+                editor.selectionEnd = start + replacement.length;
+                editor.focus();
+                updatePreview();
+            });
+        });
+
+        // Raccourcis clavier
+        editor.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'b':
+                        e.preventDefault();
+                        document.querySelector('[data-action="bold"]').click();
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        document.querySelector('[data-action="italic"]').click();
+                        break;
+                    case 'k':
+                        e.preventDefault();
+                        document.querySelector('[data-action="link"]').click();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

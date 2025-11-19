@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Database
+# NOTE: dispatch.db est maintenant suivi dans Git pour la sauvegarde des données
+# Les autres fichiers .db restent ignorés
+*.sqlite
+*.sqlite3
+
+# Backups de la base de données
+backups/
+*.backup
+
+# Uploads (images Wiki, etc.)
+static/uploads/
+
+# Uploads (images Wiki, etc.)
+static/uploads/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment variables
+.env
+.env.local

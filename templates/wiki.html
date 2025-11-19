@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiki - Base de connaissances</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet">
+    <style>
+        .folder-tree {
+            list-style: none;
+            padding-left: 0;
+        }
+        .folder-tree ul {
+            list-style: none;
+            padding-left: 1.5rem;
+        }
+        .folder-item {
+            padding: 0.5rem;
+            border-radius: var(--border-radius-sm);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        .folder-item:hover {
+            background: var(--bg-hover);
+        }
+        .article-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            transition: var(--transition);
+        }
+        .article-item:hover {
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+        }
+        .search-box {
+            position: relative;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            box-shadow: var(--shadow-lg);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 0.5rem;
+        }
+        .search-result-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .search-result-item:hover {
+            background: var(--bg-hover);
+        }
+        .tree-toggle {
+            cursor: pointer;
+            user-select: none;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body class="container py-4">
+    <!-- Macro pour rendre l'arbre de dossiers - DOIT être défini AVANT utilisation -->
+    {% macro render_folder(folder) %}
+    <li class="folder-item" data-folder-id="{{ folder.id }}">
+        {% if folder.children %}
+        <span class="tree-toggle">▼</span>
+        {% else %}
+        <span class="tree-toggle" style="visibility: hidden;">▼</span>
+        {% endif %}
+        <span class="folder-name">📁 {{ folder.name }}</span>
+        {% if folder.children %}
+        <ul>
+            {% for child in folder.children %}
+                {{ render_folder(child)|safe }}
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </li>
+    {% endmacro %}
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold">📚 Base de connaissances</span>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+                <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="row">
+        <!-- Sidebar avec l'arbre de dossiers -->
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📁 Dossiers</h5>
+                    {% if role == 'admin' %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newFolderModal">+</button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <ul class="folder-tree" id="folderTree">
+                        {% for folder in folders %}
+                            {{ render_folder(folder)|safe }}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone principale avec articles -->
+        <div class="col-md-9">
+            <!-- Barre de recherche -->
+            <div class="search-box mb-4">
+                <input type="text" id="searchInput" class="form-control" placeholder="🔍 Rechercher dans la base de connaissances...">
+                <div class="search-results d-none" id="searchResults"></div>
+            </div>
+
+            <!-- Bouton nouveau article -->
+            {% if role == 'admin' or role == 'technicien' %}
+            <div class="mb-3">
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newArticleModal">
+                    ✏️ Nouvel article
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Liste des articles -->
+            <div id="articlesContainer">
+                <h4>📄 Articles récents</h4>
+                <div id="articlesList">
+                    {% for article in articles %}
+                    <div class="article-item" data-folder-id="{{ article.folder_id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5>
+                                    <a href="{{ url_for('view_wiki_article', id=article.id) }}" class="text-decoration-none">
+                                        {{ article.title }}
+                                    </a>
+                                </h5>
+                                <p class="text-muted small mb-0">
+                                    Par {{ article.created_by }} - {{ article.created_at }}
+                                </p>
+                            </div>
+                            <div class="d-flex gap-1">
+                                {% if role == 'admin' or article.created_by == user %}
+                                <a href="{{ url_for('edit_wiki_article', id=article.id) }}" class="btn btn-sm btn-outline-primary">✏️</a>
+                                <button class="btn btn-sm btn-outline-danger delete-article" data-id="{{ article.id }}">🗑️</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal nouveau dossier -->
+    <div class="modal fade" id="newFolderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouveau dossier</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="newFolderForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nom du dossier</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dossier parent</label>
+                            <select class="form-select" name="parent_id">
+                                <option value="">Racine</option>
+                                <!-- Options générées dynamiquement -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Créer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal nouvel article -->
+    <div class="modal fade" id="newArticleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouvel article</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="newArticleForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Titre</label>
+                            <input type="text" class="form-control" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dossier</label>
+                            <select class="form-select" name="folder_id">
+                                <option value="">Sans dossier</option>
+                                <!-- Options générées dynamiquement -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contenu</label>
+                            <textarea class="form-control" name="content" rows="10" required></textarea>
+                            <small class="text-muted">Vous pouvez utiliser Markdown pour formater le texte</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success">Créer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.onclick = () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        };
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark');
+        }
+
+        // Socket.IO
+        const socket = io();
+        socket.on('wiki_update', (data) => {
+            // Recharger la page ou mettre à jour dynamiquement
+            location.reload();
+        });
+
+        // Recherche
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                searchResults.classList.add('d-none');
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                fetch(`/wiki/search?q=${encodeURIComponent(query)}`)
+                    .then(r => r.json())
+                    .then(articles => {
+                        if (articles.length === 0) {
+                            searchResults.innerHTML = '<div class="p-3 text-muted">Aucun résultat</div>';
+                        } else {
+                            searchResults.innerHTML = articles.map(a => `
+                                <div class="search-result-item" onclick="window.location.href='/wiki/article/${a.id}'">
+                                    <strong>${a.title}</strong>
+                                    <p class="text-muted small mb-0">${a.excerpt}...</p>
+                                </div>
+                            `).join('');
+                        }
+                        searchResults.classList.remove('d-none');
+                    });
+            }, 300);
+        });
+
+        // Fermer les résultats de recherche en cliquant dehors
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.add('d-none');
+            }
+        });
+
+        // Toggle folders
+        document.querySelectorAll('.tree-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ul = toggle.parentElement.querySelector('ul');
+                if (ul) {
+                    ul.style.display = ul.style.display === 'none' ? 'block' : 'none';
+                    toggle.textContent = ul.style.display === 'none' ? '▶' : '▼';
+                }
+            });
+        });
+
+        // Filtrer articles par dossier
+        document.querySelectorAll('.folder-item').forEach(folder => {
+            folder.addEventListener('click', (e) => {
+                if (e.target.classList.contains('tree-toggle')) return;
+                
+                const folderId = folder.dataset.folderId;
+                const articles = document.querySelectorAll('.article-item');
+                
+                articles.forEach(article => {
+                    if (folderId === 'all' || article.dataset.folderId === folderId) {
+                        article.style.display = 'block';
+                    } else {
+                        article.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Nouveau dossier
+        document.getElementById('newFolderForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            fetch('/wiki/folder/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Erreur');
+                }
+            });
+        });
+
+        // Nouvel article
+        document.getElementById('newArticleForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            fetch('/wiki/article/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Erreur');
+                }
+            });
+        });
+
+        // Supprimer article
+        document.querySelectorAll('.delete-article').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (!confirm('Supprimer cet article ?')) return;
+                
+                const articleId = btn.dataset.id;
+                fetch(`/wiki/article/${articleId}/delete`, {
+                    method: 'POST'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        btn.closest('.article-item').remove();
+                    } else {
+                        alert(data.error || 'Erreur');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

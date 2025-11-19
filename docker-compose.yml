@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dispatch_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=dispatch
+      - POSTGRES_USER=dispatch_user
+      - POSTGRES_PASSWORD=dispatch_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch_user -d dispatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: dispatch_manager
+    restart: unless-stopped
+    # ports:
+    #   - "5000:5000"  # Internal usage only, access via Nginx on port 80
+    volumes:
+      # Volume pour les fichiers uploadés (images, etc.)
+      - dispatch_uploads:/app/static/uploads
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change_me_in_production_please}
+      - GUNICORN_WORKERS=1
+      - DB_TYPE=postgresql
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=dispatch
+      - POSTGRES_USER=dispatch_user
+      - POSTGRES_PASSWORD=dispatch_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:alpine
+    container_name: dispatch_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - dispatch_uploads:/var/www/uploads:ro
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+    driver: local
+  dispatch_uploads:
+    driver: local

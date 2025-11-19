@@ -1,0 +1,654 @@
+{# templates/home_content.html - VERSION AMÉLIORÉE v2.4 - FILTRES + COMPTEURS #}
+
+{% if role == 'admin' %}
+
+  <!-- ========================= -->
+  <!-- COMPTEURS EN TEMPS RÉEL -->
+  <!-- ========================= -->
+  <div class="row mb-3" id="statsCounters">
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card text-center shadow-sm">
+        <div class="card-body py-2">
+          <h6 class="card-title mb-0 text-muted">Total incidents</h6>
+          <h3 class="mb-0 text-primary" id="totalCount">{{ incidents|length }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card text-center shadow-sm">
+        <div class="card-body py-2">
+          <h6 class="card-title mb-0 text-muted">En cours</h6>
+          <h3 class="mb-0 text-warning" id="enCoursCount">{{ stats_by_category.en_cours if stats_by_category else incidents|selectattr("etat", "in", ["Affecté", "En cours de préparation", "En intervention"])|list|length }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card text-center shadow-sm">
+        <div class="card-body py-2">
+          <h6 class="card-title mb-0 text-muted">Suspendus</h6>
+          <h3 class="mb-0 text-danger" id="suspendusCount">{{ stats_by_category.suspendu if stats_by_category else incidents|selectattr("etat", "in", ["Suspendu", "Intervention programmée"])|list|length }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card text-center shadow-sm">
+        <div class="card-body py-2">
+          <h6 class="card-title mb-0 text-muted">Transférés</h6>
+          <h3 class="mb-0 text-info" id="transferesCount">{{ stats_by_category.transfere if stats_by_category else incidents|selectattr("etat", "in", ["Transféré", "En réservation"])|list|length }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- BARRE DE RECHERCHE & FILTRES -->
+  <!-- ========================= -->
+  <div class="mb-4 d-flex flex-wrap align-items-center gap-2">
+    <input
+      id="searchInput"
+      type="text"
+      class="form-control"
+      style="max-width: 300px;"
+      placeholder="🔍 Rechercher (n° / site / sujet)"
+    />
+
+    <select id="filterEtat" class="form-select" style="max-width: 180px;">
+      <option value="">— Filtrer par état —</option>
+      {% for st in statuts %}
+        <option value="{{ st.nom|lower }}">{{ st.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="filterUrgence" class="form-select" style="max-width: 140px;">
+      <option value="">— Filtrer par priorité —</option>
+      {% for p in priorites %}
+        <option value="{{ p.nom|lower }}">{{ p.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="filterSite" class="form-select" style="max-width: 200px;">
+      <option value="">— Filtrer par site —</option>
+      {% for s in sites %}
+        <option value="{{ s.nom|lower }}">{{ s.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="sortBy" class="form-select" style="max-width: 180px;">
+      <option value="">— Trier par —</option>
+      <option value="urgence-asc">Priorité (croissant)</option>
+      <option value="urgence-desc">Priorité (décroissant)</option>
+      <option value="date-asc">Date (plus ancien)</option>
+      <option value="date-desc">Date (plus récent)</option>
+      <option value="site-asc">Site (A-Z)</option>
+      <option value="numero-asc">N° ticket (A-Z)</option>
+    </select>
+
+    <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm">
+      🔄 Réinitialiser
+    </button>
+  </div>
+
+
+  <!-- ========================= -->
+  <!-- VUE COLONNES (grille responsive) -->
+  <!-- ========================= -->
+  <div id="columnsView" style="display: block;">
+    <div class="tech-grid">
+      {% for tech in techniciens %}
+        <div class="tech-column" data-technicien="{{ tech.prenom }}">
+          <div class="card shadow-sm h-100">
+            <div class="card-header text-center fw-bold bg-primary text-white">
+              {{ tech.prenom }} 
+              <span class="badge bg-light text-primary ms-1" id="tech-count-{{ tech.prenom }}">
+                {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+                {{ tech_incidents|length }}
+              </span>
+            </div>
+            <ul class="list-group list-group-flush incident-list-col" data-technicien="{{ tech.prenom }}">
+              {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+              {% if tech_incidents|length > 0 %}
+                {% for i in tech_incidents %}
+                  <li class="list-group-item incident-card-col"
+                      data-id="{{ i.id }}"
+                      data-numero="{{ i.numero|lower }}"
+                      data-site="{{ i.site|lower }}"
+                      data-sujet="{{ i.sujet|lower }}"
+                      data-urgence="{{ i.urgence|lower }}"
+                      data-etat="{{ i.etat|lower }}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <strong>{{ i.numero }}</strong>
+                      <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-light copy-btn" 
+                                data-numero="{{ i.numero }}" 
+                                title="Copier le numéro"
+                                style="padding: 2px 8px; font-size: 0.8rem;">📋</button>
+                        <a href="{{ url_for('edit_incident', id=i.id) }}" 
+                           class="btn btn-sm btn-outline-primary" 
+                           title="Modifier">✏️</a>
+                        <button class="btn btn-sm btn-outline-danger delete-btn" 
+                                data-incident-id="{{ i.id }}"
+                                data-numero="{{ i.numero }}"
+                                title="Supprimer">🗑️</button>
+                      </div>
+                    </div>
+                    
+                    {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+                    {% if site_info %}
+                      <span class="badge mb-1 site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary mb-1">{{ i.site }}</span>
+                    {% endif %}
+                    {% if i.localisation %}
+                      <small class="text-muted" style="font-size: 0.85rem;"> 📍 {{ i.localisation }}</small>
+                    {% endif %}
+                    
+                    <br><small>/ {{ i.sujet }}</small><br>
+                    
+                    {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+                    {% if priorite_info %}
+                      <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+                    {% else %}
+                      <span class="badge bg-warning">{{ i.urgence }}</span>
+                    {% endif %}
+                    
+                    <br><small>{{ i.date_affectation|format_date }}</small><br>
+                    
+                    {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+                    {% if statut_info %}
+                      <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
+                    {% endif %}
+                    {% if i.valide %}
+                      <span class="badge bg-purple">Validé</span>
+                    {% endif %}
+                    
+                    {% set note_content = i.notes.strip() if i.notes else '' %}
+                    {% if note_content %}
+                      <div class="incident-note">
+                        <small class="incident-note-text"><strong>Note:</strong> {{ note_content }}</small>
+                      </div>
+                    {% endif %}
+                    
+                    <div class="mt-2">
+                      <label class="form-label small mb-1">Changer statut:</label>
+                      <select class="form-select form-select-sm status-selector-col" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+                        {% for st in statuts %}
+                          <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>
+                            {{ st.nom }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    
+                    <div class="mt-2">
+                      <label class="form-label small mb-1">Changer technicien:</label>
+                      <select class="form-select form-select-sm tech-selector-col" data-incident-id="{{ i.id }}">
+                        {% for t in techniciens %}
+                          <option value="{{ t.prenom }}" {% if i.collaborateur == t.prenom %}selected{% endif %}>
+                            {{ t.prenom }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li class="list-group-item text-muted fst-italic text-center">Aucun incident</li>
+              {% endif %}
+            </ul>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- SCRIPTS JAVASCRIPT -->
+  <!-- ========================= -->
+  <script>
+    // Variables globales
+    let currentView = 'columns';
+
+    // Filtrage
+    function matchesFilters(cardElem) {
+      const txtSearch = document.querySelector('#searchInput').value.trim().toLowerCase();
+      const selEtat = document.querySelector('#filterEtat').value.toLowerCase();
+      const selUrg = document.querySelector('#filterUrgence').value.toLowerCase();
+      const selSite = document.querySelector('#filterSite').value.toLowerCase();
+
+      const numero = cardElem.dataset.numero;
+      const site = cardElem.dataset.site;
+      const sujet = cardElem.dataset.sujet;
+      const urgence = cardElem.dataset.urgence;
+      const etat = cardElem.dataset.etat;
+
+      if (txtSearch !== '') {
+        const txtOK = numero.includes(txtSearch) || site.includes(txtSearch) || sujet.includes(txtSearch);
+        if (!txtOK) return false;
+      }
+      if (selEtat && !etat.includes(selEtat)) return false;
+      if (selUrg && !urgence.includes(selUrg)) return false;
+      if (selSite && !site.includes(selSite)) return false;
+      return true;
+    }
+
+    function applySearchAndFilters() {
+      if (currentView === 'compact') {
+        document.querySelectorAll('.incident-row').forEach((row) => {
+          row.style.display = matchesFilters(row) ? '' : 'none';
+        });
+      } else {
+        document.querySelectorAll('.incident-card-col').forEach((card) => {
+          card.style.display = matchesFilters(card) ? 'block' : 'none';
+        });
+      }
+    }
+
+    // Fonction de tri
+    function applySorting() {
+      const sortValue = document.querySelector('#sortBy')?.value;
+      if (!sortValue) return;
+
+      const [criteria, order] = sortValue.split('-');
+      const priorityOrder = { 'basse': 1, 'moyenne': 2, 'haute': 3, 'critique': 4 };
+
+      // Trier chaque colonne de technicien
+      document.querySelectorAll('.incident-list-col').forEach(list => {
+        const cards = Array.from(list.querySelectorAll('.incident-card-col'));
+        
+        cards.sort((a, b) => {
+          let valA, valB;
+          
+          switch(criteria) {
+            case 'urgence':
+              valA = priorityOrder[a.dataset.urgence] || 0;
+              valB = priorityOrder[b.dataset.urgence] || 0;
+              break;
+            case 'date':
+              valA = a.querySelector('small:nth-of-type(2)')?.textContent || '';
+              valB = b.querySelector('small:nth-of-type(2)')?.textContent || '';
+              break;
+            case 'site':
+              valA = a.dataset.site;
+              valB = b.dataset.site;
+              break;
+            case 'numero':
+              valA = a.dataset.numero;
+              valB = b.dataset.numero;
+              break;
+          }
+          
+          if (order === 'asc') {
+            return valA > valB ? 1 : valA < valB ? -1 : 0;
+          } else {
+            return valA < valB ? 1 : valA > valB ? -1 : 0;
+          }
+        });
+        
+        // Réorganiser les cartes dans le DOM
+        cards.forEach(card => list.appendChild(card));
+      });
+    }
+
+    // Changement de technicien (vue compacte)
+    document.addEventListener('change', function(e) {
+      if (e.target.matches('.tech-selector')) {
+        const incidentId = e.target.dataset.incidentId;
+        const newTech = e.target.value;
+        const currentTech = e.target.dataset.current;
+        
+        if (newTech !== currentTech && confirm(`Affecter le ticket à ${newTech} ?`)) {
+          fetch('/incidents/assign', {
+            method: 'POST',
+            body: new URLSearchParams({
+              id: incidentId,
+              collaborateur: newTech
+            })
+          }).then(r => r.json()).then(() => {
+            e.target.dataset.current = newTech;
+          });
+        } else {
+          e.target.value = currentTech;
+        }
+      }
+      
+      // Changement de technicien (vue colonnes)
+      if (e.target.matches('.tech-selector-col')) {
+        const incidentId = e.target.dataset.incidentId;
+        const newTech = e.target.value;
+        
+        if (confirm(`Affecter le ticket à ${newTech} ?`)) {
+          fetch('/incidents/assign', {
+            method: 'POST',
+            body: new URLSearchParams({
+              id: incidentId,
+              collaborateur: newTech
+            })
+          }).then(r => r.json());
+        }
+      }
+      
+      // Changement de statut (vue colonnes)
+      if (e.target.matches('.status-selector-col')) {
+        const incidentId = e.target.dataset.incidentId;
+        const newStatus = e.target.value;
+        const currentStatus = e.target.dataset.current;
+        
+        if (newStatus !== currentStatus) {
+          fetch('/update_etat/' + incidentId, {
+            method: 'POST',
+            body: new URLSearchParams({
+              etat: newStatus
+            })
+          }).then(r => {
+            if (r.ok) {
+              e.target.dataset.current = newStatus;
+              // Mise à jour visuelle du badge
+              const card = e.target.closest('.incident-card-col');
+              const badge = card.querySelector('.badge.text-white.mt-1');
+              if (badge) {
+                badge.textContent = newStatus;
+              }
+            }
+          });
+        }
+      }
+    });
+    
+    // Bouton copier le numéro de ticket
+    document.addEventListener('click', function(e) {
+      if (e.target.matches('.copy-btn') || e.target.closest('.copy-btn')) {
+        const btn = e.target.matches('.copy-btn') ? e.target : e.target.closest('.copy-btn');
+        const numero = btn.dataset.numero;
+        
+        navigator.clipboard.writeText(numero).then(() => {
+          const originalText = btn.textContent;
+          btn.textContent = '✓';
+          btn.classList.add('btn-success');
+          btn.classList.remove('btn-light');
+          
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-light');
+          }, 1500);
+        }).catch(err => {
+          console.error('Erreur copie:', err);
+          alert('Impossible de copier');
+        });
+      }
+      
+      // Bouton supprimer incident
+      if (e.target.matches('.delete-btn') || e.target.closest('.delete-btn')) {
+        const btn = e.target.matches('.delete-btn') ? e.target : e.target.closest('.delete-btn');
+        const incidentId = btn.dataset.incidentId;
+        const numero = btn.dataset.numero;
+        
+        // Sauvegarder la position de scroll horizontal
+        const columnsView = document.querySelector('#columnsView .row');
+        const scrollPosition = columnsView ? columnsView.scrollLeft : 0;
+        
+        fetch('/delete_incident/' + incidentId, {
+          method: 'POST'
+        }).then(r => {
+          if (r.ok) {
+            // Supprimer visuellement la carte
+            const card = btn.closest('.incident-card-col');
+            if (card) {
+              card.style.transition = 'opacity 0.3s';
+              card.style.opacity = '0';
+              setTimeout(() => {
+                card.remove();
+                // Restaurer la position de scroll
+                if (columnsView) {
+                  columnsView.scrollLeft = scrollPosition;
+                }
+              }, 300);
+            }
+          } else {
+            alert('Erreur lors de la suppression');
+          }
+        }).catch(err => {
+          console.error('Erreur suppression:', err);
+          alert('Erreur lors de la suppression');
+        });
+      }
+    });
+
+    // Fonction pour calculer la luminosité d'une couleur et choisir noir ou blanc
+    function getContrastColor(hexColor) {
+      // Convertir hex en RGB
+      const hex = hexColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Calculer la luminosité (formule YIQ)
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      
+      // Retourner noir pour fond clair, blanc pour fond foncé
+      return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+    
+    // Appliquer le contraste automatique aux badges
+    window.applyBadgeContrast = function() {
+      document.querySelectorAll('.badge[style*="background-color"]').forEach(badge => {
+        const bgColor = badge.style.backgroundColor;
+        if (bgColor) {
+          // Convertir rgb() en hex si nécessaire
+          let hexColor = bgColor;
+          if (bgColor.startsWith('rgb')) {
+            const rgb = bgColor.match(/\d+/g);
+            hexColor = '#' + rgb.map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+          }
+          badge.style.color = getContrastColor(hexColor);
+        }
+      });
+    };
+
+    // Appliquer les styles depuis les data attributes (pour éviter les erreurs CSS lint)
+    function applyDataAttributesStyles() {
+      // Appliquer les styles aux badges
+      document.querySelectorAll('.site-badge, .priority-badge, .status-badge').forEach(badge => {
+        const bgColor = badge.dataset.bgColor;
+        const textColor = badge.dataset.textColor;
+        if (bgColor) badge.style.backgroundColor = bgColor;
+        if (textColor) badge.style.color = textColor;
+      });
+      
+      // Appliquer les styles aux en-têtes de priorité
+      document.querySelectorAll('.priority-header').forEach(header => {
+        const bgColor = header.dataset.bgColor;
+        if (bgColor) header.style.backgroundColor = bgColor;
+      });
+    }
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', () => {
+      applySearchAndFilters();
+      applyBadgeContrast(); // Appliquer le contraste aux badges
+      applyDataAttributesStyles(); // Appliquer les styles depuis data attributes
+      
+      ['#searchInput', '#filterEtat', '#filterUrgence', '#filterSite'].forEach((sel) => {
+        const el = document.querySelector(sel);
+        el.addEventListener('input', applySearchAndFilters);
+        el.addEventListener('change', applySearchAndFilters);
+      });
+      document.querySelector('#clearFiltersBtn').addEventListener('click', () => {
+        document.querySelector('#searchInput').value = '';
+        document.querySelector('#filterEtat').value = '';
+        document.querySelector('#filterUrgence').value = '';
+        document.querySelector('#filterSite').value = '';
+        document.querySelector('#sortBy').value = '';
+        applySearchAndFilters();
+      });
+      
+      // Événement pour le tri
+      const sortSelect = document.querySelector('#sortBy');
+      if (sortSelect) {
+        sortSelect.addEventListener('change', applySorting);
+      }
+    });
+  </script>
+
+  <!-- ========================= -->
+  <!-- STYLES -->
+  <!-- ========================= -->
+  <style>
+    .incident-row:hover {
+      background-color: #f8f9fa;
+    }
+    .table-sm td {
+      vertical-align: middle;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.25em 0.6em;
+    }
+    .tech-selector, .tech-selector-col {
+      cursor: pointer;
+    }
+  </style>
+
+{% else %}
+  <!-- ========================= -->
+  <!-- VUE TECHNICIEN (PETITES CARTES) -->
+  <!-- ========================= -->
+  <div id="userView" class="d-flex flex-wrap gap-3">
+    {% for i in incidents %}
+      {% set priorite_info_header = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+      <div class="card small-card shadow-sm">
+        <div class="card-header text-center fw-bold text-white d-flex align-items-center justify-content-center gap-2 priority-header" 
+             data-bg-color="{% if priorite_info_header %}{{ priorite_info_header.couleur }}{% else %}#6c757d{% endif %}">
+          <span>{{ i.numero }}</span>
+          <button class="btn btn-sm btn-light copy-btn" 
+                  data-numero="{{ i.numero }}" 
+                  title="Copier le numéro"
+                  style="padding: 2px 8px; font-size: 0.8rem;">📋</button>
+        </div>
+        <div class="card-body">
+          {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+          {% if site_info %}
+            <span class="badge mb-2 site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+          {% else %}
+            <span class="badge bg-secondary mb-2">{{ i.site }}</span>
+          {% endif %}
+          {% if i.localisation %}
+            <small class="text-muted d-block" style="font-size: 0.85rem;">📍 {{ i.localisation }}</small>
+          {% endif %}
+          
+          <small>/ {{ i.sujet }}</small>
+          
+          <p class="mt-2">
+            {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+            {% if priorite_info %}
+              <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+            {% else %}
+              <span class="badge bg-warning">{{ i.urgence }}</span>
+            {% endif %}
+          </p>
+          
+          <p><small>{{ i.date_affectation|format_date }}</small></p>
+          <p>
+            {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+            {% if statut_info %}
+              <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ i.etat }}</span>
+            {% endif %}
+            {% if i.valide %}<span class="badge bg-purple">Validé</span>{% endif %}
+          </p>
+
+          {% set note_content = i.notes.strip() if i.notes else '' %}
+          <div>
+            {% if note_content %}
+              <span class="fst-italic small text-muted">{{ note_content[:40] }}{% if note_content|length > 40 %}...{% endif %}</span>
+            {% else %}
+              <span class="fst-italic small text-muted">Aucune note</span>
+            {% endif %}
+          </div>
+
+          <div class="d-flex flex-wrap gap-1 mt-2">
+            <a href="{{ url_for('edit_note', id=i.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier localisation & note">✏️</a>
+            <a href="{{ url_for('historique', id=i.id) }}" class="btn btn-sm btn-outline-info" title="Voir historique">🕒</a>
+            <form method="post" action="{{ url_for('update_etat', id=i.id) }}" class="d-inline ajax-form">
+              <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
+                {% for st in statuts %}
+                  <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>{{ st.nom }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  
+  <!-- Script pour le bouton copier côté technicien -->
+  <script>
+    // Fonction pour calculer la luminosité d'une couleur et choisir noir ou blanc
+    function getContrastColor(hexColor) {
+      // Convertir hex en RGB
+      const hex = hexColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Calculer la luminosité (formule YIQ)
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      
+      // Retourner noir pour fond clair, blanc pour fond foncé
+      return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+    
+    // Appliquer les styles depuis les data attributes (pour éviter les erreurs CSS lint)
+    function applyDataAttributesStyles() {
+      // Appliquer les styles aux badges
+      document.querySelectorAll('.site-badge, .priority-badge, .status-badge').forEach(badge => {
+        const bgColor = badge.dataset.bgColor;
+        const textColor = badge.dataset.textColor;
+        if (bgColor) badge.style.backgroundColor = bgColor;
+        if (textColor) badge.style.color = textColor;
+      });
+      
+      // Appliquer les styles aux en-têtes de priorité
+      document.querySelectorAll('.priority-header').forEach(header => {
+        const bgColor = header.dataset.bgColor;
+        if (bgColor) {
+          header.style.backgroundColor = bgColor;
+          // Appliquer automatiquement la couleur de texte avec contraste
+          header.style.color = getContrastColor(bgColor);
+        }
+      });
+    }
+
+    // Initialisation pour la vue technicien
+    document.addEventListener('DOMContentLoaded', () => {
+      applyDataAttributesStyles(); // Appliquer les styles depuis data attributes
+    });
+
+    document.addEventListener('click', function(e) {
+      if (e.target.matches('.copy-btn') || e.target.closest('.copy-btn')) {
+        const btn = e.target.matches('.copy-btn') ? e.target : e.target.closest('.copy-btn');
+        const numero = btn.dataset.numero;
+        
+        navigator.clipboard.writeText(numero).then(() => {
+          const originalText = btn.textContent;
+          btn.textContent = '✓';
+          btn.classList.add('btn-success');
+          btn.classList.remove('btn-light');
+          
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-light');
+          }, 1500);
+        }).catch(err => {
+          console.error('Erreur copie:', err);
+          alert('Impossible de copier');
+        });
+      }
+    });
+  </script>
+{% endif %}

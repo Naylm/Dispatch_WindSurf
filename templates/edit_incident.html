@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modifier Incident - Dispatch Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+  <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <div class="container-fluid">
+      <span class="navbar-brand fw-bold">Modifier Incident #{{ incident.numero }}</span>
+      <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+    </div>
+  </nav>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="numero" class="form-label">Numéro de ticket</label>
+            <input type="text" class="form-control" id="numero" name="numero" value="{{ incident.numero }}" required>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label for="date_affectation" class="form-label">Date d'affectation</label>
+            <input type="date" class="form-control" id="date_affectation" name="date_affectation" value="{{ incident.date_affectation }}" required>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="site" class="form-label">Site</label>
+            <select class="form-select" id="site" name="site" required>
+              <option value="">-- Sélectionner un site --</option>
+              {% for s in sites %}
+                <option value="{{ s.nom }}" {% if incident.site == s.nom %}selected{% endif %}>{{ s.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label for="localisation" class="form-label">Localisation précise <small class="text-muted">(ex: HD-3E-AW_08)</small></label>
+            <input type="text" class="form-control" id="localisation" name="localisation" value="{{ incident.localisation or '' }}" placeholder="Bâtiment-Étage-Bureau...">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="sujet" class="form-label">Sujet</label>
+            <select class="form-select" id="sujet" name="sujet" required>
+              <option value="">-- Sélectionner un sujet --</option>
+              {% for suj in sujets %}
+                <option value="{{ suj.nom }}" {% if incident.sujet == suj.nom %}selected{% endif %}>{{ suj.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="urgence" class="form-label">Priorité</label>
+            <select class="form-select" id="urgence" name="urgence" required>
+              <option value="">-- Sélectionner une priorité --</option>
+              {% for p in priorites %}
+                <option value="{{ p.nom }}" {% if incident.urgence == p.nom %}selected{% endif %}>{{ p.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label for="collaborateur" class="form-label">Technicien affecté</label>
+            <select class="form-select" id="collaborateur" name="collaborateur" required>
+              <option value="">-- Sélectionner un technicien --</option>
+              {% for tech in techniciens %}
+                <option value="{{ tech.prenom }}" {% if incident.collaborateur == tech.prenom %}selected{% endif %}>{{ tech.prenom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="etat" class="form-label">État</label>
+          <select class="form-select" id="etat" name="etat" required>
+            <option value="Affecté" {% if incident.etat == 'Affecté' %}selected{% endif %}>Affecté</option>
+            <option value="En cours de préparation" {% if incident.etat == 'En cours de préparation' %}selected{% endif %}>En cours de préparation</option>
+            <option value="Traité" {% if incident.etat == 'Traité' %}selected{% endif %}>Traité</option>
+            <option value="Suspendu" {% if incident.etat == 'Suspendu' %}selected{% endif %}>Suspendu</option>
+            <option value="En réservation" {% if incident.etat == 'En réservation' %}selected{% endif %}>En réservation</option>
+            <option value="Transféré" {% if incident.etat == 'Transféré' %}selected{% endif %}>Transféré</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="notes" class="form-label">Notes</label>
+          <textarea class="form-control" id="notes" name="notes" rows="4">{{ incident.notes }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">💾 Enregistrer les modifications</button>
+          <a href="{{ url_for('home') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
