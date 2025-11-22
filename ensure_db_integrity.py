@@ -69,8 +69,8 @@ def ensure_database_integrity():
     # ========== TABLE: incidents ==========
     cursor.execute("""
         SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
             AND table_name = 'incidents'
         )
     """)
@@ -85,6 +85,7 @@ def ensure_database_integrity():
                 collaborateur VARCHAR(255) NOT NULL,
                 etat VARCHAR(255) DEFAULT 'Affecté',
                 notes TEXT,
+                note_dispatch TEXT,
                 valide INTEGER DEFAULT 0,
                 date_affectation DATE NOT NULL,
                 archived INTEGER DEFAULT 0,
@@ -94,6 +95,15 @@ def ensure_database_integrity():
         tables_created.append("incidents")
     else:
         tables_verified.append("incidents")
+        # Migration: s'assurer que la colonne note_dispatch existe
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='note_dispatch'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN note_dispatch TEXT")
+            print("   - Colonne note_dispatch ajoutee a la table incidents")
     
     # ========== TABLE: historique ==========
     cursor.execute("""

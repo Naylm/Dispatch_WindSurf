@@ -239,7 +239,7 @@ body.dark .bg-purple {
    ============================== */
 .small-card {
   display: block;
-  width: 18rem;            /* Ajustez la largeur si besoin */
+  width: 22rem;            /* Élargi de 18rem à 22rem pour plus d'espace */
   margin: 0.75rem;         /* Marge autour de chaque carte */
   overflow-wrap: break-word;   /* Permettre le wrapping interne */
   word-break: break-word;

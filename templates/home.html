@@ -19,7 +19,7 @@
     .small-card {
       display: inline-block;
       vertical-align: top;
-      width: 15rem;
+      width: 24rem;
       margin: 0.5rem;
     }
 
@@ -179,8 +179,8 @@
   </style>
 </head>
 <body class="container py-4">
-  <!-- Sidebar - Toujours visible pour admins et techniciens -->
-  <aside class="sidebar sidebar-permanent" id="sidebar">
+  <!-- Sidebar - Toggleable pour admins et techniciens -->
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h3>{% if role == 'admin' %}Menu Admin{% else %}Outils rapides{% endif %}</h3>
     </div>
@@ -205,9 +205,16 @@
   <!-- Navbar -->
   <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
     <div class="container-fluid">
-      <span class="navbar-brand fw-bold">Dispatch Manager</span>
-      <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
-      <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+      <div class="d-flex align-items-center gap-2">
+        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Menu">
+          <span class="hamburger-icon"></span>
+        </button>
+        <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+      </div>
     </div>
   </nav>
 
@@ -245,22 +252,27 @@
     socket.emit('join', { room: '{{ user.lower() }}' });
 
     function refreshIncidents() {
+      // Ne pas rafraîchir si un changement de statut est en cours
+      if (window._statusUpdateInProgress) {
+        return;
+      }
+
       // Sauvegarder la position de scroll horizontal
       const columnsView = document.querySelector('#columnsView .row');
       const scrollPosition = columnsView ? columnsView.scrollLeft : 0;
-      
+
       fetch('{{ url_for("home_content_api") }}')
         .then((resp) => resp.text())
         .then((html) => {
           document.getElementById('incident-content').innerHTML = html;
           if (window.enableDragDrop) enableDragDrop();
-          
+
           // Appliquer le contraste des badges après le rafraîchissement
           if (window.applyBadgeContrast) window.applyBadgeContrast();
-          
+
           // Appliquer les styles des data attributes après le rafraîchissement
           if (window.applyDataAttributesStyles) window.applyDataAttributesStyles();
-          
+
           // Restaurer la position de scroll après le rendu
           setTimeout(() => {
             const newColumnsView = document.querySelector('#columnsView .row');
@@ -299,16 +311,69 @@
     document.body.addEventListener('submit', (e) => {
       if (e.target.matches('.ajax-form')) {
         e.preventDefault();
+
+        // Désactiver temporairement le refresh Socket.IO
+        window._statusUpdateInProgress = true;
+
         fetch(e.target.action, {
           method: e.target.method,
           body: new FormData(e.target),
-        }).then(() => refreshIncidents());
+        }).then(() => {
+          // Mise à jour visuelle locale pour le changement de statut
+          const select = e.target.querySelector('select[name="etat"]');
+          if (select) {
+            const card = e.target.closest('.small-card');
+            const badge = card ? card.querySelector('.badge.status-badge') : null;
+            if (badge) {
+              badge.textContent = select.value;
+            }
+          }
+
+          // Réactiver le refresh après un délai
+          setTimeout(() => {
+            window._statusUpdateInProgress = false;
+          }, 500);
+        }).catch(() => {
+          window._statusUpdateInProgress = false;
+        });
       }
     });
     
-    // Sidebar toujours visible pour admins et techniciens - pas de toggle nécessaire
-    // Ajouter la classe au body pour décaler le contenu
-    document.body.classList.add('with-sidebar-permanent');
+    // === SIDEBAR TOGGLE ===
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    // Charger l'état de la sidebar depuis localStorage
+    const sidebarState = localStorage.getItem('sidebarState') || 'open';
+
+    if (sidebarState === 'open') {
+      sidebar.classList.add('open');
+      document.body.classList.add('with-sidebar-permanent');
+    } else {
+      sidebar.classList.add('sidebar-hidden');
+      document.body.classList.add('content-expanded');
+    }
+
+    // Toggle sidebar au clic
+    sidebarToggle.addEventListener('click', function() {
+      const isOpen = sidebar.classList.contains('open');
+
+      if (isOpen) {
+        // Fermer la sidebar
+        sidebar.classList.remove('open');
+        sidebar.classList.add('sidebar-hidden');
+        document.body.classList.remove('with-sidebar-permanent');
+        document.body.classList.add('content-expanded');
+        localStorage.setItem('sidebarState', 'closed');
+      } else {
+        // Ouvrir la sidebar
+        sidebar.classList.remove('sidebar-hidden');
+        sidebar.classList.add('open');
+        document.body.classList.remove('content-expanded');
+        document.body.classList.add('with-sidebar-permanent');
+        localStorage.setItem('sidebarState', 'open');
+      }
+    });
   </script>
 </body>
 </html>

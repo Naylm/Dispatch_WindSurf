@@ -104,8 +104,15 @@
         </div>
 
         <div class="mb-3">
-          <label for="notes" class="form-label">Notes</label>
-          <textarea class="form-control" id="notes" name="notes" rows="4">{{ incident.notes }}</textarea>
+          <label for="note_dispatch" class="form-label">📋 Note Dispatch <small class="text-muted">(Admin seulement - visible par tous)</small></label>
+          <textarea class="form-control" id="note_dispatch" name="note_dispatch" rows="3">{{ incident.note_dispatch or '' }}</textarea>
+          <small class="text-muted">Cette note sera visible par tous les techniciens mais ne pourra être modifiée que par les admins.</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="notes" class="form-label">💬 Note Technicien <small class="text-muted">(optionnelle)</small></label>
+          <textarea class="form-control" id="notes" name="notes" rows="3">{{ incident.notes or '' }}</textarea>
+          <small class="text-muted">Note de travail du technicien.</small>
         </div>
 
         <div class="d-flex gap-2">

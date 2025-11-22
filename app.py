@@ -732,17 +732,17 @@ def add_incident():
         urgence = request.form["urgence"]
         collab = request.form["collaborateur"]
         date_aff = request.form["date_affectation"]
-        notes = request.form.get("notes", "")
+        note_dispatch = request.form.get("note_dispatch", "")
         localisation = request.form.get("localisation", "")
 
         sql = """
           INSERT INTO incidents (
             numero, site, sujet, urgence,
-            collaborateur, etat, notes,
+            collaborateur, etat, note_dispatch,
             valide, date_affectation, archived, localisation
           ) VALUES (?, ?, ?, ?, ?, 'Affecté', ?, 0, ?, 0, ?)
         """
-        db.execute(sql, (numero, site, sujet, urgence, collab, notes, date_aff, localisation))
+        db.execute(sql, (numero, site, sujet, urgence, collab, note_dispatch, date_aff, localisation))
         db.commit()
         socketio.emit("incident_update", {"action": "add"})
         return redirect(url_for("home"))
@@ -824,17 +824,18 @@ def edit_incident(id):
         urgence = request.form["urgence"].strip()
         collaborateur = request.form["collaborateur"].strip()
         etat = request.form["etat"].strip()
-        notes = request.form["notes"].strip()
+        notes = request.form.get("notes", "").strip()
+        note_dispatch = request.form.get("note_dispatch", "").strip()
         date_aff = request.form["date_affectation"]
         localisation = request.form.get("localisation", "").strip()
-        
+
         # Mise à jour de l'incident avec protection transactionnelle
         try:
             db.execute("BEGIN")
             db.execute(
-                """UPDATE incidents SET numero=?, site=?, sujet=?, urgence=?, 
-                   collaborateur=?, etat=?, notes=?, date_affectation=?, localisation=? WHERE id=?""",
-                (numero, site, sujet, urgence, collaborateur, etat, notes, date_aff, localisation, id)
+                """UPDATE incidents SET numero=?, site=?, sujet=?, urgence=?,
+                   collaborateur=?, etat=?, notes=?, note_dispatch=?, date_affectation=?, localisation=? WHERE id=?""",
+                (numero, site, sujet, urgence, collaborateur, etat, notes, note_dispatch, date_aff, localisation, id)
             )
         except Exception:
             db.rollback()
@@ -945,6 +946,102 @@ def edit_note(id):
         return redirect(url_for("home"))
 
     return render_template("edit_note.html", id=id, numero=inc["numero"], current_note=inc["notes"], current_localisation=inc["localisation"] or "")
+
+
+# ---------- EDITION INLINE DES NOTES (AJAX) ----------
+@app.route("/edit_note_inline/<int:id>", methods=["POST"])
+def edit_note_inline(id):
+    """Édition inline de la note technicien via AJAX"""
+    if "user" not in session:
+        return jsonify({"error": "Non authentifié"}), 403
+
+    db = get_db()
+    inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+
+    if not inc:
+        return jsonify({"error": "Incident introuvable"}), 404
+
+    # Vérifier les permissions (technicien propriétaire ou admin)
+    if inc["collaborateur"].lower() != session["user"].lower() and session["role"] != "admin":
+        return jsonify({"error": "Permission refusée"}), 403
+
+    new_note = request.json.get("note", "").strip()
+
+    # Vérifier si la note a changé
+    if inc["notes"] != new_note:
+        # Enregistrer dans l'historique
+        hist_sql = """
+          INSERT INTO historique (
+            incident_id, champ, ancienne_valeur,
+            nouvelle_valeur, modifie_par, date_modification
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        """
+        db.execute(
+            hist_sql,
+            (
+                id,
+                "notes",
+                inc["notes"] or "",
+                new_note,
+                session["user"],
+                datetime.now().strftime("%d-%m-%Y %H:%M"),
+            ),
+        )
+
+        # Mettre à jour la note
+        db.execute("UPDATE incidents SET notes=? WHERE id=?", (new_note, id))
+        db.commit()
+        socketio.emit("incident_update", {"action": "note_edit"})
+
+        return jsonify({"success": True, "note": new_note})
+
+    return jsonify({"success": True, "note": new_note, "unchanged": True})
+
+
+@app.route("/edit_note_dispatch/<int:id>", methods=["POST"])
+def edit_note_dispatch(id):
+    """Édition de la note dispatch (admin seulement) via AJAX"""
+    if "user" not in session or session["role"] != "admin":
+        return jsonify({"error": "Permission refusée - Admin uniquement"}), 403
+
+    db = get_db()
+    inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+
+    if not inc:
+        return jsonify({"error": "Incident introuvable"}), 404
+
+    new_note_dispatch = request.json.get("note_dispatch", "").strip()
+
+    # Vérifier si la note dispatch a changé
+    old_note_dispatch = inc.get("note_dispatch") or ""
+    if old_note_dispatch != new_note_dispatch:
+        # Enregistrer dans l'historique
+        hist_sql = """
+          INSERT INTO historique (
+            incident_id, champ, ancienne_valeur,
+            nouvelle_valeur, modifie_par, date_modification
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        """
+        db.execute(
+            hist_sql,
+            (
+                id,
+                "note_dispatch",
+                old_note_dispatch,
+                new_note_dispatch,
+                session["user"],
+                datetime.now().strftime("%d-%m-%Y %H:%M"),
+            ),
+        )
+
+        # Mettre à jour la note dispatch
+        db.execute("UPDATE incidents SET note_dispatch=? WHERE id=?", (new_note_dispatch, id))
+        db.commit()
+        socketio.emit("incident_update", {"action": "note_dispatch_edit"})
+
+        return jsonify({"success": True, "note_dispatch": new_note_dispatch})
+
+    return jsonify({"success": True, "note_dispatch": new_note_dispatch, "unchanged": True})
 
 
 # ---------- UPDATE ETAT ----------
