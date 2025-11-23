@@ -168,38 +168,53 @@
 
                     <!-- Note Dispatch (Admin seulement en édition) -->
                     {% set note_dispatch_content = i.note_dispatch.strip() if i.note_dispatch else '' %}
-                    <div class="note-dispatch-container note-editable"
-                         data-incident-id="{{ i.id }}"
-                         data-note-type="dispatch"
-                         data-role="admin"
-                         title="Double-cliquer pour éditer">
-                      <div class="note-dispatch-label">
-                        <span>📋 Note Dispatch</span>
+                    <div class="note-wrapper" data-incident-id="{{ i.id }}" data-note-type="dispatch">
+                      <!-- View Mode -->
+                      <div class="note-view-mode note-dispatch-view">
+                        <div class="note-view-header">
+                          <span class="note-view-label">📋 Note Dispatch</span>
+                          <button class="note-edit-btn" onclick="enterEditMode(this)" title="Modifier">✏️</button>
+                        </div>
+                        <div class="note-view-content" onclick="this.closest('.note-view-mode').querySelector('.note-edit-btn').click()" style="cursor: pointer;" title="Cliquer pour éditer">
+                          {% if note_dispatch_content %}{{ note_dispatch_content | e }}{% else %}<span class="note-empty">Aucune note dispatch</span>{% endif %}
+                        </div>
                       </div>
-                      <div class="note-dispatch-text" data-full-text="{{ note_dispatch_content }}">
-                        {% if note_dispatch_content %}
-                          {{ note_dispatch_content }}
-                        {% else %}
-                          <span class="note-empty">Aucune note dispatch</span>
-                        {% endif %}
+                      <!-- Edit Mode (hidden by default) -->
+                      <div class="note-edit-mode note-dispatch-edit" style="display: none;">
+                        <div class="note-edit-header">
+                          <span class="note-edit-label">📋 Note Dispatch</span>
+                        </div>
+                        <textarea class="note-edit-textarea" rows="2">{{ note_dispatch_content }}</textarea>
+                        <div class="note-edit-actions">
+                          <button class="note-save-btn" onclick="saveNote(this, {{ i.id }}, 'dispatch')">💾 Sauvegarder</button>
+                          <button class="note-cancel-btn" onclick="cancelEdit(this)">❌ Annuler</button>
+                        </div>
                       </div>
                     </div>
 
                     <!-- Note Technicien (Éditable par tous) -->
                     {% set note_tech_content = i.notes.strip() if i.notes else '' %}
-                    <div class="note-technicien-container note-editable"
-                         data-incident-id="{{ i.id }}"
-                         data-note-type="tech"
-                         title="Double-cliquer pour éditer">
-                      <div class="note-technicien-label">
-                        <span>💬 Note Technicien</span>
+                    <div class="note-wrapper" data-incident-id="{{ i.id }}" data-note-type="tech">
+                      <!-- View Mode -->
+                      <div class="note-view-mode note-tech-view">
+                        <div class="note-view-header">
+                          <span class="note-view-label">💬 Note Technicien</span>
+                          <button class="note-edit-btn" onclick="enterEditMode(this)" title="Modifier">✏️</button>
+                        </div>
+                        <div class="note-view-content" onclick="this.closest('.note-view-mode').querySelector('.note-edit-btn').click()" style="cursor: pointer;" title="Cliquer pour éditer">
+                          {% if note_tech_content %}{{ note_tech_content | e }}{% else %}<span class="note-empty">Aucune note technicien</span>{% endif %}
+                        </div>
                       </div>
-                      <div class="note-technicien-text" data-full-text="{{ note_tech_content }}">
-                        {% if note_tech_content %}
-                          {{ note_tech_content }}
-                        {% else %}
-                          <span class="note-empty">Aucune note technicien</span>
-                        {% endif %}
+                      <!-- Edit Mode (hidden by default) -->
+                      <div class="note-edit-mode note-tech-edit" style="display: none;">
+                        <div class="note-edit-header">
+                          <span class="note-edit-label">💬 Note Technicien</span>
+                        </div>
+                        <textarea class="note-edit-textarea" rows="2">{{ note_tech_content }}</textarea>
+                        <div class="note-edit-actions">
+                          <button class="note-save-btn" onclick="saveNote(this, {{ i.id }}, 'tech')">💾 Sauvegarder</button>
+                          <button class="note-cancel-btn" onclick="cancelEdit(this)">❌ Annuler</button>
+                        </div>
                       </div>
                     </div>
 
@@ -535,33 +550,9 @@
         sortSelect.addEventListener('change', applySorting);
       }
 
-      // Initialiser l'édition des notes
-      initNoteEditing();
     });
 
-    // ===== ÉDITION INLINE DES NOTES (DOUBLE-CLIC) =====
-    function initNoteEditing() {
-      document.querySelectorAll('.note-editable').forEach(container => {
-        container.addEventListener('dblclick', function() {
-          const incidentId = this.dataset.incidentId;
-          const noteType = this.dataset.noteType; // 'dispatch' ou 'tech'
-          const role = this.dataset.role; // 'admin' ou undefined
-          const textContainer = this.querySelector('.note-dispatch-text, .note-technicien-text');
-          const fullText = textContainer.dataset.fullText || '';
-
-          // Vérifier si déjà en mode édition
-          if (this.classList.contains('note-editing')) return;
-
-          // Pour note dispatch, vérifier que c'est un admin (côté client uniquement, sécurité côté serveur)
-          if (noteType === 'dispatch' && role !== 'admin') {
-            return; // Ne rien faire si ce n'est pas un admin
-          }
-
-          // Entrer en mode édition
-          startEditNote(this, incidentId, noteType, fullText);
-        });
-      });
-    }
+    // ===== NEW NOTE SYSTEM: CLEAN VIEW/EDIT MODE SEPARATION =====
 
     // Auto-resize textarea function
     function autoResizeTextarea(textarea) {
@@ -569,109 +560,133 @@
       textarea.style.height = (textarea.scrollHeight) + 'px';
     }
 
-    function startEditNote(container, incidentId, noteType, currentText) {
-      container.classList.add('note-editing');
-      const textContainer = container.querySelector('.note-dispatch-text, .note-technicien-text');
+    // Enter edit mode - hide view, show edit
+    function enterEditMode(button) {
+      const wrapper = button.closest('.note-wrapper');
+      const viewMode = wrapper.querySelector('.note-view-mode');
+      const editMode = wrapper.querySelector('.note-edit-mode');
+      const textarea = editMode.querySelector('.note-edit-textarea');
 
-      // Créer le textarea
-      const textarea = document.createElement('textarea');
-      textarea.className = 'note-edit-textarea';
-      textarea.value = currentText;
-      textarea.dataset.originalValue = currentText;
-      textarea.rows = 2; // Start with 2 rows
+      // Hide view, show edit
+      viewMode.style.display = 'none';
+      editMode.style.display = 'block';
 
-      // Créer les boutons d'action
-      const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'note-edit-actions';
+      // Auto-resize textarea
+      setTimeout(() => {
+        autoResizeTextarea(textarea);
+        textarea.focus();
+      }, 0);
 
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'note-save-btn';
-      saveBtn.textContent = '💾 Sauvegarder';
-      saveBtn.onclick = () => saveNoteInline(container, incidentId, noteType, textarea.value);
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'note-cancel-btn';
-      cancelBtn.textContent = '❌ Annuler';
-      cancelBtn.onclick = () => cancelEditNote(container, currentText);
-
-      actionsDiv.appendChild(saveBtn);
-      actionsDiv.appendChild(cancelBtn);
-
-      // Remplacer le contenu
-      textContainer.innerHTML = '';
-      textContainer.appendChild(textarea);
-      textContainer.appendChild(actionsDiv);
-
-      // Auto-resize on input
+      // Add input listener for auto-resize
       textarea.addEventListener('input', () => autoResizeTextarea(textarea));
-
-      // Initial resize
-      setTimeout(() => autoResizeTextarea(textarea), 0);
-
-      // Focus et select
-      textarea.focus();
-      textarea.select();
     }
 
-    function saveNoteInline(container, incidentId, noteType, newValue) {
-      const route = noteType === 'dispatch' ? '/edit_note_dispatch/' : '/edit_note_inline/';
-      const dataKey = noteType === 'dispatch' ? 'note_dispatch' : 'note';
+    // Save note and return to view mode
+    function saveNote(button, incidentId, noteType) {
+      const wrapper = button.closest('.note-wrapper');
+      const textarea = wrapper.querySelector('.note-edit-textarea');
+      const newValue = textarea.value;
 
-      // Envoyer la requête AJAX
-      fetch(route + incidentId, {
+      let route, payload;
+      if (noteType === 'dispatch') {
+        route = '/edit_note_dispatch/' + incidentId;
+        payload = { note_dispatch: newValue };
+      } else {
+        route = '/edit_note_inline/' + incidentId;
+        payload = { note: newValue };
+      }
+
+      console.log('Saving note:', { route, payload, incidentId, noteType });
+
+      // Send AJAX request
+      fetch(route, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ [dataKey]: newValue })
+        body: JSON.stringify(payload),
+        credentials: 'same-origin'
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Animation de succès
-          container.classList.add('note-save-animation');
-          setTimeout(() => container.classList.remove('note-save-animation'), 600);
+      .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
 
-          // Quitter le mode édition et afficher la nouvelle valeur
-          exitEditMode(container, newValue);
+        if (!response.ok) {
+          throw new Error('HTTP error! status: ' + response.status);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          return response.text().then(text => {
+            console.error('Non-JSON response:', text.substring(0, 200));
+            throw new Error('Le serveur a renvoyé du HTML. Vous avez peut-être été déconnecté. Rechargez la page.');
+          });
+        }
+
+        return response.json();
+      })
+      .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+          // Update view mode content
+          updateViewMode(wrapper, newValue);
+
+          // Success animation
+          wrapper.classList.add('note-save-animation');
+          setTimeout(() => wrapper.classList.remove('note-save-animation'), 600);
         } else {
+          console.error('Save failed:', data);
           alert('Erreur: ' + (data.error || 'Impossible de sauvegarder'));
         }
       })
       .catch(err => {
         console.error('Erreur sauvegarde note:', err);
-        alert('Erreur lors de la sauvegarde');
+        alert('Erreur: ' + err.message);
       });
     }
 
-    function cancelEditNote(container, originalValue) {
-      exitEditMode(container, originalValue);
-    }
+    // Cancel edit and return to view mode
+    function cancelEdit(button) {
+      const wrapper = button.closest('.note-wrapper');
+      const textarea = wrapper.querySelector('.note-edit-textarea');
+      const viewMode = wrapper.querySelector('.note-view-mode');
+      const editMode = wrapper.querySelector('.note-edit-mode');
 
-    function exitEditMode(container, displayText) {
-      container.classList.remove('note-editing');
-      const textContainer = container.querySelector('.note-dispatch-text, .note-technicien-text');
-
-      // Mettre à jour le data attribute
-      textContainer.dataset.fullText = displayText;
-
-      // Réafficher le texte complet (pas de troncature)
-      let html;
-      if (displayText && displayText.trim() !== '') {
-        html = escapeHtml(displayText);
-      } else {
-        html = '<span class="note-empty">' +
-               (container.classList.contains('note-dispatch-container') ? 'Aucune note dispatch' : 'Aucune note technicien') +
-               '</span>';
+      // Restore original value (from view mode content)
+      const viewContent = viewMode.querySelector('.note-view-content');
+      const originalText = viewContent.textContent.trim();
+      if (originalText !== 'Aucune note dispatch' && originalText !== 'Aucune note technicien') {
+        textarea.value = originalText;
       }
 
-      textContainer.innerHTML = html;
+      // Hide edit, show view
+      editMode.style.display = 'none';
+      viewMode.style.display = 'block';
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+    // Update view mode with new content
+    function updateViewMode(wrapper, newText) {
+      const viewMode = wrapper.querySelector('.note-view-mode');
+      const editMode = wrapper.querySelector('.note-edit-mode');
+      const viewContent = viewMode.querySelector('.note-view-content');
+      const textarea = wrapper.querySelector('.note-edit-textarea');
+
+      // Update content
+      if (newText && newText.trim() !== '') {
+        viewContent.textContent = newText;
+      } else {
+        const isDispatch = wrapper.dataset.noteType === 'dispatch';
+        viewContent.innerHTML = '<span class="note-empty">' +
+          (isDispatch ? 'Aucune note dispatch' : 'Aucune note technicien') +
+          '</span>';
+      }
+
+      // Update textarea value
+      textarea.value = newText;
+
+      // Hide edit, show view
+      editMode.style.display = 'none';
+      viewMode.style.display = 'block';
     }
   </script>
 
@@ -745,34 +760,40 @@
 
           <!-- Note Dispatch (Lecture seule pour technicien) -->
           {% set note_dispatch_content = i.note_dispatch.strip() if i.note_dispatch else '' %}
-          <div class="note-dispatch-container tech-view" style="margin-bottom: 0.5rem;">
-            <div class="note-dispatch-label">
-              <span>📋</span>
-            </div>
-            <div class="note-dispatch-text" data-full-text="{{ note_dispatch_content }}">
-              {% if note_dispatch_content %}
-                {{ note_dispatch_content }}
-              {% else %}
-                <span class="note-empty">Aucune note dispatch</span>
-              {% endif %}
+          <div class="note-wrapper note-readonly" data-incident-id="{{ i.id }}" data-note-type="dispatch">
+            <div class="note-view-mode note-dispatch-view">
+              <div class="note-view-header">
+                <span class="note-view-label">📋 Note Dispatch</span>
+              </div>
+              <div class="note-view-content">
+                {% if note_dispatch_content %}{{ note_dispatch_content | e }}{% else %}<span class="note-empty">Aucune note dispatch</span>{% endif %}
+              </div>
             </div>
           </div>
 
           <!-- Note Technicien (Éditable) -->
           {% set note_tech_content = i.notes.strip() if i.notes else '' %}
-          <div class="note-technicien-container note-editable"
-               data-incident-id="{{ i.id }}"
-               data-note-type="tech"
-               title="Double-cliquer pour éditer">
-            <div class="note-technicien-label">
-              <span>💬 Note Technicien</span>
+          <div class="note-wrapper" data-incident-id="{{ i.id }}" data-note-type="tech">
+            <!-- View Mode -->
+            <div class="note-view-mode note-tech-view">
+              <div class="note-view-header">
+                <span class="note-view-label">💬 Note Technicien</span>
+                <button class="note-edit-btn" onclick="enterEditMode(this)" title="Modifier">✏️</button>
+              </div>
+              <div class="note-view-content" onclick="this.closest('.note-view-mode').querySelector('.note-edit-btn').click()" style="cursor: pointer;" title="Cliquer pour éditer">
+                {% if note_tech_content %}{{ note_tech_content | e }}{% else %}<span class="note-empty">Aucune note technicien</span>{% endif %}
+              </div>
             </div>
-            <div class="note-technicien-text" data-full-text="{{ note_tech_content }}">
-              {% if note_tech_content %}
-                {{ note_tech_content }}
-              {% else %}
-                <span class="note-empty">Aucune note</span>
-              {% endif %}
+            <!-- Edit Mode (hidden by default) -->
+            <div class="note-edit-mode note-tech-edit" style="display: none;">
+              <div class="note-edit-header">
+                <span class="note-edit-label">💬 Note Technicien</span>
+              </div>
+              <textarea class="note-edit-textarea" rows="2">{{ note_tech_content }}</textarea>
+              <div class="note-edit-actions">
+                <button class="note-save-btn" onclick="saveNote(this, {{ i.id }}, 'tech')">💾 Sauvegarder</button>
+                <button class="note-cancel-btn" onclick="cancelEdit(this)">❌ Annuler</button>
+              </div>
             </div>
           </div>
 
@@ -858,144 +879,6 @@
       }
     });
 
-    // ===== ÉDITION INLINE DES NOTES (DOUBLE-CLIC) =====
-    initNoteEditing();
-
-    function initNoteEditing() {
-      document.querySelectorAll('.note-editable').forEach(container => {
-        container.addEventListener('dblclick', function() {
-          const incidentId = this.dataset.incidentId;
-          const noteType = this.dataset.noteType; // 'dispatch' ou 'tech'
-          const role = this.dataset.role; // 'admin' ou undefined
-          const textContainer = this.querySelector('.note-dispatch-text, .note-technicien-text');
-          const fullText = textContainer.dataset.fullText || '';
-
-          // Vérifier si déjà en mode édition
-          if (this.classList.contains('note-editing')) return;
-
-          // Pour note dispatch, vérifier que c'est un admin (côté client uniquement, sécurité côté serveur)
-          if (noteType === 'dispatch' && role !== 'admin') {
-            return; // Ne rien faire si ce n'est pas un admin
-          }
-
-          // Entrer en mode édition
-          startEditNote(this, incidentId, noteType, fullText);
-        });
-      });
-    }
-
-    // Auto-resize textarea function
-    function autoResizeTextarea(textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = (textarea.scrollHeight) + 'px';
-    }
-
-    function startEditNote(container, incidentId, noteType, currentText) {
-      container.classList.add('note-editing');
-      const textContainer = container.querySelector('.note-dispatch-text, .note-technicien-text');
-
-      // Créer le textarea
-      const textarea = document.createElement('textarea');
-      textarea.className = 'note-edit-textarea';
-      textarea.value = currentText;
-      textarea.dataset.originalValue = currentText;
-      textarea.rows = 2; // Start with 2 rows
-
-      // Créer les boutons d'action
-      const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'note-edit-actions';
-
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'note-save-btn';
-      saveBtn.textContent = '💾 Sauvegarder';
-      saveBtn.onclick = () => saveNoteInline(container, incidentId, noteType, textarea.value);
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'note-cancel-btn';
-      cancelBtn.textContent = '❌ Annuler';
-      cancelBtn.onclick = () => cancelEditNote(container, currentText);
-
-      actionsDiv.appendChild(saveBtn);
-      actionsDiv.appendChild(cancelBtn);
-
-      // Remplacer le contenu
-      textContainer.innerHTML = '';
-      textContainer.appendChild(textarea);
-      textContainer.appendChild(actionsDiv);
-
-      // Auto-resize on input
-      textarea.addEventListener('input', () => autoResizeTextarea(textarea));
-
-      // Initial resize
-      setTimeout(() => autoResizeTextarea(textarea), 0);
-
-      // Focus et select
-      textarea.focus();
-      textarea.select();
-    }
-
-    function saveNoteInline(container, incidentId, noteType, newValue) {
-      const route = noteType === 'dispatch' ? '/edit_note_dispatch/' : '/edit_note_inline/';
-      const dataKey = noteType === 'dispatch' ? 'note_dispatch' : 'note';
-
-      // Envoyer la requête AJAX
-      fetch(route + incidentId, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ [dataKey]: newValue })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Animation de succès
-          container.classList.add('note-save-animation');
-          setTimeout(() => container.classList.remove('note-save-animation'), 600);
-
-          // Quitter le mode édition et afficher la nouvelle valeur
-          exitEditMode(container, newValue);
-
-          // Rafraîchir les incidents si nécessaire (optionnel)
-          // Vous pouvez aussi émettre un event socket ici
-        } else {
-          alert('Erreur: ' + (data.error || 'Impossible de sauvegarder'));
-        }
-      })
-      .catch(err => {
-        console.error('Erreur sauvegarde note:', err);
-        alert('Erreur lors de la sauvegarde');
-      });
-    }
-
-    function cancelEditNote(container, originalValue) {
-      exitEditMode(container, originalValue);
-    }
-
-    function exitEditMode(container, displayText) {
-      container.classList.remove('note-editing');
-      const textContainer = container.querySelector('.note-dispatch-text, .note-technicien-text');
-
-      // Mettre à jour le data attribute
-      textContainer.dataset.fullText = displayText;
-
-      // Réafficher le texte complet (pas de troncature)
-      let html;
-      if (displayText && displayText.trim() !== '') {
-        html = escapeHtml(displayText);
-      } else {
-        html = '<span class="note-empty">' +
-               (container.classList.contains('note-dispatch-container') ? 'Aucune note dispatch' : 'Aucune note') +
-               '</span>';
-      }
-
-      textContainer.innerHTML = html;
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+    // Note editing functions are defined in admin section above (shared between admin and tech views)
   </script>
 {% endif %}

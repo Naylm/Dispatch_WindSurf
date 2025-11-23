@@ -504,176 +504,146 @@ body.content-expanded .container {
 }
 
 /* ==============================
-   NOTES STYLING - FULL TEXT DISPLAY
+   NEW NOTE SYSTEM - CLEAN VIEW/EDIT SEPARATION
    ============================== */
 
-/* Note Dispatch - Auto-expanding container */
-.note-dispatch-container {
-  margin-top: 0.25rem !important;
-  padding: 0.15rem 0.3rem !important;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%) !important;
-  border-left: 2px solid var(--primary) !important;
-  border-radius: var(--border-radius-sm) !important;
-  transition: var(--transition);
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-start !important;
-  gap: 0.25rem !important;
-  width: auto !important;
-  max-width: 85% !important;
-  height: auto !important;
-  min-height: auto !important;
-  overflow: visible !important;
+/* Note wrapper - container for both modes */
+.note-wrapper {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  width: 100%;
 }
 
-body.dark .note-dispatch-container {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
+/* ===== VIEW MODE ===== */
+.note-view-mode {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  width: 100%;
+  transition: all 0.2s ease;
+  display: block;
+  /* Force independent sizing - no flex stretching */
+  height: auto;
+  align-self: flex-start;
 }
 
-.note-dispatch-container:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%) !important;
-  box-shadow: var(--shadow-sm);
+/* Dispatch note view styling */
+.note-dispatch-view {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-left: 2px solid var(--primary);
 }
 
-.note-dispatch-label {
-  display: flex !important;
-  align-items: flex-start !important;
-  gap: 0.15rem !important;
-  font-size: 0.6rem !important;
-  font-weight: 600 !important;
-  color: var(--primary) !important;
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  padding-top: 0 !important;
+.note-dispatch-view:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+  transform: translateX(2px);
 }
 
-.note-dispatch-text {
-  font-size: 0.65rem !important;
-  color: var(--text-main) !important;
-  line-height: 1.3 !important;
-  white-space: pre-wrap !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-  flex: 1 1 auto !important;
-  text-align: left !important;
-  display: block !important;
-  overflow: visible !important;
-  max-height: none !important;
+body.dark .note-dispatch-view {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
 }
 
-/* Note Technicien - Auto-expanding container */
-.note-technicien-container {
-  margin-top: 0.25rem !important;
-  padding: 0.15rem 0.3rem !important;
-  background: rgba(107, 114, 128, 0.08) !important;
-  border-left: 2px solid var(--text-secondary) !important;
-  border-radius: var(--border-radius-sm) !important;
-  transition: var(--transition);
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-start !important;
-  gap: 0.25rem !important;
-  width: auto !important;
-  max-width: 85% !important;
-  height: auto !important;
-  min-height: auto !important;
-  overflow: visible !important;
+/* Tech note view styling */
+.note-tech-view {
+  background: rgba(107, 114, 128, 0.08);
+  border-left: 2px solid var(--text-secondary);
 }
 
-body.dark .note-technicien-container {
-  background: rgba(148, 163, 184, 0.12) !important;
+.note-tech-view:hover {
+  background: rgba(107, 114, 128, 0.15);
+  box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
+  transform: translateX(2px);
 }
 
-.note-technicien-container:hover {
-  background: rgba(107, 114, 128, 0.12) !important;
-  box-shadow: var(--shadow-sm);
+body.dark .note-tech-view {
+  background: rgba(148, 163, 184, 0.12);
 }
 
-.note-technicien-label {
-  display: flex !important;
-  align-items: flex-start !important;
-  gap: 0.15rem !important;
-  font-size: 0.6rem !important;
-  font-weight: 600 !important;
-  color: var(--text-secondary) !important;
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  padding-top: 0 !important;
+/* View mode header (label + edit button) */
+.note-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
 }
 
-.note-technicien-text {
-  font-size: 0.65rem !important;
-  color: var(--text-main) !important;
-  line-height: 1.3 !important;
-  white-space: pre-wrap !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-  flex: 1 1 auto !important;
-  text-align: left !important;
-  display: block !important;
-  overflow: visible !important;
-  max-height: none !important;
+.note-view-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1;
 }
 
-/* Note éditable - curseur pointer */
-.note-editable {
+.note-dispatch-view .note-view-label {
+  color: var(--primary);
+}
+
+.note-edit-btn {
+  background: none;
+  border: none;
+  padding: 0.1rem 0.2rem;
+  font-size: 0.7rem;
   cursor: pointer;
-  position: relative;
-}
-
-.note-editable:hover::after {
-  content: '✏️';
-  position: absolute;
-  right: 0.3rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.75rem;
   opacity: 0.5;
   transition: opacity 0.2s;
 }
 
-.note-editable:hover::after {
-  opacity: 0.8;
+.note-edit-btn:hover {
+  opacity: 1;
 }
 
-/* Note en mode édition - Override du layout compact */
-.note-editing {
-  border: 2px solid var(--primary);
-  padding: 0.5rem;
+/* View mode content - pure div with text */
+.note-view-content {
+  font-size: 0.75rem;
+  color: var(--text-main);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: left;
+  /* No min-height - let content determine size naturally */
+  max-height: 10rem;
+  overflow-y: auto;
+  /* No vertical padding - container padding is enough */
+  padding: 0;
+}
+
+/* ===== EDIT MODE ===== */
+.note-edit-mode {
+  padding: 0.4rem 0.5rem;
   background: var(--bg-input);
+  border: 2px solid var(--primary);
+  border-radius: var(--border-radius-sm);
   box-shadow: var(--shadow);
-  display: block !important;
-  min-height: auto !important;
+  /* Force independent sizing */
+  height: auto;
+  align-self: flex-start;
 }
 
-.note-editing .note-dispatch-label,
-.note-editing .note-technicien-label {
-  display: flex !important;
-  margin-bottom: 0.2rem;
+.note-edit-header {
+  margin-bottom: 0.3rem;
 }
 
-.note-editing .note-dispatch-text,
-.note-editing .note-technicien-text {
-  display: block !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: unset !important;
+.note-edit-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .note-edit-textarea {
   width: 100%;
-  min-height: auto;
-  padding: 0.5rem;
+  min-height: 2rem;
+  padding: 0.4rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   background: var(--bg-input);
   color: var(--text-main);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   resize: none;
   overflow: hidden;
   transition: var(--transition);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .note-edit-textarea:focus {
@@ -727,6 +697,9 @@ body.dark .note-technicien-container {
   font-style: italic;
   color: var(--text-muted);
   opacity: 0.6;
+  display: inline;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 /* Animation de sauvegarde réussie */

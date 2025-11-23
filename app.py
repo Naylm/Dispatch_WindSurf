@@ -1013,7 +1013,7 @@ def edit_note_dispatch(id):
     new_note_dispatch = request.json.get("note_dispatch", "").strip()
 
     # Vérifier si la note dispatch a changé
-    old_note_dispatch = inc.get("note_dispatch") or ""
+    old_note_dispatch = inc["note_dispatch"] if inc["note_dispatch"] else ""
     if old_note_dispatch != new_note_dispatch:
         # Enregistrer dans l'historique
         hist_sql = """
