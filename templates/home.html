@@ -40,140 +40,245 @@
       border-radius: 4px;
     }
 
-    /* ===== RESPONSIVE MOBILE ===== */
+    /* ===== RESPONSIVE: TABLETTE (768px - 1200px) ===== */
+    @media (min-width: 769px) and (max-width: 1200px) {
+      /* Vue colonnes admin - 2 colonnes max */
+      #columnsView .tech-column {
+        flex: 0 0 calc(50% - 0.5rem);
+        max-width: calc(50% - 0.5rem);
+      }
+
+      /* Cartes incidents légèrement compactes */
+      .incident-card-col {
+        font-size: 0.9rem;
+      }
+
+      /* Notes compactes sur tablette */
+      .note-view-content {
+        font-size: 0.7rem;
+        max-height: 3rem;
+      }
+
+      .note-edit-textarea {
+        font-size: 0.7rem;
+      }
+
+      /* Vue technicien - 2 cartes par ligne */
+      #userView {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      .small-card {
+        width: 100% !important;
+        margin: 0 !important;
+      }
+    }
+
+    /* ===== RESPONSIVE: MOBILE (< 768px) ===== */
     @media (max-width: 768px) {
       /* Navbar mobile */
       .navbar .container-fluid {
         flex-wrap: wrap;
         gap: 0.5rem;
       }
-      
+
       .navbar-brand {
         font-size: 1rem !important;
       }
-      
+
       /* Titre bienvenue plus petit */
       h2.mb-4 {
         font-size: 1.3rem;
         margin-bottom: 1rem !important;
       }
-      
+
       /* Boutons admin en colonne */
       .mb-3.d-flex.gap-2 {
         flex-direction: column !important;
         gap: 0.5rem !important;
       }
-      
+
       .mb-3.d-flex.gap-2 .btn {
         width: 100%;
         font-size: 0.9rem;
+        padding: 0.6rem 1rem; /* Tactile-friendly */
       }
-      
+
       /* Barre de recherche et filtres en colonne */
       .mb-4.d-flex.flex-wrap {
         flex-direction: column !important;
         gap: 0.5rem !important;
       }
-      
+
       .mb-4.d-flex.flex-wrap input,
       .mb-4.d-flex.flex-wrap select,
       .mb-4.d-flex.flex-wrap button {
         max-width: 100% !important;
         width: 100%;
+        min-height: 2.5rem; /* Touch-friendly */
       }
-      
+
       /* Vue colonnes admin - une colonne à la fois */
       #columnsView .row {
         flex-direction: column !important;
         overflow-x: visible !important;
         white-space: normal !important;
       }
-      
+
       #columnsView .tech-column {
         width: 100% !important;
         flex: 1 1 100% !important;
         display: block !important;
         margin-bottom: 1rem;
       }
-      
+
       /* Cartes incidents admin plus compactes */
       .incident-card-col {
         font-size: 0.85rem;
       }
-      
+
       .incident-card-col .badge {
         font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
       }
-      
-      /* Boutons d'action plus petits */
+
+      /* Boutons d'action tactiles */
       .incident-card-col .btn-sm {
-        padding: 0.15rem 0.4rem;
+        padding: 0.4rem 0.7rem;
         font-size: 0.75rem;
+        min-height: 2rem; /* Touch-friendly */
       }
-      
+
+      /* Notes ultra-compactes sur mobile */
+      .note-wrapper {
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+      }
+
+      .note-view-mode {
+        padding: 0.25rem 0.35rem;
+      }
+
+      .note-view-content {
+        font-size: 0.7rem;
+        line-height: 1.3;
+        max-height: 2.8rem; /* 2 lignes max */
+      }
+
+      .note-edit-btn {
+        padding: 0.3rem 0.5rem; /* Tactile */
+        font-size: 0.7rem;
+      }
+
       /* Vue technicien - cartes en colonne */
       #userView {
         flex-direction: column !important;
         gap: 1rem !important;
       }
-      
+
       .small-card {
         width: 100% !important;
         margin: 0 !important;
         display: block !important;
       }
-      
+
       /* En-tête des cartes technicien */
       .card-header.d-flex {
         font-size: 0.9rem;
-        padding: 0.5rem;
+        padding: 0.6rem;
       }
-      
+
       .card-header .copy-btn {
         font-size: 0.7rem !important;
-        padding: 1px 6px !important;
+        padding: 0.3rem 0.5rem !important; /* Touch-friendly */
       }
-      
+
       /* Corps des cartes plus compact */
       .card-body {
         padding: 0.75rem;
         font-size: 0.85rem;
       }
-      
-      /* Sélecteurs de statut plus petits */
+
+      /* Sélecteurs de statut tactiles */
       .form-select-sm {
         font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
+        padding: 0.4rem 0.6rem;
+        min-height: 2.2rem;
       }
-      
+
       /* Conteneur principal avec padding réduit */
       body.container {
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
       }
+
+      /* Icônes emoji des notes - plus petites */
+      .note-dispatch-view::before,
+      .note-tech-view::before {
+        font-size: 0.75rem;
+        left: -1rem;
+      }
     }
-    
-    /* Très petits écrans (< 400px) */
+
+    /* ===== RESPONSIVE: TRÈS PETITS ÉCRANS (< 400px) ===== */
     @media (max-width: 400px) {
       .navbar-brand {
         font-size: 0.85rem !important;
       }
-      
+
       h2.mb-4 {
         font-size: 1.1rem;
       }
-      
+
       .btn {
         font-size: 0.8rem;
-        padding: 0.4rem 0.6rem;
+        padding: 0.5rem 0.7rem;
       }
-      
+
       .card-header {
         font-size: 0.8rem !important;
+        padding: 0.5rem !important;
       }
-      
+
       .card-body {
         font-size: 0.75rem;
+        padding: 0.6rem !important;
+      }
+
+      /* Notes minimales */
+      .note-view-content {
+        font-size: 0.68rem;
+        max-height: 2.5rem; /* 2 lignes seulement */
+      }
+
+      .note-edit-textarea {
+        font-size: 0.68rem;
+      }
+
+      .note-role-badge {
+        font-size: 0.55rem;
+        padding: 0.08rem 0.25rem;
+      }
+    }
+
+    /* ===== RESPONSIVE: GRANDS ÉCRANS (> 1400px) ===== */
+    @media (min-width: 1400px) {
+      /* Vue colonnes admin - jusqu'à 4 colonnes */
+      #columnsView .tech-column {
+        flex: 0 0 calc(25% - 0.75rem);
+        max-width: calc(25% - 0.75rem);
+      }
+
+      /* Cartes incidents avec plus d'espace */
+      .incident-card-col {
+        font-size: 0.95rem;
+      }
+
+      /* Notes avec plus de contenu visible */
+      .note-view-content {
+        max-height: 5rem;
       }
     }
   </style>
@@ -186,20 +291,24 @@
     </div>
     <ul class="sidebar-links">
       {% if role == 'admin' %}
-        <!-- Liens uniquement pour admins -->
+        <!-- Liens de gestion (Admin seulement) -->
         <li><a href="{{ url_for('add_incident') }}"><span class="icon">➕</span> Ajouter incident</a></li>
         <li><a href="{{ url_for('techniciens') }}"><span class="icon">👨‍🔧</span> Gestion techniciens</a></li>
         <li><a href="{{ url_for('configuration') }}"><span class="icon">⚙️</span> Configuration</a></li>
         <li class="sidebar-divider"></li>
       {% endif %}
-      <!-- Liens communs pour tous -->
+
+      <!-- Portails externes (Tous) -->
+      <li><a href="https://portal.konicaminolta.fr/fr-fr/account/login?ReturnUrl=%2ffr-fr%2fservice-calls%2fpassive%2fdetail%2fiqqEsD3PAsbz0AjmVH3ZJpRANofTqPociqsgd_25Kxfkk8ePI-332poZGT9VmdP0BSSRrOBBmV_wzNAD4ZqsdA2%3fsource%3dERP&source=ERP" target="_blank"><span class="icon">🖨️</span> Portail Konica</a></li>
+      <li><a href="https://www.sfrbusiness.fr/espace-client/authentification/#/login/authentification" target="_blank"><span class="icon">📱</span> Portail SFR</a></li>
+      <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">☎️</span> TelWebPRD</a></li>
+      <li class="sidebar-divider"></li>
+
+      <!-- Outils communs (Tous) -->
       <li><a href="{{ url_for('wiki') }}"><span class="icon">📚</span> Base de connaissances</a></li>
       <li><a href="http://u.osmfr.org/m/1022870/" target="_blank"><span class="icon">🗺️</span> Carte CHU</a></li>
       <li><a href="https://easyvista-backoffice-prd.intra.ght44.fr/index.php?PHPSESSID=4ikdb03a4d690m7h5j0d1s97gs&internalurltime=1760602763" target="_blank"><span class="icon">💻</span> Easyvista</a></li>
       <li><a href="https://wikidsnt/" target="_blank"><span class="icon">📖</span> WikiDSNT</a></li>
-      <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">⚙️</span> TelWebPrd2</a></li>
-      <li><a href="https://www.sfrbusiness.fr/espace-client/authentification/#/login/authentification" target="_blank"><span class="icon">📱</span> Portail SFR</a></li>
-      <li><a href="https://portal.konicaminolta.fr/fr-fr/account/login?ReturnUrl=%2ffr-fr%2fservice-calls%2fpassive%2fdetail%2fiqqEsD3PAsbz0AjmVH3ZJpRANofTqPociqsgd_25Kxfkk8ePI-332poZGT9VmdP0BSSRrOBBmV_wzNAD4ZqsdA2%3fsource%3dERP&source=ERP" target="_blank"><span class="icon">🖨️</span> Portail Konica</a></li>
     </ul>
   </aside>
   <!-- Navbar -->

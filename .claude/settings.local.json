@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(where:*)",
+      "Bash(docker --version:*)",
+      "Bash(docker run:*)",
+      "Bash(docker compose exec:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(timeout 30 bash:*)",
+      "Bash(docker cp:*)",
+      "Bash(docker start:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker stop:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

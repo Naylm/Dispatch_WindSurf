@@ -33,6 +33,12 @@ if not os.environ.get("SECRET_KEY"):
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file upload
 
+# Désactiver le cache des templates pour forcer le rechargement
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.jinja_env.auto_reload = True
+app.jinja_env.cache = {}
+
 # SocketIO optimisé pour 10 utilisateurs concurrents
 socketio = SocketIO(
     app, 

@@ -146,6 +146,26 @@ ul { list-style: none; }
   transition: transform 0.3s ease;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling pour sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 /* Sidebar ouverte / permanente */
@@ -212,6 +232,20 @@ body.with-sidebar-permanent .navbar {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  cursor: default !important;
+}
+
+/* Force TOUS les enfants de card à avoir curseur par défaut */
+.card *:not(input):not(textarea):not(select):not(button):not(a) {
+  cursor: default !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 .card:hover {
@@ -261,6 +295,12 @@ body.with-sidebar-permanent .navbar {
   border-bottom: 1px solid var(--border-color);
   cursor: grab;
   transition: background-color 0.2s;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .incident-card-col:hover {
@@ -268,6 +308,26 @@ body.with-sidebar-permanent .navbar {
 }
 
 .incident-card-col:last-child { border-bottom: none; }
+
+/* Contenu flexible dans les cartes */
+.incident-card-col p,
+.incident-card-col .fst-italic,
+.incident-card-col strong {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  user-select: none;
+  cursor: default;
+}
+
+/* Badges flexibles */
+.badge {
+  display: inline-block;
+  white-space: nowrap;
+  margin: 0.1rem;
+  user-select: none;
+  cursor: default;
+}
 
 /* Bloc de note dans les cartes d'incidents */
 .incident-note {
@@ -402,16 +462,182 @@ body:not(.dark) .incident-note {
 
 @media (max-width: 992px) {
   body.with-sidebar-permanent { padding-left: 0; }
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
+  .sidebar {
+    transform: translateX(-100%);
+    width: 280px; /* Slightly wider on mobile for better touch targets */
+    padding: 1rem;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+  }
   .sidebar-toggle { display: block !important; }
   .tech-grid { grid-template-columns: 1fr; }
 }
 
+/* Petits écrans - sidebar plein écran si nécessaire */
+@media (max-width: 576px) {
+  .sidebar {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .sidebar-links a {
+    padding: 12px 14px;
+    font-size: 0.95rem;
+  }
+
+  .sidebar-header h3 {
+    font-size: 1.25rem;
+  }
+}
+
 @media (max-width: 768px) {
-  .container { padding: 1rem; width: 100%; }
-  .navbar { padding: 1rem; flex-direction: column; gap: 1rem; }
-  #statsCounters .col-md-3 { width: 50%; float: left; padding: 5px; }
+  .container {
+    padding: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .navbar {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* Stats counters responsive */
+  #statsCounters .col-md-3 {
+    width: 50%;
+    float: left;
+    padding: 5px;
+  }
+
+  /* Cartes d'incidents - Responsive complet */
+  .card {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .card-body {
+    padding: 0.75rem !important;
+  }
+
+  .incident-card-col {
+    padding: 0.75rem;
+  }
+
+  /* Tech grid responsive */
+  .tech-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .tech-column {
+    min-height: auto;
+  }
+
+  /* Badges et boutons plus petits sur mobile */
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Notes plus compactes sur mobile */
+  .note-wrapper {
+    margin-top: 0.5rem;
+  }
+
+  .note-view-content,
+  .note-edit-textarea {
+    font-size: 0.8rem;
+  }
+
+  /* Formulaires inline responsive */
+  .d-flex.flex-wrap {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+
+  .d-flex.flex-wrap .btn,
+  .d-flex.flex-wrap .form-select {
+    width: 100%;
+  }
+}
+
+/* Très petits écrans (mobiles en portrait) */
+@media (max-width: 480px) {
+  .container {
+    padding: 0.5rem;
+  }
+
+  .card {
+    border-radius: 8px;
+    font-size: 0.9rem;
+  }
+
+  .card-header {
+    padding: 0.5rem !important;
+    font-size: 0.95rem;
+  }
+
+  .card-body {
+    padding: 0.5rem !important;
+  }
+
+  .incident-card-col {
+    padding: 0.5rem;
+  }
+
+  /* Notes ultra compactes */
+  .note-wrapper {
+    margin-top: 0.4rem;
+  }
+
+  .note-view-header,
+  .note-edit-header {
+    font-size: 0.7rem;
+  }
+
+  .note-view-content,
+  .note-edit-textarea {
+    font-size: 0.75rem;
+    padding: 0.3rem;
+  }
+
+  .note-edit-actions button {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  /* Badges et icônes */
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  /* Stats counters empilés */
+  #statsCounters .col-md-3 {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  #statsCounters h3 {
+    font-size: 2rem;
+  }
+
+  /* Navbar ultra compact */
+  .navbar {
+    padding: 0.5rem;
+  }
+
+  .navbar-brand {
+    font-size: 1rem;
+  }
 }
 
 /* ==============================
@@ -504,170 +730,327 @@ body.content-expanded .container {
 }
 
 /* ==============================
-   NEW NOTE SYSTEM - CLEAN VIEW/EDIT SEPARATION
+   COMPACT NOTE SYSTEM - OPTIMIZED FOR SPACE & ERGONOMICS
    ============================== */
 
-/* Note wrapper - container for both modes */
+/* Note wrapper - ultra compact container */
 .note-wrapper {
-  margin-top: 0.5rem;
-  margin-bottom: 0;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
   width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
 }
 
-/* ===== VIEW MODE ===== */
+/* ===== VIEW MODE - COMPACT ===== */
 .note-view-mode {
-  padding: 0.4rem 0.5rem;
-  border-radius: var(--border-radius-sm);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
   width: 100%;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: block;
-  /* Force independent sizing - no flex stretching */
   height: auto;
   align-self: flex-start;
+  cursor: pointer;
 }
 
-/* Dispatch note view styling */
+/* Dispatch note - Blue theme, more prominent */
 .note-dispatch-view {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);
-  border-left: 2px solid var(--primary);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border-left: 3px solid #6366f1;
+  position: relative;
+}
+
+.note-dispatch-view::before {
+  content: '📋';
+  position: absolute;
+  left: -1.2rem;
+  top: 0.25rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
 }
 
 .note-dispatch-view:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
-  transform: translateX(2px);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%);
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.25);
 }
 
 body.dark .note-dispatch-view {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%);
 }
 
-/* Tech note view styling */
+/* Tech note - Gray theme, subtle */
 .note-tech-view {
-  background: rgba(107, 114, 128, 0.08);
-  border-left: 2px solid var(--text-secondary);
+  background: rgba(107, 114, 128, 0.06);
+  border-left: 3px solid #6b7280;
+  position: relative;
+}
+
+.note-tech-view::before {
+  content: '💬';
+  position: absolute;
+  left: -1.2rem;
+  top: 0.25rem;
+  font-size: 0.85rem;
+  opacity: 0.6;
 }
 
 .note-tech-view:hover {
-  background: rgba(107, 114, 128, 0.15);
-  box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
-  transform: translateX(2px);
+  background: rgba(107, 114, 128, 0.12);
+  box-shadow: 0 1px 3px rgba(107, 114, 128, 0.2);
 }
 
 body.dark .note-tech-view {
-  background: rgba(148, 163, 184, 0.12);
+  background: rgba(148, 163, 184, 0.15);
 }
 
-/* View mode header (label + edit button) */
+/* Compact header with inline label + badge */
 .note-view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.3rem;
-  margin-bottom: 0.3rem;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+  flex-wrap: wrap;
 }
 
 .note-view-label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--text-secondary);
   line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .note-dispatch-view .note-view-label {
-  color: var(--primary);
+  color: #6366f1;
 }
 
+/* Role badge */
+.note-role-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.note-tech-view .note-role-badge {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+/* Compact edit button */
 .note-edit-btn {
   background: none;
   border: none;
-  padding: 0.1rem 0.2rem;
-  font-size: 0.7rem;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.65rem;
   cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 0.2s;
+  opacity: 0.4;
+  transition: all 0.15s;
+  border-radius: 3px;
+  color: var(--text-secondary);
 }
 
 .note-edit-btn:hover {
   opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
 }
 
-/* View mode content - pure div with text */
+body.dark .note-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Note content - Full height auto-extensible */
 .note-view-content {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-main);
-  line-height: 1.4;
+  line-height: 1.35;
   white-space: pre-wrap;
   word-wrap: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  cursor: default;
   overflow-wrap: break-word;
   text-align: left;
-  /* No min-height - let content determine size naturally */
-  max-height: 10rem;
-  overflow-y: auto;
-  /* No vertical padding - container padding is enough */
+  height: auto;
+  overflow: visible;
   padding: 0;
+  margin: 0;
+  text-indent: 0;
+  display: block;
 }
 
-/* ===== EDIT MODE ===== */
+/* Force no indent on paragraphs inside notes */
+.note-view-content p {
+  margin: 0;
+  padding: 0;
+  text-indent: 0;
+  text-align: left;
+}
+
+/* Expand/collapse button */
+.note-expand-btn {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.65rem;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.note-expand-btn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* ===== EDIT MODE - COMPACT ===== */
 .note-edit-mode {
-  padding: 0.4rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: var(--bg-input);
   border: 2px solid var(--primary);
-  border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow);
-  /* Force independent sizing */
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
   height: auto;
   align-self: flex-start;
 }
 
 .note-edit-header {
   margin-bottom: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .note-edit-label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Character counter */
+.note-char-count {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.note-char-count.warning {
+  color: #f59e0b;
+}
+
+.note-char-count.danger {
+  color: #ef4444;
 }
 
 .note-edit-textarea {
   width: 100%;
-  min-height: 2rem;
-  padding: 0.4rem;
+  min-height: 2.5rem;
+  height: auto;
+  padding: 0.5rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border-radius: 4px;
   background: var(--bg-input);
   color: var(--text-main);
   font-family: inherit;
-  font-size: 0.75rem;
-  resize: none;
-  overflow: hidden;
+  font-size: 0.72rem;
+  resize: vertical;
   transition: var(--transition);
-  line-height: 1.4;
+  line-height: 1.35;
+  display: block;
+  box-sizing: border-box;
+  outline: none;
+  overflow: visible;
+  margin: 0;
+  text-indent: 0;
+  text-align: left;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text !important;
+}
+
+.note-edit-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
 .note-edit-textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
 }
 
+/* Permettre la sélection uniquement dans les vrais champs éditables */
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text !important;
+}
+
+select {
+  cursor: pointer !important;
+}
+
+/* Force le curseur par défaut sur TOUS les textes et éléments non-interactifs */
+p, span, div, h1, h2, h3, h4, h5, h6,
+strong, em, i, b, small, label,
+.badge, .note-view-content, .note-view-label,
+.note-role-badge, .incident-card-col {
+  cursor: default !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Boutons et liens doivent avoir le curseur pointer */
+button, a, .btn {
+  cursor: pointer !important;
+}
+
+/* Compact action buttons */
 .note-edit-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
   justify-content: flex-end;
 }
 
 .note-save-btn,
 .note-cancel-btn {
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--border-radius-sm);
-  font-size: 0.8rem;
-  font-weight: 500;
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
   border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .note-save-btn {
@@ -675,10 +1058,35 @@ body.dark .note-tech-view {
   color: white;
 }
 
-.note-save-btn:hover {
+.note-save-btn:hover:not(:disabled) {
   background: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
+}
+
+.note-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Saving state */
+.note-save-btn.saving {
+  position: relative;
+  pointer-events: none;
+}
+
+.note-save-btn.saving::after {
+  content: '';
+  position: absolute;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .note-cancel-btn {
@@ -689,22 +1097,21 @@ body.dark .note-tech-view {
 
 .note-cancel-btn:hover {
   background: var(--border-color);
-  transform: translateY(-1px);
 }
 
-/* Empty note placeholder */
+/* Empty note placeholder - more subtle */
 .note-empty {
   font-style: italic;
   color: var(--text-muted);
-  opacity: 0.6;
+  opacity: 0.5;
   display: inline;
-  font-size: inherit;
+  font-size: 0.7rem;
   line-height: inherit;
 }
 
-/* Animation de sauvegarde réussie */
+/* Success animation - more subtle */
 .note-save-animation {
-  animation: noteSaveFlash 0.6s ease;
+  animation: noteSaveFlash 0.5s ease;
 }
 
 @keyframes noteSaveFlash {
@@ -712,16 +1119,9 @@ body.dark .note-tech-view {
     background: inherit;
   }
   50% {
-    background: rgba(34, 197, 94, 0.15);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.12);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
   }
-}
-
-/* Note avec tooltip pour texte long */
-.note-truncated {
-  position: relative;
-  display: inline-block;
-  max-width: 100%;
 }
 
 /* ==============================

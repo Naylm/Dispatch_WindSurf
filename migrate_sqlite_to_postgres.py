@@ -35,7 +35,7 @@ def migrate():
     sqlite_conn.row_factory = sqlite3.Row
     sqlite_cur = sqlite_conn.cursor()
     
-    # Connexion PostgreSQL
+    # Connexion PostgreSQL avec autocommit
     print(f"🐘 Connexion à PostgreSQL: {POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}")
     try:
         pg_conn = psycopg2.connect(
@@ -45,6 +45,7 @@ def migrate():
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD
         )
+        pg_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         pg_cur = pg_conn.cursor()
     except Exception as e:
         print(f"❌ Erreur connexion PostgreSQL: {e}")
@@ -72,60 +73,90 @@ def migrate():
     
     migrated_counts = {}
     
+    # Récupérer les IDs d'incidents existants pour filtrer l'historique
+    existing_incident_ids = set()
+
     for table in tables:
         print(f"\n📊 Migration de la table '{table}'...")
-        
+
         # Vérifier si la table existe dans SQLite
         sqlite_cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
         if not sqlite_cur.fetchone():
             print(f"   ⚠️  Table '{table}' introuvable dans SQLite, ignorée")
             continue
-        
+
         # Récupérer toutes les données
         sqlite_cur.execute(f"SELECT * FROM {table}")
         rows = sqlite_cur.fetchall()
-        
+
         if not rows:
             print(f"   ✓ Table '{table}' vide, rien à migrer")
             migrated_counts[table] = 0
             continue
-        
+
         # Récupérer les noms de colonnes
         columns = [description[0] for description in sqlite_cur.description]
-        
+
+        # Si on migre les incidents, enregistrer les IDs
+        if table == 'incidents':
+            id_idx = columns.index('id')
+            existing_incident_ids = {row[id_idx] for row in rows}
+            print(f"   📝 {len(existing_incident_ids)} IDs d'incidents enregistrés: {sorted(list(existing_incident_ids))[:10]}...")
+
         # Préparer la requête d'insertion PostgreSQL
         placeholders = ', '.join(['%s'] * len(columns))
         columns_str = ', '.join(columns)
         insert_query = f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})"
-        
-        # Insérer les données
+
+        # Debug pour historique
+        if table == 'historique':
+            print(f"   📋 Filtrage basé sur {len(existing_incident_ids)} IDs valides")
+
+        # Insérer les données ligne par ligne (autocommit activé)
         count = 0
-        for row in rows:
+        errors = 0
+        skipped = 0
+        for i, row in enumerate(rows):
+            # Filtrer les entrées d'historique avec incident_id invalide
+            if table == 'historique' and 'incident_id' in columns:
+                incident_id_idx = columns.index('incident_id')
+                if row[incident_id_idx] not in existing_incident_ids:
+                    skipped += 1
+                    if skipped <= 3:
+                        print(f"   ⏭️  Skip ligne {i+1}: incident_id={row[incident_id_idx]} invalide")
+                    continue
+
             try:
                 pg_cur.execute(insert_query, tuple(row))
                 count += 1
             except Exception as e:
-                print(f"   ⚠️  Erreur ligne {count+1}: {e}")
-                # Continuer malgré les erreurs (ex: doublons)
-        
-        pg_conn.commit()
+                errors += 1
+                if errors <= 3:  # Afficher seulement les 3 premières erreurs
+                    error_msg = str(e).split('\n')[0]  # Première ligne seulement
+                    print(f"   ⚠️  Erreur ligne {i+1}: {error_msg[:100]}")
+                elif errors == 4:
+                    print(f"   ⚠️  ... (+{len(rows) - i - 1} autres erreurs potentielles)")
+
         migrated_counts[table] = count
-        print(f"   ✓ {count} ligne(s) migrée(s)")
+        if skipped > 0:
+            print(f"   ⏭️  {skipped} ligne(s) ignorée(s) (références invalides)")
+        if errors > 0:
+            print(f"   ✓ {count} ligne(s) migrée(s) ({errors} erreur(s))")
+        else:
+            print(f"   ✓ {count} ligne(s) migrée(s)")
     
     # Réinitialiser les séquences PostgreSQL
     print("\n🔄 Réinitialisation des séquences...")
     for table in tables:
         try:
             pg_cur.execute(f"""
-                SELECT setval(pg_get_serial_sequence('{table}', 'id'), 
-                       COALESCE((SELECT MAX(id) FROM {table}), 1), 
+                SELECT setval(pg_get_serial_sequence('{table}', 'id'),
+                       COALESCE((SELECT MAX(id) FROM {table}), 1),
                        true)
             """)
         except Exception as e:
             # Certaines tables n'ont pas de colonne id
             pass
-    
-    pg_conn.commit()
     
     # Fermeture des connexions
     sqlite_cur.close()
