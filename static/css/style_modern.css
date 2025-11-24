@@ -1176,3 +1176,86 @@ button, a, .btn {
 .note-save-animation {
   animation: save-success 0.6s ease;
 }
+
+/* ============================================================ */
+/* PROTECTION ANTI-CARET : Empêche le curseur de saisie sur texte */
+/* ============================================================ */
+
+/* Désactiver complètement le focus sur tous les éléments non-interactifs */
+.card, .list-group-item, .incident-card-col,
+.note-view-mode, .note-view-content, .note-view-label,
+p, span, div:not([contenteditable="true"]),
+strong, em, small, label, h1, h2, h3, h4, h5, h6,
+.badge, .note-role-badge, .site-badge, .priority-badge, .status-badge {
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+  caret-color: transparent !important;
+  pointer-events: auto !important;
+}
+
+/* Empêcher le focus sur les éléments non-form */
+.card *:not(input):not(textarea):not(select):not(button):not(a):not([contenteditable="true"]) {
+  -webkit-user-modify: read-only !important;
+  outline: none !important;
+  caret-color: transparent !important;
+}
+
+/* Forcer l'absence de caret sur les cartes d'incidents */
+.incident-card-col,
+.incident-card-col *:not(input):not(textarea):not(select):not(button):not(a) {
+  caret-color: transparent !important;
+  -webkit-user-modify: read-only !important;
+}
+
+/* Notes en mode lecture : absolument aucun caret */
+.note-view-content,
+.note-view-label,
+.note-role-badge {
+  caret-color: transparent !important;
+  -webkit-user-modify: read-only !important;
+  pointer-events: none !important; /* Empêche tout focus sur le texte */
+}
+
+/* Le conteneur de la note doit permettre les clics pour le bouton */
+.note-view-mode {
+  caret-color: transparent !important;
+  -webkit-user-modify: read-only !important;
+  pointer-events: auto !important; /* Permet les clics mais pas le caret */
+}
+
+/* Bouton d'édition toujours cliquable */
+.note-edit-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Les zones d'édition DOIVENT avoir le caret et être focusables */
+.note-edit-textarea,
+input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
+textarea,
+select,
+[contenteditable="true"] {
+  pointer-events: auto !important;
+  caret-color: auto !important;
+  -webkit-user-modify: read-write !important;
+}
+
+/* Empêcher la sélection de texte sur TOUS les éléments non-form */
+* {
+  -webkit-touch-callout: none !important;
+}
+
+*:not(input):not(textarea):not(select):not([contenteditable="true"]) {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Permettre la sélection uniquement dans les champs */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}

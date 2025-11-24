@@ -113,6 +113,51 @@
       font-size: 14px;
     }
 
+    /* ============================================================ */
+    /* PROTECTION ANTI-CARET : Empêche le curseur de saisie sur texte */
+    /* ============================================================ */
+
+    /* Désactiver le caret sur tous les éléments non-form */
+    * {
+      -webkit-tap-highlight-color: transparent !important;
+    }
+
+    *:not(input):not(textarea):not(select):not([contenteditable="true"]) {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      caret-color: transparent !important;
+      -webkit-user-modify: read-only !important;
+      outline: none !important;
+    }
+
+    /* Permettre la sélection uniquement dans les champs de formulaire */
+    input, textarea, select, [contenteditable="true"] {
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+      caret-color: auto !important;
+      -webkit-user-modify: read-write !important;
+      pointer-events: auto !important;
+    }
+
+    /* Empêcher le focus/caret sur les éléments de texte */
+    .login-card,
+    .logo,
+    .logo-emoji,
+    .login-title,
+    .login-subtitle,
+    .form-label,
+    .alert,
+    h1, h2, h3, h4, h5, h6,
+    p, span, div:not([contenteditable="true"]) {
+      caret-color: transparent !important;
+      -webkit-user-modify: read-only !important;
+      pointer-events: auto !important;
+    }
+
     @media (max-width: 500px) {
       .login-card {
         padding: 36px 28px;
@@ -138,6 +183,7 @@
       </div>
 
       <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label class="form-label">Nom d'utilisateur</label>
           <input type="text" name="username" class="form-control" placeholder="Votre identifiant" required autofocus>

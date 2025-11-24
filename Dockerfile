@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     wkhtmltopdf \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory

@@ -6,15 +6,42 @@ Fonctionnalités : Catégories, sous-catégories, articles, likes, historique, u
 from flask import render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import os
+import uuid
 from datetime import datetime
 from db_config import get_db
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}  # SVG retiré pour sécurité (risque XSS)
 UPLOAD_FOLDER = 'static/uploads/wiki'
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+# Magic bytes pour validation du type de fichier réel
+MAGIC_BYTES = {
+    b'\x89PNG': 'png',
+    b'\xFF\xD8\xFF': 'jpg',  # JPEG
+    b'GIF87a': 'gif',
+    b'GIF89a': 'gif',
+    b'RIFF': 'webp',  # WebP (nécessite vérification supplémentaire)
+}
+
 def allowed_file(filename):
+    """Vérifie l'extension du fichier"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_image_content(file_stream):
+    """Valide le contenu du fichier en vérifiant les magic bytes"""
+    header = file_stream.read(12)
+    file_stream.seek(0)  # Revenir au début du fichier
+
+    # Vérifier les magic bytes
+    for magic, filetype in MAGIC_BYTES.items():
+        if header.startswith(magic):
+            # Vérification supplémentaire pour WebP
+            if filetype == 'webp' and header[8:12] == b'WEBP':
+                return True
+            elif filetype != 'webp':
+                return True
+
+    return False
 
 # ========== ROUTE PRINCIPALE ==========
 def wiki_home(app):
@@ -460,22 +487,26 @@ def wiki_upload_routes(app):
             
             if not allowed_file(file.filename):
                 return jsonify({"error": "Type de fichier non autorisé"}), 400
-            
+
             # Vérifier la taille du fichier
             file.seek(0, 2)  # Aller à la fin
             file_size = file.tell()
             file.seek(0)  # Revenir au début
-            
+
             if file_size > MAX_FILE_SIZE:
                 return jsonify({"error": f"Fichier trop volumineux (max {MAX_FILE_SIZE // (1024*1024)}MB)"}), 400
-            
+
+            # Valider le contenu du fichier (magic bytes)
+            if not validate_image_content(file.stream):
+                return jsonify({"error": "Le contenu du fichier ne correspond pas à une image valide"}), 400
+
             # Créer le dossier si nécessaire
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            
-            # Générer un nom de fichier sécurisé et unique
-            filename = secure_filename(file.filename)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            unique_filename = f"{timestamp}_{filename}"
+
+            # Générer un nom de fichier sécurisé et unique avec UUID
+            original_filename = secure_filename(file.filename)
+            file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
+            unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
             
             filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
             file.save(filepath)
@@ -485,7 +516,7 @@ def wiki_upload_routes(app):
             db.execute("""
                 INSERT INTO wiki_images (filename, original_filename, filepath, uploaded_by, file_size)
                 VALUES (?, ?, ?, ?, ?)
-            """, (unique_filename, filename, filepath, session["user"], file_size))
+            """, (unique_filename, original_filename, filepath, session["user"], file_size))
             db.commit()
             db.close()
             

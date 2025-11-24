@@ -63,3 +63,10 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Archive (fichiers obsolètes)
+archive/
+
+# Maintenance tests
+maintenance/tests/*.txt
+maintenance/tests/cookies*.txt

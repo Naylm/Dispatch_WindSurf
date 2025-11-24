@@ -3,8 +3,6 @@ services:
     image: postgres:15-alpine
     container_name: dispatch_postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"  # Expose PostgreSQL pour connexions externes
     environment:
       - POSTGRES_DB=dispatch
       - POSTGRES_USER=dispatch_user

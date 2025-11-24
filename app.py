@@ -3,13 +3,13 @@ from flask import (
     url_for, session, flash, jsonify, send_file
 )
 from flask_socketio import SocketIO, join_room, emit
+from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime, timedelta
 import pandas as pd
 import pdfkit
 from io import BytesIO
-from contextlib import contextmanager
 import secrets
 
 # Garantir l'intégrité de la base de données au démarrage
@@ -23,15 +23,30 @@ app = Flask(__name__, static_folder='static')
 def favicon():
     return app.send_static_file('img/favicon.ico')
 
-# Sécurité : Générer ou charger une clé secrète depuis .env
-app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+# Sécurité : SECRET_KEY est maintenant OBLIGATOIRE en production
 if not os.environ.get("SECRET_KEY"):
-    print("WARNING: SECRET_KEY non definie dans .env, utilisation d'une cle temporaire")
-    print(f"   Ajoutez ceci dans votre fichier .env : SECRET_KEY={app.secret_key}")
+    if os.environ.get("FLASK_ENV") == "production":
+        raise RuntimeError(
+            "ERREUR CRITIQUE: SECRET_KEY doit être définie en production!\n"
+            "Générez une clé avec: python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+            "Ajoutez-la dans votre fichier .env: SECRET_KEY=votre_cle_ici"
+        )
+    else:
+        # En développement seulement, générer une clé temporaire
+        app.secret_key = secrets.token_hex(32)
+        print("WARNING: SECRET_KEY non définie, utilisation d'une clé temporaire (dev only)")
+        print(f"   Ajoutez ceci dans votre fichier .env : SECRET_KEY={app.secret_key}")
+else:
+    app.secret_key = os.environ.get("SECRET_KEY")
 
 # Configuration optimisée pour la production
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file upload
+
+# CSRF Protection
+csrf = CSRFProtect(app)
+app.config['WTF_CSRF_ENABLED'] = os.environ.get('WTF_CSRF_ENABLED', 'true').lower() == 'true'
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # Pas d'expiration du token CSRF
 
 # Désactiver le cache des templates pour forcer le rechargement
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -134,8 +149,9 @@ def home():
         # Ne récupérer que les techniciens actifs pour l'affichage des colonnes
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1").fetchall()
     else:
+        # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
         incidents = db.execute(
-            "SELECT * FROM incidents WHERE LOWER(collaborateur)=LOWER(?) AND archived=0 "
+            "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
             "ORDER BY id ASC",
             (session["user"],),
         ).fetchall()
@@ -185,8 +201,9 @@ def home_content_api():
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1").fetchall()
     else:
         # Même ordre strict pour la vue technicien
+        # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
         incidents = db.execute(
-            "SELECT * FROM incidents WHERE LOWER(collaborateur)=LOWER(?) AND archived=0 "
+            "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
             "ORDER BY id ASC",
             (session["user"],),
         ).fetchall()
@@ -484,7 +501,12 @@ def configuration():
     priorites = db.execute("SELECT * FROM priorites ORDER BY niveau").fetchall()
     sites = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
     statuts = db.execute("SELECT * FROM statuts ORDER BY nom").fetchall()
-    return render_template("configuration.html", sujets=sujets, priorites=priorites, sites=sites, statuts=statuts)
+
+    return render_template("configuration.html",
+                         sujets=sujets,
+                         priorites=priorites,
+                         sites=sites,
+                         statuts=statuts)
 
 
 @app.route("/configuration/sujet/add", methods=["POST"])
@@ -639,11 +661,48 @@ def edit_statut():
 def delete_statut(id):
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     db = get_db()
     db.execute("DELETE FROM statuts WHERE id=?", (id,))
     db.commit()
     return redirect(url_for("configuration"))
+
+
+@app.route("/configuration/force_password_reset", methods=["POST"])
+def force_password_reset():
+    """Force un utilisateur à réinitialiser son mot de passe à la prochaine connexion"""
+    if "user" not in session or session["role"] != "admin":
+        return jsonify({"error": "Non autorisé"}), 403
+
+    username = request.form.get("username", "").strip()
+    user_type = request.form.get("user_type", "user").strip()
+
+    if not username:
+        return jsonify({"error": "Nom d'utilisateur requis"}), 400
+
+    db = get_db()
+
+    try:
+        if user_type == "user":
+            db.execute(
+                "UPDATE users SET force_password_reset=1 WHERE username=?",
+                (username,)
+            )
+        else:  # technicien
+            db.execute(
+                "UPDATE techniciens SET force_password_reset=1 WHERE prenom=?",
+                (username,)
+            )
+
+        db.commit()
+        db.close()
+
+        app.logger.info(f"Réinitialisation de mot de passe forcée pour {username} ({user_type}) par {session['user']}")
+        return jsonify({"success": True, "message": f"Réinitialisation forcée pour {username}"}), 200
+
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la réinitialisation forcée: {e}")
+        return jsonify({"error": "Erreur lors de la mise à jour"}), 500
 
 
 # ---------- AUTH (users + techniciens) ----------
@@ -659,56 +718,86 @@ def login():
             "SELECT * FROM users WHERE username=?", (u,)
         ).fetchone()
         if user:
-            print(f"DEBUG: User found: {u}, password hash starts with: {user['password'][:20]}")
-            # Vérifier si le mot de passe est hashé ou en clair (compatibilité anciens comptes)
-            if user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"):
-                # Mot de passe hashé
-                check_result = check_password_hash(user["password"], p)
-                print(f"DEBUG: check_password_hash result: {check_result}")
-                if check_result:
+            app.logger.debug(f"Tentative de connexion pour l'utilisateur: {u}")
+            # Vérifier le mot de passe hashé (OBLIGATOIRE - plus de fallback en clair)
+            if user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:")):
+                if check_password_hash(user["password"], p):
                     session["user"] = u
                     session["role"] = user["role"]
+                    session["user_type"] = "user"  # Pour savoir quelle table
                     session.permanent = True
-                    return redirect(url_for("home"))
-            elif user["password"] == p:
-                # Ancien mot de passe en clair - le convertir
-                session["user"] = u
-                session["role"] = user["role"]
-                session.permanent = True
-                # Mettre à jour avec le hash
-                db.execute("UPDATE users SET password=? WHERE id=?", 
-                          (generate_password_hash(p), user["id"]))
-                db.commit()
-                return redirect(url_for("home"))
-        else:
-            print(f"DEBUG: No user found for username: {u}")
+                    app.logger.info(f"Connexion réussie: {u} (role: {user['role']})")
 
-        # 2) Sinon, essayer dans techniciens
+                    # Vérifier si réinitialisation forcée requise
+                    try:
+                        force_reset = user["force_password_reset"]
+                    except (KeyError, IndexError):
+                        force_reset = 0
+
+                    db.close()
+                    if force_reset == 1:
+                        session["force_password_reset"] = True
+                        app.logger.info(f"Réinitialisation forcée requise pour {u}")
+                        return redirect(url_for("change_password_forced"))
+
+                    return redirect(url_for("home"))
+                else:
+                    app.logger.warning(f"Échec de connexion pour {u}: mot de passe incorrect")
+                    db.close()
+                    flash("Mauvais identifiants", "danger")
+                    return render_template("login.html")
+            else:
+                # Mot de passe non hashé ou vide - REFUSER LA CONNEXION
+                app.logger.error(f"Échec de connexion pour {u}: mot de passe non hashé (réinitialisation requise)")
+                db.close()
+                flash("Votre mot de passe doit être réinitialisé. Contactez l'administrateur.", "danger")
+                return render_template("login.html")
+
+        # 2) Sinon, essayer dans techniciens (ATTENTION: utilise prenom - devrait être username)
         tech = db.execute(
-            "SELECT * FROM techniciens WHERE LOWER(prenom)=LOWER(?)",
+            "SELECT * FROM techniciens WHERE prenom=?",
             (u,),
         ).fetchone()
         if tech and tech["password"]:
-            # Vérifier si le mot de passe est hashé ou en clair
+            app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
+            # Vérifier le mot de passe hashé (OBLIGATOIRE - plus de fallback en clair)
             if tech["password"].startswith("pbkdf2:") or tech["password"].startswith("scrypt:"):
-                # Mot de passe hashé
                 if check_password_hash(tech["password"], p):
                     session["user"] = tech["prenom"]
                     session["role"] = tech["role"] or "technicien"
+                    session["user_type"] = "technicien"  # Pour savoir quelle table
                     session.permanent = True
-                    return redirect(url_for("home"))
-            elif tech["password"] == p:
-                # Ancien mot de passe en clair - le convertir
-                session["user"] = tech["prenom"]
-                session["role"] = tech["role"] or "technicien"
-                session.permanent = True
-                # Mettre à jour avec le hash
-                db.execute("UPDATE techniciens SET password=? WHERE id=?", 
-                          (generate_password_hash(p), tech["id"]))
-                db.commit()
-                return redirect(url_for("home"))
+                    app.logger.info(f"Connexion technicien réussie: {tech['prenom']}")
 
+                    # Vérifier si réinitialisation forcée requise
+                    try:
+                        force_reset = tech["force_password_reset"]
+                    except (KeyError, IndexError):
+                        force_reset = 0
+
+                    db.close()
+                    if force_reset == 1:
+                        session["force_password_reset"] = True
+                        app.logger.info(f"Réinitialisation forcée requise pour technicien {tech['prenom']}")
+                        return redirect(url_for("change_password_forced"))
+
+                    return redirect(url_for("home"))
+                else:
+                    app.logger.warning(f"Échec de connexion pour technicien {u}: mot de passe incorrect")
+                    db.close()
+                    flash("Mauvais identifiants", "danger")
+                    return render_template("login.html")
+            else:
+                # Mot de passe non hashé ou vide - REFUSER LA CONNEXION
+                app.logger.error(f"Échec de connexion pour technicien {u}: mot de passe non hashé")
+                db.close()
+                flash("Votre mot de passe doit être réinitialisé. Contactez l'administrateur.", "danger")
+                return render_template("login.html")
+
+        # Aucun utilisateur trouvé
+        db.close()
         flash("Mauvais identifiants", "danger")
+        app.logger.warning(f"Échec de connexion: identifiants invalides pour {u}")
 
     return render_template("login.html")
 
@@ -717,6 +806,91 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/change_password_forced", methods=["GET", "POST"])
+def change_password_forced():
+    """Route pour le changement de mot de passe forcé (demandé par l'admin)"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    # Vérifier que l'utilisateur doit vraiment changer son mot de passe
+    if not session.get("force_password_reset", False):
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        current_password = request.form.get("current_password", "").strip()
+        new_password = request.form.get("new_password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+
+        # Validation
+        if not current_password or not new_password or not confirm_password:
+            flash("Tous les champs sont obligatoires", "danger")
+            return render_template("change_password_forced.html")
+
+        if new_password != confirm_password:
+            flash("Les mots de passe ne correspondent pas", "danger")
+            return render_template("change_password_forced.html")
+
+        if len(new_password) < 8:
+            flash("Le mot de passe doit contenir au moins 8 caractères", "danger")
+            return render_template("change_password_forced.html")
+
+        db = get_db()
+        user_type = session.get("user_type", "user")
+        username = session["user"]
+
+        # Récupérer l'utilisateur selon le type
+        if user_type == "user":
+            user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        else:
+            user = db.execute("SELECT * FROM techniciens WHERE prenom=?", (username,)).fetchone()
+
+        if not user:
+            db.close()
+            flash("Utilisateur introuvable", "danger")
+            return redirect(url_for("logout"))
+
+        # Vérifier le mot de passe actuel
+        if not check_password_hash(user["password"], current_password):
+            db.close()
+            flash("Mot de passe actuel incorrect", "danger")
+            return render_template("change_password_forced.html")
+
+        # Vérifier que le nouveau mot de passe est différent
+        if check_password_hash(user["password"], new_password):
+            db.close()
+            flash("Le nouveau mot de passe doit être différent de l'ancien", "danger")
+            return render_template("change_password_forced.html")
+
+        # Hasher le nouveau mot de passe
+        hashed_password = generate_password_hash(new_password)
+
+        # Mettre à jour le mot de passe et réinitialiser le flag
+        if user_type == "user":
+            db.execute(
+                "UPDATE users SET password=?, force_password_reset=0 WHERE username=?",
+                (hashed_password, username)
+            )
+        else:
+            db.execute(
+                "UPDATE techniciens SET password=?, force_password_reset=0 WHERE prenom=?",
+                (hashed_password, username)
+            )
+
+        db.commit()
+        db.close()
+
+        # Supprimer le flag de session
+        session.pop("force_password_reset", None)
+
+        app.logger.info(f"Mot de passe réinitialisé avec succès pour {username}")
+        flash("Mot de passe réinitialisé avec succès!", "success")
+
+        # Rediriger vers la page d'accueil
+        return redirect(url_for("home"))
+
+    return render_template("change_password_forced.html")
 
 
 # ---------- AJOUT INCIDENT ----------
@@ -894,7 +1068,8 @@ def edit_note(id):
 
     db = get_db()
     inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
-    if inc["collaborateur"].lower() != session["user"].lower() and session["role"] != "admin":
+    # Comparaison exacte (sensible à la casse) pour sécurité
+    if inc["collaborateur"] != session["user"] and session["role"] != "admin":
         return redirect(url_for("home"))
 
     if request.method == "POST":
@@ -968,7 +1143,8 @@ def edit_note_inline(id):
         return jsonify({"error": "Incident introuvable"}), 404
 
     # Vérifier les permissions (technicien propriétaire ou admin)
-    if inc["collaborateur"].lower() != session["user"].lower() and session["role"] != "admin":
+    # Comparaison exacte (sensible à la casse) pour sécurité
+    if inc["collaborateur"] != session["user"] and session["role"] != "admin":
         return jsonify({"error": "Permission refusée"}), 403
 
     new_note = request.json.get("note", "").strip()
@@ -1331,11 +1507,11 @@ def migrate_sqlite_to_postgres(sqlite_db_path):
         # Importer le script de migration existant
         import sys
         sys.path.append('/app')
-        from migrate_sqlite_to_postgres import migrate
-        
+        from maintenance.migrations.migrate_sqlite_to_postgres import migrate
+
         # Adapter le script pour utiliser notre fichier temporaire
         # Modifier la variable globale du chemin SQLite
-        import migrate_sqlite_to_postgres as migrate_module
+        import maintenance.migrations.migrate_sqlite_to_postgres as migrate_module
         migrate_module.SQLITE_DB_PATH = sqlite_db_path
         
         result = migrate()

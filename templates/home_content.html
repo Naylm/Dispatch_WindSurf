@@ -838,11 +838,15 @@
       payload = { note: newValue };
     }
 
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
     // Send AJAX request
     fetch(route, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
       },
       body: JSON.stringify(payload),
       credentials: 'same-origin'

@@ -158,8 +158,10 @@ def get_db():
     """
     Connexion à PostgreSQL avec wrapper compatible SQLite
     Retourne un objet qui émule l'interface sqlite3.Connection
-    
+
     Note: N'utilise PAS RealDictCursor pour être compatible avec fetchone()[0]
+
+    ⚠️ IMPORTANT: Pensez à fermer la connexion avec db.close() ou utiliser get_db_context()
     """
     conn = psycopg2.connect(
         host=POSTGRES_HOST,
@@ -172,3 +174,27 @@ def get_db():
     # Utiliser le cursor par défaut (tuple) pour compatibilité avec [0]
     # mais on va wrapper pour supporter aussi dict-like access
     return PostgresConnection(conn)
+
+
+@contextmanager
+def get_db_context():
+    """
+    Context manager pour gérer automatiquement la fermeture de la connexion DB
+
+    Usage:
+        with get_db_context() as db:
+            result = db.execute("SELECT * FROM table").fetchall()
+            db.commit()
+        # Connexion fermée automatiquement
+
+    En cas d'exception, rollback automatique
+    """
+    db = get_db()
+    try:
+        yield db
+        # Si pas d'exception, on pourrait commit ici si nécessaire
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

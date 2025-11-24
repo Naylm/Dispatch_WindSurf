@@ -16,7 +16,12 @@
       "Bash(docker start:*)",
       "Bash(docker exec:*)",
       "Bash(docker stop:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(temp_secret.txt)",
+      "Bash(cat:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker logs:*)",
+      "Bash(timeout 10 bash:*)"
     ],
     "deny": [],
     "ask": []
