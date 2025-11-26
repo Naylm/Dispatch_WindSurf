@@ -360,6 +360,9 @@
     // Socket.IO & AJAX refresh
     const socket = io();
     socket.emit('join', { room: '{{ user.lower() }}' });
+    
+    // Flag global pour éviter les boucles entre handler change et Socket.IO
+    window.skipStatusChange = false;
 
     function refreshIncidents() {
       // Ne pas rafraîchir si un changement de statut est en cours
@@ -393,24 +396,65 @@
         });
     }
     socket.on('incident_update', (data) => {
+      console.log('📡 Socket.IO: incident_update reçu (va refresh toute la page):', data);
       refreshIncidents();
     });
-    
+
+    // Handler spécifique pour les changements d'état (mise à jour granulaire)
+    socket.on('incident_etat_changed', (data) => {
+      // Trouver tous les conteneurs avec data-incident-id (admin + tech)
+      const containers = document.querySelectorAll(`[data-incident-id="${data.id}"]`);
+      
+      containers.forEach(container => {
+        // Mettre à jour tous les selects de statut dans ce conteneur
+        const selects = container.querySelectorAll('.status-selector-col, .status-selector-list');
+        selects.forEach(select => {
+          // Utiliser le flag global pour éviter de déclencher l'event handler change
+          window.skipStatusChange = true;
+          select.value = data.new_etat;
+          select.dataset.current = data.new_etat;
+          window.skipStatusChange = false;
+        });
+
+        // Mettre à jour le badge de statut
+        const badge = container.querySelector('.status-badge');
+        if (badge) {
+          badge.textContent = data.new_etat;
+          if (data.couleur && data.text_color) {
+            badge.dataset.bgColor = data.couleur;
+            badge.dataset.textColor = data.text_color;
+            badge.style.setProperty('background-color', data.couleur, 'important');
+            badge.style.setProperty('color', data.text_color, 'important');
+          }
+        }
+        
+        // Mettre à jour l'attribut data-etat pour le filtrage (si présent)
+        if (container.dataset.etat !== undefined) {
+          container.dataset.etat = data.new_etat.toLowerCase();
+        }
+      });
+    });
+
     // Handler spécifique pour la suppression en temps réel
     socket.on('incident_deleted', (data) => {
-      // Supprimer visuellement la carte de l'incident supprimé
-      const cards = document.querySelectorAll(`.incident-card-col[data-id="${data.id}"]`);
+      // Trouver toutes les cartes avec data-incident-id (admin + tech)
+      const cards = document.querySelectorAll(`[data-incident-id="${data.id}"]`);
+      
       cards.forEach(card => {
+        // Animation de suppression
         card.style.transition = 'opacity 0.3s, transform 0.3s';
         card.style.opacity = '0';
         card.style.transform = 'scale(0.8)';
         setTimeout(() => card.remove(), 300);
       });
       
-      // Mettre à jour les compteurs si présents
+      // Mettre à jour les compteurs si présents (admin)
       const totalCount = document.getElementById('totalCount');
       if (totalCount) {
-        totalCount.textContent = parseInt(totalCount.textContent) - 1;
+        const currentCount = parseInt(totalCount.textContent) || 0;
+        if (currentCount > 0) {
+          totalCount.textContent = currentCount - 1;
+        }
       }
     });
     socket.on('new_assignment', (data) => {
@@ -484,6 +528,68 @@
         localStorage.setItem('sidebarState', 'open');
       }
     });
+  </script>
+
+  <!-- Système de notifications -->
+  <script src="{{ url_for('static', filename='js/notification_system.js') }}"></script>
+
+  <script>
+  // Initialisation UNIQUE avec protection contre double-init
+  document.addEventListener('DOMContentLoaded', function() {
+      // Vérifier que socket.io est chargé
+      if (typeof socket === 'undefined') {
+          console.error('Socket.IO non disponible, notifications désactivées');
+          return;
+      }
+
+      // Vérifier que le système n'est pas déjà initialisé
+      if (!window.notificationSystem) {
+          console.error('NotificationSystem non chargé');
+          return;
+      }
+
+      // Intégration avec Socket.IO
+      socket.on('notification', function(data) {
+          // Filtrer les notifications selon le rôle et l'utilisateur
+          const currentUser = '{{ session.user }}';
+          const currentRole = '{{ session.role }}';
+
+          // Les admins reçoivent toutes les notifications
+          // Les techniciens ne reçoivent que leurs notifications
+          if (currentRole === 'admin' || data.technicien === currentUser) {
+              // Router vers la bonne méthode selon le type
+              switch(data.type) {
+                  case 'new_assignment':
+                  case 'reassignment_new':
+                      window.notificationSystem.notifyNewAssignment(data);
+                      break;
+
+                  case 'status_change':
+                      window.notificationSystem.notifyStatusChange(data);
+                      break;
+
+                  case 'urgent_update':
+                      window.notificationSystem.notifyUrgentUpdate(data);
+                      break;
+
+                  case 'reassignment_removed':
+                      window.notificationSystem.addNotification({
+                          type: 'info',
+                          priority: 'info',
+                          title: '📤 Ticket réaffecté',
+                          message: `${data.numero} a été réaffecté à ${data.to_technicien}`,
+                          incident_id: data.incident_id
+                      });
+                      break;
+
+                  default:
+                      console.warn('Type de notification inconnu:', data.type);
+              }
+          }
+      });
+
+      console.log('✅ Notifications WebSocket connectées');
+  });
   </script>
 </body>
 </html>

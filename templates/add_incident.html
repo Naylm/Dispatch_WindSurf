@@ -23,6 +23,7 @@
   </nav>
 
   <form method="post" class="p-3 rounded shadow-sm bg-white">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="row g-3 mb-3">
       <div class="col-md-6">
         <label class="form-label">Numéro Incident</label>

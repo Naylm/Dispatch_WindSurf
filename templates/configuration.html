@@ -28,6 +28,7 @@
           </div>
           
           <form method="post" action="{{ url_for('import_database_preview') }}" enctype="multipart/form-data" id="importForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="row align-items-end">
               <div class="col-md-8">
                 <label for="dbFile" class="form-label">Sélectionner un fichier dispatch.db</label>
@@ -60,6 +61,7 @@
         </div>
         <div class="card-body">
           <form method="post" action="{{ url_for('add_sujet') }}" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="input-group">
               <input type="text" name="nom" class="form-control" placeholder="Nouveau sujet" required>
               <button type="submit" class="btn btn-primary">Ajouter</button>
@@ -80,6 +82,7 @@
                   ✏️
                 </button>
                 <form method="post" action="{{ url_for('delete_sujet', id=sujet.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce sujet ?')" title="Supprimer">🗑️</button>
                 </form>
               </div>
@@ -98,6 +101,7 @@
         </div>
         <div class="card-body">
           <form method="post" action="{{ url_for('add_priorite') }}" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-2">
               <input type="text" name="nom" class="form-control mb-2" placeholder="Nom de la priorité" required>
               <div class="input-group mb-2">
@@ -128,6 +132,7 @@
                   ✏️
                 </button>
                 <form method="post" action="{{ url_for('delete_priorite', id=priorite.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette priorité ?')" title="Supprimer">🗑️</button>
                 </form>
               </div>
@@ -146,6 +151,7 @@
         </div>
         <div class="card-body">
           <form method="post" action="{{ url_for('add_site') }}" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-2">
               <input type="text" name="nom" class="form-control mb-2" placeholder="Nom du site" required>
               <div class="input-group mb-2">
@@ -171,6 +177,7 @@
                   ✏️
                 </button>
                 <form method="post" action="{{ url_for('delete_site', id=site.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce site ?')" title="Supprimer">🗑️</button>
                 </form>
               </div>
@@ -189,6 +196,7 @@
         </div>
         <div class="card-body">
           <form method="post" action="{{ url_for('add_statut') }}" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-2">
               <input type="text" name="nom" class="form-control mb-2" placeholder="Nom du statut" required>
               <div class="input-group mb-2">
@@ -244,6 +252,7 @@
                   ✏️
                 </button>
                 <form method="post" action="{{ url_for('delete_statut', id=statut.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce statut ?')" title="Supprimer">🗑️</button>
                 </form>
               </div>
@@ -270,6 +279,7 @@
         </div>
         <div class="modal-body">
           <form id="editSujetForm" method="post" action="{{ url_for('edit_sujet') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" id="editSujetId" name="id">
             
             <div class="mb-3">
@@ -296,6 +306,7 @@
         </div>
         <div class="modal-body">
           <form id="editPrioriteForm" method="post" action="{{ url_for('edit_priorite') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" id="editPrioriteId" name="id">
             
             <div class="mb-3">
@@ -335,6 +346,7 @@
         </div>
         <div class="modal-body">
           <form id="editSiteForm" method="post" action="{{ url_for('edit_site') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" id="editSiteId" name="id">
             
             <div class="mb-3">
@@ -369,6 +381,7 @@
         </div>
         <div class="modal-body">
           <form id="editStatutForm" method="post" action="{{ url_for('edit_statut') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" id="editStatutId" name="id">
             
             <div class="mb-3">

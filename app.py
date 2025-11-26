@@ -16,6 +16,15 @@ import secrets
 from ensure_db_integrity import ensure_database_integrity
 ensure_database_integrity()
 
+# Système de notifications
+from notification_helpers import (
+    emit_new_assignment_notification,
+    emit_status_change_notification,
+    emit_urgent_update_notification,
+    emit_reassignment_notification,
+    is_urgent
+)
+
 app = Flask(__name__, static_folder='static')
 
 # Route pour le favicon
@@ -392,12 +401,35 @@ def assign_incident():
 
     try:
         db = get_db()
+
+        # Récupérer les données de l'incident AVANT modification
+        incident = db.execute("SELECT * FROM incidents WHERE id=?", (incident_id,)).fetchone()
+        if not incident:
+            return jsonify({"status": "error", "message": "Incident introuvable"}), 404
+
+        old_collab = incident['collaborateur']
+
         db.execute("BEGIN")
         db.execute(
             "UPDATE incidents SET collaborateur=? WHERE id=?", (new_collab, incident_id)
         )
         db.commit()
-        socketio.emit("incident_update", {"action": "reassign", "incident_id": incident_id, "new_collab": new_collab}, broadcast=True)
+
+        # Préparer les données pour la notification
+        incident_data = {
+            "id": incident_id,
+            "numero": incident['numero'],
+            "site": incident['site'],
+            "sujet": incident['sujet'],
+            "urgence": incident['urgence'],
+            "note_dispatch": incident.get('note_dispatch', ''),
+            "localisation": incident.get('localisation', '')
+        }
+
+        # Émettre la notification de réaffectation
+        emit_reassignment_notification(socketio, incident_data, old_collab, new_collab)
+
+        socketio.emit("incident_update", {"action": "reassign", "incident_id": incident_id, "new_collab": new_collab})
         return jsonify({"status": "ok"})
     except Exception as e:
         db.rollback()
@@ -921,9 +953,27 @@ def add_incident():
             collaborateur, etat, note_dispatch,
             valide, date_affectation, archived, localisation
           ) VALUES (?, ?, ?, ?, ?, 'Affecté', ?, 0, ?, 0, ?)
+          RETURNING id
         """
-        db.execute(sql, (numero, site, sujet, urgence, collab, note_dispatch, date_aff, localisation))
+        result = db.execute(sql, (numero, site, sujet, urgence, collab, note_dispatch, date_aff, localisation))
+        incident_id = result.fetchone()["id"]
         db.commit()
+
+        # Préparer les données pour la notification
+        incident_data = {
+            "id": incident_id,
+            "numero": numero,
+            "site": site,
+            "sujet": sujet,
+            "urgence": urgence,
+            "note_dispatch": note_dispatch,
+            "localisation": localisation
+        }
+
+        # Émettre la notification de nouveau ticket
+        emit_new_assignment_notification(socketio, incident_data, collab)
+
+        # Émettre aussi l'event classique pour le refresh
         socketio.emit("incident_update", {"action": "add"})
         return redirect(url_for("home"))
 
@@ -964,28 +1014,42 @@ def delete_incident(id):
         ),
     )
     
-    # Suppression de l'incident avec protection transactionnelle
+    # Suppression de l'incident
     try:
-        db.execute("BEGIN")
         db.execute("DELETE FROM incidents WHERE id=?", (id,))
         db.commit()
         
         # Emit avec plus de détails pour la mise à jour temps réel
         socketio.emit("incident_deleted", {
-            "action": "delete", 
+            "action": "delete",
             "id": id,
             "numero": incident['numero'],
             "collaborateur": incident['collaborateur']
-        }, broadcast=True)
+        })
         
-        return jsonify({"success": True}), 200
+        # Si c'est une requête AJAX, retourner JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({"status": "ok", "success": True}), 200
+        
+        # Sinon, comportement classique (redirect)
+        flash("Incident supprimé", "success")
+        return redirect(url_for("home"))
     except Exception as e:
         db.rollback()
         app.logger.error(f"Erreur delete_incident: {e}")
-        if "conflit de modification" in str(e).lower():
-            return jsonify({"error": "Conflit de modification"}), 409
-        else:
-            return jsonify({"error": "Erreur serveur"}), 500
+        
+        # Si c'est une requête AJAX, retourner JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            if "conflit de modification" in str(e).lower():
+                return jsonify({"error": "Conflit de modification"}), 409
+            else:
+                return jsonify({"error": "Erreur serveur"}), 500
+        
+        # Sinon, comportement classique
+        flash("Erreur lors de la suppression", "error")
+        return redirect(url_for("home"))
 @app.route("/edit_incident/<int:id>", methods=["GET", "POST"])
 def edit_incident(id):
     if "user" not in session or session["role"] != "admin":
@@ -1234,7 +1298,7 @@ def update_etat(id):
 
     db = get_db()
     try:
-        db.execute("BEGIN")
+        # PostgreSQL gère automatiquement les transactions, pas besoin de BEGIN explicite
         inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
         new = request.form["etat"]
 
@@ -1257,11 +1321,62 @@ def update_etat(id):
                     datetime.now().strftime("%d-%m-%Y %H:%M"),
                 ),
             )
+
+            # Notification de changement de statut
+            emit_status_change_notification(
+                socketio,
+                id,
+                inc["numero"],
+                inc["etat"],
+                new,
+                inc["collaborateur"]
+            )
+
+            # Si passage à un état critique sur ticket urgent
+            if is_urgent(inc["urgence"]) and new in ["Suspendu", "En intervention"]:
+                emit_urgent_update_notification(
+                    socketio,
+                    id,
+                    inc["numero"],
+                    f"Statut changé: {new}",
+                    inc["collaborateur"]
+                )
+
         db.commit()
-        socketio.emit("incident_update", {"action": "etat"})
+
+        # Si c'est une requête AJAX, retourner JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+        if is_ajax:
+            # Récupérer les infos du statut (couleur)
+            statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=?", (new,)).fetchone()
+            statut_couleur = statut_info["couleur"] if statut_info else "#6c757d"
+            statut_text_color = get_contrast_color(statut_couleur)
+
+            # Émettre broadcast pour que les autres clients se rafraîchissent
+            # Note: emit() fait déjà un broadcast par défaut, pas besoin du paramètre
+            socketio.emit("incident_etat_changed", {
+                "action": "etat",
+                "id": id,
+                "new_etat": new,
+                "numero": inc["numero"],
+                "couleur": statut_couleur,
+                "text_color": statut_text_color
+            })
+            return jsonify({"status": "ok", "new_etat": new, "couleur": statut_couleur, "text_color": statut_text_color})
+        else:
+            # Requête normale (formulaire), émettre le broadcast classique
+            socketio.emit("incident_update", {"action": "etat"})
+
     except Exception as e:
         db.rollback()
         app.logger.error(f"Erreur update_etat: {e}")
+
+        # Si c'est une requête AJAX, retourner erreur JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
         flash("Conflit de modification", "warning")
 
     return redirect(url_for("home"))

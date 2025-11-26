@@ -110,6 +110,7 @@
                 {% for i in tech_incidents %}
                   <li class="list-group-item incident-card-col"
                       data-id="{{ i.id }}"
+                      data-incident-id="{{ i.id }}"
                       data-numero="{{ i.numero|lower }}"
                       data-site="{{ i.site|lower }}"
                       data-sujet="{{ i.sujet|lower }}"
@@ -142,7 +143,7 @@
                       <span class="badge bg-secondary mb-1">{{ i.site }}</span>
                     {% endif %}
                     {% if i.localisation %}
-                      <small class="text-muted" style="font-size: 0.85rem;"> 📍 {{ i.localisation }}</small>
+                      <small class="location-text"> 📍 {{ i.localisation }}</small>
                     {% endif %}
                     
                     <br><small>/ {{ i.sujet }}</small><br>
@@ -351,10 +352,14 @@
         const incidentId = e.target.dataset.incidentId;
         const newTech = e.target.value;
         const currentTech = e.target.dataset.current;
-        
+
         if (newTech !== currentTech && confirm(`Affecter le ticket à ${newTech} ?`)) {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
           fetch('/incidents/assign', {
             method: 'POST',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
             body: new URLSearchParams({
               id: incidentId,
               collaborateur: newTech
@@ -366,15 +371,19 @@
           e.target.value = currentTech;
         }
       }
-      
+
       // Changement de technicien (vue colonnes)
       if (e.target.matches('.tech-selector-col')) {
         const incidentId = e.target.dataset.incidentId;
         const newTech = e.target.value;
-        
+
         if (confirm(`Affecter le ticket à ${newTech} ?`)) {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
           fetch('/incidents/assign', {
             method: 'POST',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
             body: new URLSearchParams({
               id: incidentId,
               collaborateur: newTech
@@ -382,46 +391,8 @@
           }).then(r => r.json());
         }
       }
-      
-      // Changement de statut (vue colonnes)
-      if (e.target.matches('.status-selector-col')) {
-        const incidentId = e.target.dataset.incidentId;
-        const newStatus = e.target.value;
-        const currentStatus = e.target.dataset.current;
-
-        if (newStatus !== currentStatus) {
-          // Désactiver temporairement le refresh Socket.IO
-          window._statusUpdateInProgress = true;
-
-          fetch('/update_etat/' + incidentId, {
-            method: 'POST',
-            body: new URLSearchParams({
-              etat: newStatus
-            })
-          }).then(r => {
-            if (r.ok) {
-              e.target.dataset.current = newStatus;
-              // Mise à jour visuelle du badge
-              const card = e.target.closest('.incident-card-col');
-              const badge = card.querySelector('.status-badge');
-              if (badge) {
-                badge.textContent = newStatus;
-              }
-
-              // Réactiver le refresh après un délai
-              setTimeout(() => {
-                window._statusUpdateInProgress = false;
-              }, 500);
-            } else {
-              window._statusUpdateInProgress = false;
-            }
-          }).catch(() => {
-            window._statusUpdateInProgress = false;
-          });
-        }
-      }
     });
-    
+
     // Bouton copier le numéro de ticket
     document.addEventListener('click', function(e) {
       if (e.target.matches('.copy-btn') || e.target.closest('.copy-btn')) {
@@ -451,19 +422,39 @@
         const incidentId = btn.dataset.incidentId;
         const numero = btn.dataset.numero;
         
+        // Confirmation avant suppression
+        if (!confirm(`Supprimer le ticket ${numero || incidentId} ?`)) {
+          return;
+        }
+        
         // Sauvegarder la position de scroll horizontal
         const columnsView = document.querySelector('#columnsView .row');
         const scrollPosition = columnsView ? columnsView.scrollLeft : 0;
-        
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         fetch('/delete_incident/' + incidentId, {
-          method: 'POST'
-        }).then(r => {
-          if (r.ok) {
-            // Supprimer visuellement la carte
-            const card = btn.closest('.incident-card-col');
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(r => {
+          if (!r.ok) {
+            return r.json().then(data => {
+              throw new Error(data.error || `Erreur ${r.status}`);
+            });
+          }
+          return r.json();
+        })
+        .then(data => {
+          if (data.status === 'ok' || data.success) {
+            // Supprimer visuellement la carte (même si Socket.IO va aussi le faire)
+            const card = btn.closest('.incident-card-col, .small-card, [data-incident-id]');
             if (card) {
-              card.style.transition = 'opacity 0.3s';
+              card.style.transition = 'opacity 0.3s, transform 0.3s';
               card.style.opacity = '0';
+              card.style.transform = 'scale(0.8)';
               setTimeout(() => {
                 card.remove();
                 // Restaurer la position de scroll
@@ -475,9 +466,10 @@
           } else {
             alert('Erreur lors de la suppression');
           }
-        }).catch(err => {
+        })
+        .catch(err => {
           console.error('Erreur suppression:', err);
-          alert('Erreur lors de la suppression');
+          alert(err.message || 'Erreur lors de la suppression');
         });
       }
     });
@@ -585,7 +577,7 @@
   <div id="userView" class="d-flex flex-wrap gap-3">
     {% for i in incidents %}
       {% set priorite_info_header = priorites|selectattr("nom", "equalto", i.urgence)|first %}
-      <div class="card small-card shadow-sm">
+      <div class="card small-card shadow-sm" data-incident-id="{{ i.id }}">
         <div class="card-header text-center fw-bold text-white d-flex align-items-center justify-content-center gap-2 priority-header" 
              data-bg-color="{% if priorite_info_header %}{{ priorite_info_header.couleur }}{% else %}#6c757d{% endif %}">
           <span>{{ i.numero }}</span>
@@ -602,7 +594,7 @@
             <span class="badge bg-secondary mb-2">{{ i.site }}</span>
           {% endif %}
           {% if i.localisation %}
-            <small class="text-muted d-block" style="font-size: 0.85rem;">📍 {{ i.localisation }}</small>
+            <small class="location-text d-block">📍 {{ i.localisation }}</small>
           {% endif %}
           
           <small>/ {{ i.sujet }}</small>
@@ -673,13 +665,11 @@
           <div class="d-flex flex-wrap gap-1 mt-2">
             <a href="{{ url_for('edit_note', id=i.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier localisation">📍</a>
             <a href="{{ url_for('historique', id=i.id) }}" class="btn btn-sm btn-outline-info" title="Voir historique">🕒</a>
-            <form method="post" action="{{ url_for('update_etat', id=i.id) }}" class="d-inline ajax-form">
-              <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
-                {% for st in statuts %}
-                  <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>{{ st.nom }}</option>
-                {% endfor %}
-              </select>
-            </form>
+            <select class="form-select form-select-sm status-selector-list" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+              {% for st in statuts %}
+                <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>{{ st.nom }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
       </div>
@@ -754,6 +744,67 @@
 
   </script>
 {% endif %}
+
+<!-- ========================= -->
+<!-- SHARED JAVASCRIPT - Status Change Handlers (Admin + Tech) -->
+<!-- ========================= -->
+<script>
+  // Handler unifié pour les changements de statut - PARTAGÉ entre admin et techniciens
+  document.addEventListener('change', function(e) {
+    // Vérifier si c'est un select de statut (vue colonnes ou liste)
+    if (!e.target.matches('.status-selector-col, .status-selector-list')) return;
+    
+    // Ignorer si c'est un changement programmatique (Socket.IO)
+    if (window.skipStatusChange) {
+      return;
+    }
+    
+    const select = e.target;
+    const container = select.closest('[data-incident-id]');
+    const incidentId = container?.dataset.incidentId || select.dataset.incidentId;
+    const previousStatus = select.dataset.current;
+    const newStatus = select.value;
+    
+    // Validation : ignorer si pas de changement réel
+    if (!incidentId || !newStatus || newStatus === previousStatus) {
+      return;
+    }
+    
+    // Mise à jour optimiste immédiate
+    select.dataset.current = newStatus;
+    
+    // Récupérer le token CSRF
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Envoi de la requête
+    fetch(`/update_etat/${incidentId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ etat: newStatus })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status !== 'ok') {
+        // Rollback en cas d'erreur backend
+        select.value = previousStatus;
+        select.dataset.current = previousStatus;
+        alert('Erreur lors du changement de statut');
+      }
+      // Socket.IO se charge de la synchronisation globale (badge + autres vues)
+    })
+    .catch(err => {
+      console.error('Erreur changement statut:', err);
+      // Rollback en cas d'erreur réseau
+      select.value = previousStatus;
+      select.dataset.current = previousStatus;
+      alert('Erreur lors du changement de statut');
+    });
+  });
+</script>
 
 <!-- ========================= -->
 <!-- SHARED JAVASCRIPT - Note Editing Functions (Admin + Tech) -->
