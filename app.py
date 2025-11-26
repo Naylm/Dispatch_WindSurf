@@ -255,7 +255,7 @@ def techniciens():
         return redirect(url_for("login"))
 
     db = get_db()
-    techniciens = db.execute("SELECT * FROM techniciens").fetchall()
+    techniciens = db.execute("SELECT * FROM techniciens ORDER BY id ASC").fetchall()
     return render_template("techniciens.html", techniciens=techniciens)
 
 

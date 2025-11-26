@@ -29,6 +29,7 @@
         action="{{ url_for('add_technicien') }}"
         class="d-flex gap-2 align-items-center"
       >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input
           name="prenom"
           class="form-control"
@@ -72,6 +73,7 @@
             action="{{ url_for('edit_technicien', id=tech.id) }}"
             class="d-inline-flex gap-2 align-items-center"
           >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input
               name="prenom"
               class="form-control"
@@ -126,6 +128,7 @@
             title="Forcer la réinitialisation du mot de passe"
           >🔒</button>
           <form method="post" action="{{ url_for('toggle_technicien', id=tech.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if tech.actif == 1 %}
               <button
                 class="btn btn-sm btn-outline-warning"
@@ -160,6 +163,7 @@
   >
     <div class="modal-dialog">
       <form method="post" id="deleteForm" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="confirmModalLabel">Suppression technicien</h5>
@@ -205,6 +209,13 @@
             form.method = 'POST';
             form.action = '{{ url_for("force_password_reset") }}';
 
+            // Ajouter le token CSRF
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+
             // Ajouter le username
             const usernameInput = document.createElement('input');
             usernameInput.type = 'hidden';
@@ -226,7 +237,18 @@
               method: 'POST',
               body: new FormData(form)
             })
-            .then(response => response.json())
+            .then(response => {
+              // Vérifier si la réponse est du JSON
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                return response.json();
+              } else {
+                // Si ce n'est pas du JSON, lire le texte et afficher une erreur
+                return response.text().then(text => {
+                  throw new Error('Le serveur a renvoyé une réponse non-JSON. Vérifiez votre session.');
+                });
+              }
+            })
             .then(data => {
               if (data.success) {
                 alert(`✅ ${data.message}`);
