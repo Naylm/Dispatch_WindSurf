@@ -3,29 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{% if article %}Modifier{% else %}Créer{% endif %} un article - Base de Connaissances</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        .editor-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+        /* Layout éditeur/preview - Flex 40/60 */
+        .wiki-editor-layout {
+            display: flex;
+            gap: 1.5rem;
+            align-items: stretch;
             margin-bottom: 2rem;
         }
         
-        @media (max-width: 768px) {
-            .editor-container {
-                grid-template-columns: 1fr;
-            }
+        .editor-column {
+            flex: 0 0 40%;
+            max-width: 40%;
         }
         
-        .editor-panel {
-            background: var(--bg-card);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            min-height: 500px;
+        .preview-column {
+            flex: 1;
+        }
+        
+        /* Sur mobile : colonnes l'une sous l'autre */
+        @media (max-width: 992px) {
+            .wiki-editor-layout {
+                flex-direction: column;
+            }
+            .editor-column,
+            .preview-column {
+                max-width: 100%;
+                flex: 1 1 auto;
+            }
         }
         
         .toolbar {
@@ -53,25 +63,39 @@
             border-color: var(--primary);
         }
         
-        #contentEditor {
+        /* Limiter la hauteur et éviter l'effet "tapis qui s'étire" */
+        .editor-column textarea,
+        .preview-column .preview-box {
+            min-height: 350px;
+            max-height: 550px;
+            overflow-y: auto;
+            border-radius: 8px;
+            padding: 12px 14px;
             width: 100%;
-            min-height: 400px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-sm);
-            padding: 1rem;
+            box-sizing: border-box;
+        }
+        
+        #contentEditor {
+            border: 1px solid var(--border-color, #ddd);
             font-family: 'Courier New', monospace;
-            background: var(--bg-input);
-            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.6;
+            background: var(--bg-input, #fff);
+            color: var(--text-primary, #333);
             resize: vertical;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Prévisualisation propre */
+        .preview-column .preview-box {
+            background: #fff;
+            border: 1px solid var(--border-color, #ddd);
         }
         
         #preview {
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-sm);
-            padding: 1rem;
-            min-height: 400px;
-            background: var(--bg-input);
-            overflow-y: auto;
+            min-height: 350px;
+            max-height: 550px;
         }
         
         #preview img {
@@ -163,7 +187,8 @@
     </nav>
 
     <div class="container py-4">
-        <form method="POST" id="articleForm">
+        <form method="POST" id="articleForm" action="{{ url_for('create_wiki_article') if not article else url_for('edit_wiki_article', id=article.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Informations de base -->
             <div class="form-section">
                 <h5 class="mb-3">📝 Informations de base</h5>
@@ -255,14 +280,14 @@
                 </div>
 
                 <!-- Zone d'édition et prévisualisation -->
-                <div class="editor-container">
-                    <div class="editor-panel">
-                        <h6>Édition (Markdown)</h6>
+                <div class="wiki-editor-layout">
+                    <div class="editor-column">
+                        <h6 class="mb-2">Édition (Markdown)</h6>
                         <textarea id="contentEditor" name="content" placeholder="Écrivez votre contenu en Markdown...">{% if article %}{{ article.content }}{% endif %}</textarea>
                     </div>
-                    <div class="editor-panel">
-                        <h6>Prévisualisation</h6>
-                        <div id="preview"></div>
+                    <div class="preview-column">
+                        <h6 class="mb-2">Prévisualisation</h6>
+                        <div id="preview" class="preview-box"></div>
                     </div>
                 </div>
 
@@ -458,32 +483,58 @@
         }
 
         function uploadImage(file) {
+            // Récupérer le token CSRF
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                            document.querySelector('input[name="csrf_token"]')?.value || '';
+            
+            if (!csrfToken) {
+                alert('Erreur de sécurité : token CSRF manquant. Rechargez la page.');
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('csrf_token', csrfToken);
 
             fetch('{{ url_for("upload_wiki_image") }}', {
                 method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                // Vérifier le Content-Type avant de parser en JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return response.text().then(text => {
+                        throw new Error('Réponse serveur invalide (HTML au lieu de JSON). Vérifiez les logs serveur.');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.success) {
+                if (data.success || data.status === 'ok') {
                     // Ajouter l'image à la liste
                     const imgDiv = document.createElement('div');
                     imgDiv.className = 'alert alert-success d-flex align-items-center justify-content-between';
                     imgDiv.innerHTML = `
                         <div>
-                            <strong>✅ Image uploadée :</strong> ${data.filename}
+                            <strong>✅ Image uploadée :</strong> ${data.filename || data.url || 'Image'}
                         </div>
                         <button type="button" class="btn btn-sm btn-primary" onclick="insertImageUrl('${data.url}')">
                             Insérer dans l'article
                         </button>
                     `;
                     uploadedImages.appendChild(imgDiv);
+                } else {
+                    throw new Error(data.error || data.message || 'Erreur lors de l\'upload');
                 }
             })
             .catch(error => {
-                alert('Erreur lors de l\'upload : ' + error);
+                console.error('Erreur upload image:', error);
+                alert('Erreur lors de l\'upload : ' + error.message);
             });
         }
 

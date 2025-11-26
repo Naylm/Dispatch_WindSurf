@@ -28,6 +28,7 @@
   --text-main: #111827;
   --text-secondary: #6b7280;
   --text-muted: #9ca3af;
+  --location-color: #6b7280; /* Gris moyen en mode clair */
   
   /* Borders & Shadows */
   --border-color: #e5e7eb;
@@ -59,12 +60,19 @@ body.dark {
   --text-main: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --location-color: #9ca3af; /* Gris clair en mode sombre - bien visible */
   
   --border-color: #334155;
   --glass-border: 1px solid rgba(255, 255, 255, 0.05);
   
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+}
+
+/* Classe dédiée pour la localisation */
+.location-text {
+  color: var(--location-color);
+  font-size: 0.85rem;
 }
 
 /* ==============================
@@ -273,14 +281,22 @@ body.with-sidebar-permanent .navbar {
 /* Tech Grid & Columns */
 .tech-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
   gap: 1.5rem;
   padding-bottom: 2rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tech-column {
+  min-width: 370px;
+  max-width: 450px; /* Permet extension sur grands écrans */
 }
 
 .tech-column .card {
   height: 100%;
   background: var(--bg-card);
+  min-width: 360px;
 }
 
 .tech-column .card-header {
@@ -472,7 +488,9 @@ body:not(.dark) .incident-note {
     box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
   }
   .sidebar-toggle { display: block !important; }
-  .tech-grid { grid-template-columns: 1fr; }
+  .tech-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
 }
 
 /* Petits écrans - sidebar plein écran si nécessaire */
@@ -497,6 +515,14 @@ body:not(.dark) .incident-note {
     padding: 0.75rem;
     width: 100%;
     max-width: 100%;
+  }
+
+  .tech-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-column {
+    min-width: 100%;
   }
 
   .navbar {
@@ -1024,6 +1050,22 @@ strong, em, i, b, small, label,
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+}
+
+/* Exception : permettre la sélection dans le contenu des articles wiki */
+.article-content,
+.article-content *,
+#articleContent,
+#articleContent *,
+.article-body,
+.article-body *,
+.markdown-body,
+.markdown-body * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text !important;
 }
 
 /* Boutons et liens doivent avoir le curseur pointer */

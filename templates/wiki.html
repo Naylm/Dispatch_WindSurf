@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>Wiki - Base de connaissances</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -178,11 +179,12 @@
                     <h5 class="modal-title">Nouveau dossier</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="newFolderForm">
+                <form id="newFolderForm" method="post" action="{{ url_for('create_wiki_category') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Nom du dossier</label>
-                            <input type="text" class="form-control" name="name" required>
+                            <input type="text" class="form-control" name="name" id="newFolderName" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Dossier parent</label>
@@ -209,11 +211,12 @@
                     <h5 class="modal-title">Nouvel article</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="newArticleForm">
+                <form id="newArticleForm" method="post" action="{{ url_for('create_wiki_article') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Titre</label>
-                            <input type="text" class="form-control" name="title" required>
+                            <input type="text" class="form-control" name="title" id="newArticleTitle" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Dossier</label>
@@ -280,7 +283,7 @@
                             searchResults.innerHTML = '<div class="p-3 text-muted">Aucun résultat</div>';
                         } else {
                             searchResults.innerHTML = articles.map(a => `
-                                <div class="search-result-item" onclick="window.location.href='/wiki/article/${a.id}'">
+                                <div class="search-result-item" onclick="window.location.href='{{ url_for("view_wiki_article", id=0) }}'.replace('/0', '/' + a.id)">
                                     <strong>${a.title}</strong>
                                     <p class="text-muted small mb-0">${a.excerpt}...</p>
                                 </div>
@@ -329,40 +332,125 @@
         });
 
         // Nouveau dossier
-        document.getElementById('newFolderForm').addEventListener('submit', (e) => {
+        document.getElementById('newFolderForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(e.target);
             
-            fetch('/wiki/folder/create', {
+            const nameInput = document.getElementById('newFolderName');
+            const folderName = nameInput ? nameInput.value.trim() : '';
+            if (!folderName) {
+                alert('Le nom de la catégorie est requis');
+                return;
+            }
+            
+            // Récupérer le token CSRF depuis le champ hidden du formulaire
+            const csrfTokenInput = this.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenInput ? csrfTokenInput.value : 
+                            document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            if (!csrfToken) {
+                console.error('CSRF token non trouvé');
+                alert('Erreur de sécurité : token CSRF manquant. Rechargez la page.');
+                return;
+            }
+            
+            // Envoyer avec le token dans le body ET dans les headers
+            fetch('{{ url_for("create_wiki_category") }}', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    name: folderName,
+                    csrf_token: csrfToken  // Token dans le body aussi (Flask-WTF le cherche là)
+                })
             })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) {
+                    return r.json().then(data => {
+                        throw new Error(data.error || `Erreur ${r.status}`);
+                    }).catch(() => {
+                        throw new Error(`Erreur ${r.status}: ${r.statusText}`);
+                    });
+                }
+                return r.json();
+            })
             .then(data => {
-                if (data.success) {
+                if (data.success || data.status === 'ok') {
+                    // Fermer le modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('newFolderModal'));
+                    if (modal) modal.hide();
+                    // Recharger la page pour voir la nouvelle catégorie
                     location.reload();
                 } else {
-                    alert(data.error || 'Erreur');
+                    alert(data.error || 'Erreur lors de la création');
                 }
+            })
+            .catch(err => {
+                console.error('Erreur création catégorie wiki:', err);
+                alert(err.message || 'Erreur lors de la création de la catégorie wiki');
             });
         });
 
         // Nouvel article
-        document.getElementById('newArticleForm').addEventListener('submit', (e) => {
+        document.getElementById('newArticleForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(e.target);
             
-            fetch('/wiki/article/create', {
+            const titleInput = document.getElementById('newArticleTitle');
+            const title = titleInput ? titleInput.value.trim() : '';
+            if (!title) {
+                alert('Le titre est requis');
+                return;
+            }
+            
+            // Récupérer le token CSRF depuis le champ hidden du formulaire
+            const csrfTokenInput = this.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenInput ? csrfTokenInput.value : 
+                            document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            if (!csrfToken) {
+                console.error('CSRF token non trouvé');
+                alert('Erreur de sécurité : token CSRF manquant. Rechargez la page.');
+                return;
+            }
+            
+            // Récupérer tous les champs du formulaire
+            const formData = new FormData(this);
+            
+            // Envoyer avec le token dans le body ET dans les headers
+            fetch('{{ url_for("create_wiki_article") }}', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData  // FormData inclut automatiquement le csrf_token du formulaire
             })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) {
+                    return r.json().then(data => {
+                        throw new Error(data.error || `Erreur ${r.status}`);
+                    }).catch(() => {
+                        throw new Error(`Erreur ${r.status}: ${r.statusText}`);
+                    });
+                }
+                return r.json();
+            })
             .then(data => {
-                if (data.success) {
+                if (data.success || data.status === 'ok') {
+                    // Fermer le modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('newArticleModal'));
+                    if (modal) modal.hide();
+                    // Recharger la page pour voir le nouvel article
                     location.reload();
                 } else {
-                    alert(data.error || 'Erreur');
+                    alert(data.error || 'Erreur lors de la création');
                 }
+            })
+            .catch(err => {
+                console.error('Erreur création article wiki:', err);
+                alert(err.message || 'Erreur lors de la création de l\'article wiki');
             });
         });
 
@@ -372,16 +460,36 @@
                 if (!confirm('Supprimer cet article ?')) return;
                 
                 const articleId = btn.dataset.id;
+                const csrfToken =
+                    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="csrf_token"]')?.value || '';
+                
                 fetch(`/wiki/article/${articleId}/delete`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken,
+                    }
                 })
-                .then(r => r.json())
+                .then(async (r) => {
+                    const contentType = r.headers.get("Content-Type") || "";
+                    if (!contentType.includes("application/json")) {
+                        const text = await r.text();
+                        console.error("Réponse non JSON du backend:", text);
+                        throw new Error("Réponse inattendue du serveur (pas JSON).");
+                    }
+                    return r.json();
+                })
                 .then(data => {
                     if (data.success) {
                         btn.closest('.article-item').remove();
                     } else {
-                        alert(data.error || 'Erreur');
+                        alert(data.error || 'Erreur lors de la suppression');
                     }
+                })
+                .catch(err => {
+                    console.error('Erreur delete article:', err);
+                    alert('Erreur lors de la suppression : ' + err.message);
                 });
             });
         });
