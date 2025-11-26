@@ -20,8 +20,8 @@ def ensure_database_integrity():
     # ========== TABLE: users ==========
     cursor.execute("""
         SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
             AND table_name = 'users'
         )
     """)
@@ -31,24 +31,34 @@ def ensure_database_integrity():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
-                role VARCHAR(50) NOT NULL
+                role VARCHAR(50) NOT NULL,
+                force_password_reset INTEGER DEFAULT 0
             )
         """)
         # Créer un admin par défaut (mot de passe: admin)
         admin_hash = generate_password_hash('admin')
         cursor.execute("""
-            INSERT INTO users (username, password, role) 
+            INSERT INTO users (username, password, role)
             VALUES (%s, %s, %s)
         """, ('admin', admin_hash, 'admin'))
         tables_created.append("users")
     else:
         tables_verified.append("users")
+        # Migration: s'assurer que la colonne force_password_reset existe
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='force_password_reset'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN force_password_reset INTEGER DEFAULT 0")
+            print("   - Colonne force_password_reset ajoutee a la table users")
     
     # ========== TABLE: techniciens ==========
     cursor.execute("""
         SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
             AND table_name = 'techniciens'
         )
     """)
@@ -59,12 +69,22 @@ def ensure_database_integrity():
                 prenom VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255),
                 role VARCHAR(50) DEFAULT 'technicien',
-                actif INTEGER DEFAULT 1
+                actif INTEGER DEFAULT 1,
+                force_password_reset INTEGER DEFAULT 0
             )
         """)
         tables_created.append("techniciens")
     else:
         tables_verified.append("techniciens")
+        # Migration: s'assurer que la colonne force_password_reset existe
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='force_password_reset'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN force_password_reset INTEGER DEFAULT 0")
+            print("   - Colonne force_password_reset ajoutee a la table techniciens")
     
     # ========== TABLE: incidents ==========
     cursor.execute("""
@@ -147,8 +167,18 @@ def ensure_database_integrity():
         """)
         # Insérer des sujets par défaut
         default_sujets = [
-            'Portables', 'PC Fixe', 'Imprimantes - impressions',
-            'Réseau', 'Matériel', 'Logiciel'
+            'Portables',
+            'PC Fixe',
+            'Imprimantes - impressions',
+            'Réseau',
+            'Matériel',
+            'Logiciel',
+            'Téléphonie',
+            'Messagerie',
+            'Applications métiers',
+            'Sécurité',
+            'Accès / Droits',
+            'Autre'
         ]
         for sujet in default_sujets:
             cursor.execute("INSERT INTO sujets (nom) VALUES (%s)", (sujet,))
@@ -233,12 +263,24 @@ def ensure_database_integrity():
                 category VARCHAR(50) NOT NULL DEFAULT 'en_cours'
             )
         """)
-        # Insérer des statuts par défaut
+        # Insérer des statuts par défaut avec catégories
         default_statuts = [
+            # EN COURS (bleus/verts clairs)
             ('Affecté', '#007bff', 'en_cours'),
-            ('En cours de préparation', '#ffc107', 'en_cours'),
+            ('En cours de préparation', '#0dcaf0', 'en_cours'),
+            ('En intervention', '#20c997', 'en_cours'),
+
+            # SUSPENDU (oranges)
             ('Suspendu', '#fd7e14', 'suspendu'),
-            ('Traité', '#28a745', 'traite')
+            ('Intervention programmée', '#ffc107', 'suspendu'),
+
+            # TRANSFERE (violets)
+            ('Transféré', '#6f42c1', 'transfere'),
+            ('En réservation', '#d63384', 'transfere'),
+
+            # TRAITE (verts)
+            ('Traité', '#28a745', 'traite'),
+            ('Clôturé', '#198754', 'traite')
         ]
         for nom, couleur, category in default_statuts:
             cursor.execute(

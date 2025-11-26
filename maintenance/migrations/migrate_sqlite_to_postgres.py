@@ -15,8 +15,10 @@ POSTGRES_DB = os.environ.get("POSTGRES_DB", "dispatch")
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "dispatch_user")
 POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "dispatch_pass")
 
-# Chemin SQLite
-SQLITE_DB = os.path.join(os.path.dirname(__file__), "dispatch.db")
+# Chemin SQLite - Chercher d'abord dans /app/data, puis dans le dossier du script
+SQLITE_DB_DATA = "/app/data/dispatch.db"
+SQLITE_DB_SCRIPT = os.path.join(os.path.dirname(__file__), "dispatch.db")
+SQLITE_DB = SQLITE_DB_DATA if os.path.exists(SQLITE_DB_DATA) else SQLITE_DB_SCRIPT
 
 def migrate():
     """Migre toutes les données de SQLite vers PostgreSQL"""

@@ -45,12 +45,19 @@ class DualAccessRow:
     
     def keys(self):
         return self._columns
-    
+
     def values(self):
         return self._data
-    
+
     def items(self):
         return zip(self._columns, self._data)
+
+    def get(self, key, default=None):
+        """Méthode get() compatible avec les dictionnaires"""
+        try:
+            return self[key]
+        except (KeyError, IndexError):
+            return default
 
 
 class DualAccessCursor:

@@ -26,10 +26,11 @@ env/
 ENV/
 
 # Database
-# NOTE: dispatch.db est maintenant suivi dans Git pour la sauvegarde des données
-# Les autres fichiers .db restent ignorés
+# PostgreSQL est utilisé en production, SQLite est obsolète
+dispatch.db
 *.sqlite
 *.sqlite3
+*.db
 
 # Backups de la base de données
 backups/
@@ -59,6 +60,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+sqlite_counts.json
+MIGRATION_SUCCESS.txt
+nul
 
 # Environment variables
 .env

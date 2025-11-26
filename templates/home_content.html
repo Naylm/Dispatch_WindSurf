@@ -265,6 +265,21 @@
     // Variables globales
     let currentView = 'columns';
 
+    // Fonction pour mettre à jour les compteurs de tickets par technicien
+    function updateTechCounters() {
+      document.querySelectorAll('.tech-column').forEach(column => {
+        const techName = column.dataset.technicien;
+        const counter = document.getElementById(`tech-count-${techName}`);
+        const incidentList = column.querySelector('.incident-list-col');
+
+        if (counter && incidentList) {
+          // Compter tous les incidents (pas seulement les visibles)
+          const totalIncidents = incidentList.querySelectorAll('.incident-card-col').length;
+          counter.textContent = totalIncidents;
+        }
+      });
+    }
+
     // Filtrage
     function matchesFilters(cardElem) {
       const txtSearch = document.querySelector('#searchInput').value.trim().toLowerCase();
@@ -376,9 +391,14 @@
       if (e.target.matches('.tech-selector-col')) {
         const incidentId = e.target.dataset.incidentId;
         const newTech = e.target.value;
+        const oldTech = e.target.closest('[data-technicien]')?.dataset.technicien;
 
         if (confirm(`Affecter le ticket à ${newTech} ?`)) {
           const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+          // Trouver la carte de l'incident
+          const incidentCard = e.target.closest('.incident-card-col');
+
           fetch('/incidents/assign', {
             method: 'POST',
             headers: {
@@ -388,7 +408,91 @@
               id: incidentId,
               collaborateur: newTech
             })
-          }).then(r => r.json());
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === 'ok') {
+              // Déplacer visuellement le ticket vers la nouvelle colonne
+              if (incidentCard && newTech !== oldTech) {
+                // Trouver la colonne du nouveau technicien
+                const newTechColumn = document.querySelector(`.incident-list-col[data-technicien="${newTech}"]`);
+
+                if (newTechColumn) {
+                  // Cloner la carte (pour animation)
+                  const cardClone = incidentCard.cloneNode(true);
+
+                  // Important : Mettre à jour le sélecteur de technicien dans le clone
+                  const cloneSelector = cardClone.querySelector('.tech-selector-col');
+                  if (cloneSelector) {
+                    cloneSelector.value = newTech;
+                  }
+
+                  // Ajouter une animation de départ
+                  incidentCard.style.transition = 'opacity 0.3s, transform 0.3s';
+                  incidentCard.style.opacity = '0';
+                  incidentCard.style.transform = 'translateX(-20px)';
+
+                  setTimeout(() => {
+                    // Retirer l'ancienne carte
+                    incidentCard.remove();
+
+                    // Ajouter la nouvelle carte avec animation d'arrivée
+                    cardClone.style.opacity = '0';
+                    cardClone.style.transform = 'translateX(20px)';
+
+                    // Vérifier s'il y a déjà des cartes ou juste le message "Aucun incident"
+                    const emptyMessage = newTechColumn.querySelector('li.text-muted');
+                    if (emptyMessage) {
+                      // Remplacer le message vide par la carte
+                      emptyMessage.remove();
+                    }
+
+                    newTechColumn.appendChild(cardClone);
+
+                    // Animer l'apparition
+                    setTimeout(() => {
+                      cardClone.style.transition = 'opacity 0.3s, transform 0.3s';
+                      cardClone.style.opacity = '1';
+                      cardClone.style.transform = 'translateX(0)';
+
+                      // Réinitialiser les styles après animation
+                      setTimeout(() => {
+                        cardClone.style.transition = '';
+                        cardClone.style.opacity = '';
+                        cardClone.style.transform = '';
+                      }, 300);
+                    }, 50);
+
+                    // Vérifier si l'ancienne colonne est vide maintenant
+                    const oldTechColumn = document.querySelector(`.incident-list-col[data-technicien="${oldTech}"]`);
+                    if (oldTechColumn && oldTechColumn.querySelectorAll('.incident-card-col').length === 0) {
+                      // Ajouter le message "Aucun incident"
+                      const emptyMsg = document.createElement('li');
+                      emptyMsg.className = 'list-group-item text-muted fst-italic text-center';
+                      emptyMsg.textContent = 'Aucun incident';
+                      oldTechColumn.appendChild(emptyMsg);
+                    }
+
+                    // Mettre à jour les compteurs
+                    updateTechCounters();
+                  }, 300);
+                }
+              }
+            } else {
+              // En cas d'erreur, restaurer l'ancienne valeur
+              e.target.value = oldTech || '';
+              alert('Erreur lors du transfert du ticket');
+            }
+          })
+          .catch(err => {
+            console.error('Erreur transfert:', err);
+            // Restaurer l'ancienne valeur en cas d'erreur réseau
+            e.target.value = oldTech || '';
+            alert('Erreur lors du transfert du ticket');
+          });
+        } else {
+          // Annuler le changement si l'utilisateur refuse
+          e.target.value = oldTech || e.target.querySelector('option[selected]')?.value || '';
         }
       }
     });
