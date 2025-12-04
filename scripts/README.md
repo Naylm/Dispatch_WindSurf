@@ -1,61 +1,67 @@
 # Scripts Utilitaires
 
-Ce dossier contient des **scripts d'exemple** pour créer des utilisateurs dans l'application Dispatch Manager.
+Ce dossier contient des scripts helper et des exemples pour Dispatch Manager.
 
 ---
 
-## Scripts de Création Utilisateur
+## 📜 Scripts Helper
+
+### dispatch.ps1
+**Helper PowerShell pour Windows** - Équivalent du Makefile
+
+Commandes disponibles :
+```powershell
+.\scripts\dispatch.ps1 help         # Afficher l'aide
+.\scripts\dispatch.ps1 up           # Démarrer les conteneurs
+.\scripts\dispatch.ps1 down         # Arrêter les conteneurs
+.\scripts\dispatch.ps1 logs         # Voir les logs
+.\scripts\dispatch.ps1 db-backup    # Backup PostgreSQL
+```
+
+---
+
+## 📁 Examples (Sous-dossier)
+
+Le dossier `examples/` contient des **scripts de démonstration** pour créer des utilisateurs.
 
 | Script | Langage | Description |
 |--------|---------|-------------|
-| `create_user_melvin.py` | Python | Exemple complet de création utilisateur |
-| `create_melvin_simple.py` | Python | Version simplifiée |
-| `create_melvin.ps1` | PowerShell | Version PowerShell pour Windows |
+| `examples/create_user_melvin.py` | Python | Exemple complet de création utilisateur |
+| `examples/create_melvin_simple.py` | Python | Version simplifiée |
+| `examples/create_melvin.ps1` | PowerShell | Version PowerShell pour Windows |
 
----
-
-## Utilisation
-
-Ces scripts sont des **exemples** pour créer des utilisateurs via Docker.
-
-### Exécuter un script Python
+### Utilisation des exemples
 
 ```bash
-docker compose exec app python scripts/create_user_melvin.py
+# Exécuter un script Python
+docker compose exec app python scripts/examples/create_user_melvin.py
+
+# Exécuter PowerShell (Windows)
+.\scripts\examples\create_melvin.ps1
 ```
 
-### Exécuter un script PowerShell (Windows)
-
-```powershell
-# Depuis le dossier racine du projet
-.\scripts\create_melvin.ps1
-```
+**Note** : Ces scripts sont **uniquement des exemples** à des fins pédagogiques.
+Pour créer des utilisateurs en production, utiliser l'interface admin (`admin/admin`).
 
 ---
 
-## Scripts de Maintenance
+## 🛠️ Scripts de Maintenance
 
-Pour les scripts de maintenance (reset password, diagnostics, migrations, etc.), voir le dossier **`maintenance/`** :
+Les scripts de maintenance (reset password, diagnostics, migrations) sont dans **`maintenance/`** :
 
-- **`maintenance/admin/`** : Scripts admin (reset passwords, diagnostics)
-- **`maintenance/tests/`** : Scripts de test (debug login, stability tests)
-- **`maintenance/migrations/`** : Scripts de migration de base de données
-- **`maintenance/verify_database.py`** : Vérification intégrité base de données
-- **`maintenance/vider_wiki.bat`** : Vider le contenu wiki
-
----
-
-## Remarques
-
-- Ces scripts sont fournis **à titre d'exemple** pour montrer comment interagir avec la base de données
-- Pour un usage en production, créer les utilisateurs via l'interface admin (après connexion avec `admin/admin`)
-- Les mots de passe doivent être hashés avec bcrypt avant insertion en base
-- Tous les scripts supposent que les conteneurs Docker sont démarrés (`docker compose up -d`)
+| Dossier | Contenu |
+|---------|---------|
+| `maintenance/admin/` | Scripts admin (reset passwords, diagnostics) |
+| `maintenance/tests/` | Scripts de test (debug login, stability) |
+| `maintenance/migrations/` | Scripts de migration base de données |
+| `maintenance/verify_database.py` | Vérification intégrité DB |
+| `maintenance/vider_wiki.bat` | Vider contenu wiki |
 
 ---
 
-## Documentation Complémentaire
+## 📚 Documentation Complémentaire
 
 - [README principal](../README.md)
-- [Guide d'intégration](../PROJECT_ONBOARDING.md)
-- [Documentation maintenance](../maintenance/README.md)
+- [Guide d'intégration (60 min)](../PROJECT_ONBOARDING.md)
+- [Documentation complète](../docs/)
+- [Guide maintenance](../maintenance/README.md)
