@@ -124,12 +124,32 @@ docker compose down
 |---------|-------------|------------------|-------------|
 | Base PostgreSQL | `postgres_data` (volume Docker) | `/var/lib/postgresql/data` | Données persistantes PostgreSQL |
 | Uploads (images wiki, pièces jointes) | `dispatch_uploads` (volume Docker) | `/app/static/uploads` & `/var/www/uploads` | Partagé entre Flask et Nginx |
+| Backups & Config | `dispatch_data` (volume Docker) | `/app/data` | Sauvegardes et configuration |
 
 💡 **Important** : Au premier démarrage, `ensure_db_integrity.py` crée automatiquement :
 - Toutes les tables nécessaires
 - Les colonnes manquantes
 - Un compte `admin/admin` si aucun utilisateur n'existe
 - Les indexes de performance
+
+### ⚠️ Préservation des Données PostgreSQL
+
+Les données PostgreSQL sont stockées dans un **volume Docker** (`postgres_data`), **PAS dans le dépôt Git**.
+
+**Opérations SÛRES** (ne touchent pas les données) :
+- ✅ `git pull`, `git push`, `git clone`
+- ✅ `docker compose restart`
+- ✅ `docker compose up --build` (rebuild image)
+- ✅ `docker compose down` (sans flag `-v`)
+
+**Opérations DANGEREUSES** (effacent les données) :
+- ❌ `docker compose down -v` (flag `-v` supprime les volumes)
+- ❌ `docker volume rm postgres_data`
+
+**Backup recommandé avant modifications importantes** :
+```bash
+docker exec dispatch_postgres pg_dump -U dispatch_user dispatch > backup.sql
+```
 
 ---
 
@@ -188,7 +208,10 @@ GUNICORN_WORKERS=2
 - **Sidebar permanente** (admin / technicien) + raccourcis externes
 - **Composants réactifs** (animations, hover states)
 - **Formulaires modernisés** (sélecteurs, modales, etc.)
-- **Design responsive** mobile
+- **Design responsive** mobile/tablet/desktop
+  - Vue technicien : 1 colonne (mobile), 2 colonnes (tablette), 3 colonnes (desktop)
+  - Sidebar avec backdrop mobile-only
+  - Bouton burger optimisé (44x44px sur mobile)
 - **Badges de couleur** pour priorités et sites
 
 ### 🔔 Temps réel & Notifications
@@ -356,7 +379,7 @@ Merci d'utiliser **DispatchDockerWorking**, la version Docker de Dispatch Manage
 
 ## 📝 Changelog récent
 
-### Version actuelle (Décembre 2025)
+### Version actuelle (Décembre 2024)
 
 - ✅ Migration complète vers PostgreSQL
 - ✅ Système de notifications en temps réel
@@ -365,5 +388,8 @@ Merci d'utiliser **DispatchDockerWorking**, la version Docker de Dispatch Manage
 - ✅ Améliorations de stabilité et performance
 - ✅ Protection CSRF sur tous les formulaires
 - ✅ Gestion d'erreurs améliorée avec logs détaillés
+- ✅ **NEW** : Interface responsive complète (mobile/tablet/desktop)
+- ✅ **NEW** : Vue technicien adaptative (1/2/3 colonnes selon écran)
+- ✅ **NEW** : Sidebar mobile avec backdrop et bouton optimisé
 
 Pour plus de détails, consultez `docs/CHANGELOG.md`.
