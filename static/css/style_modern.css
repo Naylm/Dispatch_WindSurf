@@ -118,7 +118,7 @@ ul { list-style: none; }
   padding: 1rem 2rem;
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 150;
   box-shadow: var(--shadow-sm);
   display: flex;
   justify-content: space-between;
@@ -278,7 +278,7 @@ body.with-sidebar-permanent .navbar {
   flex: 1;
 }
 
-/* Tech Grid & Columns */
+/* Tech Grid & Columns - Vue Admin (Revert to original) */
 .tech-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
@@ -290,7 +290,7 @@ body.with-sidebar-permanent .navbar {
 
 .tech-column {
   min-width: 370px;
-  max-width: 450px; /* Permet extension sur grands écrans */
+  max-width: 450px;
 }
 
 .tech-column .card {
@@ -489,7 +489,7 @@ body:not(.dark) .incident-note {
   }
   .sidebar-toggle { display: block !important; }
   .tech-grid {
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 
@@ -695,6 +695,14 @@ body:not(.dark) .incident-note {
 
 .sidebar-toggle-btn:active {
   transform: scale(0.95);
+}
+
+/* Augmenter la taille sur mobile pour une meilleure accessibilité (44x44px min) */
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .hamburger-icon {

@@ -235,22 +235,19 @@ body.dark .bg-purple {
 }
 
 /* ------------------------------
-   VUE TECHNICIEN – PETITES CARTES EN GRILLE
+   VUE TECHNICIEN – PETITES CARTES EN GRILLE (3 colonnes sur 13")
    ============================== */
 .small-card {
-  display: block;
-  width: 22rem;            /* Élargi de 18rem à 22rem pour plus d'espace */
-  margin: 0.75rem;         /* Marge autour de chaque carte */
-  overflow-wrap: break-word;   /* Permettre le wrapping interne */
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  overflow-wrap: break-word;
   word-break: break-word;
 }
 
+/* #userView responsive layout is managed by JavaScript in home.html */
 #userView {
-  display: flex;
-  flex-wrap: wrap;         /* Autorise le retour à la ligne */
-  justify-content: center; /* Centre horizontalement les cartes */
-  gap: 1rem;               /* Espace entre les cartes */
-  padding: 1rem;           /* (Optionnel) padding autour du conteneur */
+  /* CSS removed - see JavaScript at end of home.html */
 }
 
 .small-card .card-body {

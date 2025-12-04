@@ -678,7 +678,7 @@
   <!-- ========================= -->
   <!-- VUE TECHNICIEN (PETITES CARTES) -->
   <!-- ========================= -->
-  <div id="userView" class="d-flex flex-wrap gap-3">
+  <div id="userView">
     {% for i in incidents %}
       {% set priorite_info_header = priorites|selectattr("nom", "equalto", i.urgence)|first %}
       <div class="card small-card shadow-sm" data-incident-id="{{ i.id }}">

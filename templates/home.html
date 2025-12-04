@@ -14,22 +14,79 @@
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
-  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='css/style.css') }}?v=7.0" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='css/style_modern.css') }}?v=7.0" rel="stylesheet" />
   <style>
+    /* ========== RESPONSIVE GRID TECHNICIEN - CSS MEDIA QUERIES ========== */
+
+    /* BASE: 1 colonne par défaut (mobile) */
+    #userView {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 1rem !important;
+      padding: 0.5rem !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     .small-card {
-      display: inline-block;
-      vertical-align: top;
-      width: 24rem;
-      margin: 0.5rem;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    /* TABLETTE: 2 colonnes (768px - 1023px) */
+    @media (min-width: 768px) and (max-width: 1023px) {
+      #userView {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem !important;
+      }
+    }
+
+    /* DESKTOP: 3 colonnes (>= 1024px) */
+    @media (min-width: 1024px) {
+      #userView {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.75rem !important;
+        padding: 1rem !important;
+      }
     }
 
     /* Conteneur scrollable horizontalement */
     #incident-content {
-      overflow-x: auto;
-      white-space: nowrap;
+      overflow-x: visible;
+      white-space: normal;
       scroll-behavior: smooth;
       padding-bottom: 6px;
+    }
+
+    /* ========== SIDEBAR BACKDROP POUR MOBILE ========== */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 90;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar-backdrop.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Afficher le backdrop seulement sur mobile quand sidebar ouverte */
+    @media (max-width: 768px) {
+      .sidebar.open ~ .sidebar-backdrop {
+        display: block;
+        opacity: 1;
+      }
     }
 
     /* Si besoin de voir un peu plus la zone scrollable */
@@ -41,14 +98,11 @@
       border-radius: 4px;
     }
 
-    /* ===== RESPONSIVE: TABLETTE (768px - 1200px) ===== */
-    @media (min-width: 769px) and (max-width: 1200px) {
-      /* Vue colonnes admin - 2 colonnes max */
-      #columnsView .tech-column {
-        flex: 0 0 calc(50% - 0.5rem);
-        max-width: calc(50% - 0.5rem);
-      }
+    /* ===== RESPONSIVE: Gestion automatique par CSS Grid ===== */
+    /* Les règles flex sont désactivées pour laisser CSS Grid gérer les colonnes automatiquement */
 
+    /* ===== RESPONSIVE COMMUN: TABLETTE + PETITS ÉCRANS (768px - 1400px) ===== */
+    @media (min-width: 769px) and (max-width: 1400px) {
       /* Cartes incidents légèrement compactes */
       .incident-card-col {
         font-size: 0.9rem;
@@ -62,18 +116,6 @@
 
       .note-edit-textarea {
         font-size: 0.7rem;
-      }
-
-      /* Vue technicien - 2 cartes par ligne */
-      #userView {
-        display: grid !important;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-      }
-
-      .small-card {
-        width: 100% !important;
-        margin: 0 !important;
       }
     }
 
@@ -173,17 +215,7 @@
         font-size: 0.7rem;
       }
 
-      /* Vue technicien - cartes en colonne */
-      #userView {
-        flex-direction: column !important;
-        gap: 1rem !important;
-      }
-
-      .small-card {
-        width: 100% !important;
-        margin: 0 !important;
-        display: block !important;
-      }
+      /* Vue technicien responsive géré en haut du fichier */
 
       /* En-tête des cartes technicien */
       .card-header.d-flex {
@@ -222,6 +254,8 @@
         left: -1rem;
       }
     }
+
+    /* Le responsive pour #userView est entièrement géré par JavaScript */
 
     /* ===== RESPONSIVE: TRÈS PETITS ÉCRANS (< 400px) ===== */
     @media (max-width: 400px) {
@@ -266,11 +300,7 @@
 
     /* ===== RESPONSIVE: GRANDS ÉCRANS (> 1400px) ===== */
     @media (min-width: 1400px) {
-      /* Vue colonnes admin - jusqu'à 4 colonnes */
-      #columnsView .tech-column {
-        flex: 0 0 calc(25% - 0.75rem);
-        max-width: calc(25% - 0.75rem);
-      }
+      /* CSS Grid gère automatiquement le nombre de colonnes */
 
       /* Cartes incidents avec plus d'espace */
       .incident-card-col {
@@ -289,6 +319,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h3>{% if role == 'admin' %}Menu Admin{% else %}Outils rapides{% endif %}</h3>
+      <button class="sidebar-close-btn" id="sidebarClose" style="background: none; border: none; color: inherit; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; position: absolute; right: 1rem; top: 1rem;">×</button>
     </div>
     <ul class="sidebar-links">
       {% if role == 'admin' %}
@@ -312,6 +343,10 @@
       <li><a href="https://wikidsnt/" target="_blank"><span class="icon">📖</span> WikiDSNT</a></li>
     </ul>
   </aside>
+
+  <!-- Backdrop pour mobile -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
   <!-- Navbar -->
   <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
     <div class="container-fluid">
@@ -496,6 +531,12 @@
     // === SIDEBAR TOGGLE ===
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    // Fonction pour vérifier si on est sur mobile
+    function isMobile() {
+      return window.innerWidth <= 768;
+    }
 
     // Charger l'état de la sidebar depuis localStorage
     const sidebarState = localStorage.getItem('sidebarState') || 'open';
@@ -503,31 +544,73 @@
     if (sidebarState === 'open') {
       sidebar.classList.add('open');
       document.body.classList.add('with-sidebar-permanent');
+      // Backdrop seulement sur mobile
+      if (backdrop && isMobile()) backdrop.classList.add('active');
     } else {
       sidebar.classList.add('sidebar-hidden');
       document.body.classList.add('content-expanded');
+      // Pas de backdrop si fermé
+      if (backdrop) backdrop.classList.remove('active');
+    }
+
+    // Fonction pour fermer la sidebar
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      sidebar.classList.add('sidebar-hidden');
+      document.body.classList.remove('with-sidebar-permanent');
+      document.body.classList.add('content-expanded');
+      localStorage.setItem('sidebarState', 'closed');
+      // Backdrop seulement sur mobile
+      if (backdrop && isMobile()) backdrop.classList.remove('active');
+    }
+
+    // Fonction pour ouvrir la sidebar
+    function openSidebar() {
+      sidebar.classList.remove('sidebar-hidden');
+      sidebar.classList.add('open');
+      document.body.classList.remove('content-expanded');
+      document.body.classList.add('with-sidebar-permanent');
+      localStorage.setItem('sidebarState', 'open');
+      // Backdrop seulement sur mobile
+      if (backdrop && isMobile()) backdrop.classList.add('active');
     }
 
     // Toggle sidebar au clic
     sidebarToggle.addEventListener('click', function() {
       const isOpen = sidebar.classList.contains('open');
-
       if (isOpen) {
-        // Fermer la sidebar
-        sidebar.classList.remove('open');
-        sidebar.classList.add('sidebar-hidden');
-        document.body.classList.remove('with-sidebar-permanent');
-        document.body.classList.add('content-expanded');
-        localStorage.setItem('sidebarState', 'closed');
+        closeSidebar();
       } else {
-        // Ouvrir la sidebar
-        sidebar.classList.remove('sidebar-hidden');
-        sidebar.classList.add('open');
-        document.body.classList.remove('content-expanded');
-        document.body.classList.add('with-sidebar-permanent');
-        localStorage.setItem('sidebarState', 'open');
+        openSidebar();
       }
     });
+
+    // Bouton de fermeture de la sidebar (pour mobile)
+    const sidebarClose = document.getElementById('sidebarClose');
+    if (sidebarClose) {
+      sidebarClose.addEventListener('click', closeSidebar);
+    }
+
+    // Clic sur le backdrop ferme la sidebar (seulement sur mobile)
+    if (backdrop) {
+      backdrop.addEventListener('click', closeSidebar);
+    }
+
+    // Gérer le backdrop lors du redimensionnement de la fenêtre
+    window.addEventListener('resize', function() {
+      if (backdrop) {
+        const isOpen = sidebar.classList.contains('open');
+        if (isMobile() && isOpen) {
+          // Sur mobile avec sidebar ouverte : activer backdrop
+          backdrop.classList.add('active');
+        } else {
+          // Sur desktop ou sidebar fermée : désactiver backdrop
+          backdrop.classList.remove('active');
+        }
+      }
+    });
+
+    // Le responsive du grid est maintenant géré par CSS media queries (voir style en haut du fichier)
   </script>
 
   <!-- Système de notifications -->
