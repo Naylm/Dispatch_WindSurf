@@ -1,6 +1,6 @@
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash, jsonify, send_file
+    url_for, session, flash, jsonify, send_file, g
 )
 from flask_socketio import SocketIO, join_room, emit
 from flask_wtf import CSRFProtect
@@ -24,6 +24,12 @@ from notification_helpers import (
     emit_reassignment_notification,
     is_urgent
 )
+
+# Gestionnaire d'exports asynchrones
+from export_manager import export_manager
+
+# Cache pour données de référence (optimisation performance)
+from utils_stability import app_cache
 
 app = Flask(__name__, static_folder='static')
 
@@ -57,11 +63,23 @@ csrf = CSRFProtect(app)
 app.config['WTF_CSRF_ENABLED'] = os.environ.get('WTF_CSRF_ENABLED', 'true').lower() == 'true'
 app.config['WTF_CSRF_TIME_LIMIT'] = None  # Pas d'expiration du token CSRF
 
-# Désactiver le cache des templates pour forcer le rechargement
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
-app.jinja_env.auto_reload = True
-app.jinja_env.cache = {}
+# Configuration du cache de templates (optimisé pour production)
+# En production: cache activé pour meilleures performances
+# En développement: désactiver pour rechargement automatique
+is_production = os.environ.get("FLASK_ENV", "production") == "production"
+
+if is_production:
+    # Production: activer cache pour performances
+    app.config["TEMPLATES_AUTO_RELOAD"] = False
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 an pour fichiers statiques
+    app.jinja_env.auto_reload = False
+    # Laisser Jinja gérer son cache par défaut (ne pas le vider)
+else:
+    # Développement: désactiver cache pour rechargement
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.jinja_env.auto_reload = True
+    app.jinja_env.cache = {}
 
 # SocketIO optimisé pour 10 utilisateurs concurrents
 socketio = SocketIO(
@@ -89,17 +107,68 @@ pdf_config = None
 
 def get_db():
     """
-    Connexion à PostgreSQL via db_config
-    NOTE: Les connexions doivent être fermées manuellement avec db.close()
+    Récupère ou crée une connexion DB pour la requête courante
+
+    Utilise flask.g pour stocker une connexion unique par requête.
+    La connexion sera automatiquement fermée par teardown_appcontext.
+
+    IMPORTANT: Plus besoin d'appeler db.close() manuellement !
+    La connexion est restituée au pool automatiquement.
     """
-    return get_db_connection()
+    if 'db' not in g:
+        g.db = get_db_connection()
+    return g.db
+
+
+def get_reference_data():
+    """
+    Récupère les données de référence (priorites, sites, statuts, sujets) avec cache
+
+    Cache TTL: 5 minutes
+    Permet de réduire de ~80% les requêtes DB pour ces données fréquemment accédées
+    """
+    cache_key = "reference_data"
+    cached = app_cache.get(cache_key)
+
+    if cached:
+        return cached
+
+    # Données pas en cache, les récupérer de la DB
+    db = get_db()
+    data = {
+        'priorites': db.execute("SELECT * FROM priorites ORDER BY nom").fetchall(),
+        'sites': db.execute("SELECT * FROM sites ORDER BY nom").fetchall(),
+        'statuts': db.execute("SELECT * FROM statuts ORDER BY nom").fetchall(),
+        'sujets': db.execute("SELECT * FROM sujets ORDER BY nom").fetchall()
+    }
+
+    # Mettre en cache
+    app_cache.set(cache_key, data)
+    return data
+
+
+def invalidate_reference_cache():
+    """
+    Invalide le cache des données de référence
+    À appeler lors de modifications (add, edit, delete) sur ces tables
+    """
+    app_cache.clear("reference_data")
 
 
 @app.teardown_appcontext
 def close_connection(exception):
-    # Fermeture propre de la connexion (si on utilisait g.db)
-    # Pour l'instant, on garde la logique existante car get_db retourne une nouvelle conn
-    pass
+    """
+    Ferme automatiquement la connexion DB à la fin de chaque requête
+    Utilise flask.g pour stocker la connexion par requête
+    """
+    db = g.pop('db', None)
+    if db is not None:
+        try:
+            if exception:
+                db.rollback()
+            db.close()
+        except Exception as e:
+            app.logger.error(f"Erreur lors de la fermeture de la connexion: {e}")
 
 
 def get_contrast_color(hex_color):
@@ -150,13 +219,20 @@ def home():
         return redirect(url_for("login"))
 
     db = get_db()
+
+    # Récupérer les données de référence avec cache (optimisation)
+    ref_data = get_reference_data()
+    priorites = ref_data['priorites']
+    sites = ref_data['sites']
+    statuts = ref_data['statuts']
+
     if session["role"] == "admin":
         # Ordre d'affichage strictement basé sur l'ordre d'insertion
         incidents = db.execute(
             "SELECT * FROM incidents WHERE archived=0 ORDER BY id ASC"
         ).fetchall()
-        # Ne récupérer que les techniciens actifs pour l'affichage des colonnes
-        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1").fetchall()
+        # Ne récupérer que les techniciens actifs pour l'affichage des colonnes, triés par ordre
+        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
         incidents = db.execute(
@@ -166,22 +242,25 @@ def home():
         ).fetchall()
         techniciens = []
     
-    priorites = db.execute("SELECT * FROM priorites").fetchall()
-    sites = db.execute("SELECT * FROM sites").fetchall()
-    statuts = db.execute("SELECT * FROM statuts").fetchall()
-    
-    # Calculer les statistiques par catégorie de statut
-    stats_by_category = {}
-    categories = ['en_cours', 'suspendu', 'transfere', 'traite']
-    
-    for category in categories:
-        result = db.execute("""
-            SELECT COUNT(*) as count FROM incidents i 
-            JOIN statuts s ON i.etat = s.nom 
-            WHERE i.archived=0 AND s.category = ?
-        """, (category,)).fetchone()
-        count = result['count'] if result else 0
-        stats_by_category[category] = count
+    # Calculer les statistiques par catégorie de statut (optimisé : 1 requête au lieu de 4)
+    stats_results = db.execute("""
+        SELECT s.category, COUNT(*) as count
+        FROM incidents i
+        JOIN statuts s ON i.etat = s.nom
+        WHERE i.archived=0
+        GROUP BY s.category
+    """).fetchall()
+
+    # Convertir en dictionnaire avec valeurs par défaut
+    stats_by_category = {
+        'en_cours': 0,
+        'suspendu': 0,
+        'transfere': 0,
+        'traite': 0
+    }
+    for row in stats_results:
+        if row['category'] in stats_by_category:
+            stats_by_category[row['category']] = row['count']
 
     return render_template(
         "home.html",
@@ -202,12 +281,19 @@ def home_content_api():
         return "", 403
 
     db = get_db()
+
+    # Récupérer les données de référence avec cache (optimisation)
+    ref_data = get_reference_data()
+    priorites = ref_data['priorites']
+    sites = ref_data['sites']
+    statuts = ref_data['statuts']
+
     if session["role"] == "admin":
         # Ordre strictement par id (ordre d'entrée)
         incidents = db.execute(
             "SELECT * FROM incidents WHERE archived=0 ORDER BY id ASC"
         ).fetchall()
-        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1").fetchall()
+        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         # Même ordre strict pour la vue technicien
         # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
@@ -218,22 +304,25 @@ def home_content_api():
         ).fetchall()
         techniciens = []
     
-    priorites = db.execute("SELECT * FROM priorites").fetchall()
-    sites = db.execute("SELECT * FROM sites").fetchall()
-    statuts = db.execute("SELECT * FROM statuts").fetchall()
-    
-    # Calculer les statistiques par catégorie de statut
-    stats_by_category = {}
-    categories = ['en_cours', 'suspendu', 'transfere', 'traite']
-    
-    for category in categories:
-        result = db.execute("""
-            SELECT COUNT(*) as count FROM incidents i 
-            JOIN statuts s ON i.etat = s.nom 
-            WHERE i.archived=0 AND s.category = ?
-        """, (category,)).fetchone()
-        count = result['count'] if result else 0
-        stats_by_category[category] = count
+    # Calculer les statistiques par catégorie de statut (optimisé : 1 requête au lieu de 4)
+    stats_results = db.execute("""
+        SELECT s.category, COUNT(*) as count
+        FROM incidents i
+        JOIN statuts s ON i.etat = s.nom
+        WHERE i.archived=0
+        GROUP BY s.category
+    """).fetchall()
+
+    # Convertir en dictionnaire avec valeurs par défaut
+    stats_by_category = {
+        'en_cours': 0,
+        'suspendu': 0,
+        'transfere': 0,
+        'traite': 0
+    }
+    for row in stats_results:
+        if row['category'] in stats_by_category:
+            stats_by_category[row['category']] = row['count']
 
     return render_template(
         "home_content.html",
@@ -255,7 +344,7 @@ def techniciens():
         return redirect(url_for("login"))
 
     db = get_db()
-    techniciens = db.execute("SELECT * FROM techniciens ORDER BY id ASC").fetchall()
+    techniciens = db.execute("SELECT * FROM techniciens ORDER BY ordre ASC, id ASC").fetchall()
     return render_template("techniciens.html", techniciens=techniciens)
 
 
@@ -272,9 +361,13 @@ def add_technicien():
     hashed_password = generate_password_hash(password)
 
     db = get_db()
+    # Récupérer le max ordre pour mettre le nouveau technicien à la fin
+    max_ordre_result = db.execute("SELECT COALESCE(MAX(ordre), 0) as max_ordre FROM techniciens").fetchone()
+    new_ordre = (max_ordre_result['max_ordre'] if max_ordre_result else 0) + 1
+    
     db.execute(
-        "INSERT INTO techniciens (prenom, role, password) VALUES (?, ?, ?)",
-        (prenom, role, hashed_password),
+        "INSERT INTO techniciens (prenom, role, password, ordre) VALUES (?, ?, ?, ?)",
+        (prenom, role, hashed_password, new_ordre),
     )
     db.commit()
     return redirect(url_for("techniciens"))
@@ -388,6 +481,29 @@ def toggle_technicien(id):
     return redirect(url_for("techniciens"))
 
 
+@app.route("/techniciens/update_order", methods=["POST"])
+def update_techniciens_order():
+    """Met à jour l'ordre d'affichage des techniciens"""
+    if "user" not in session or session["role"] != "admin":
+        return jsonify({"error": "Non autorisé"}), 403
+    
+    data = request.get_json()
+    if not data or "order" not in data:
+        return jsonify({"error": "Données invalides"}), 400
+    
+    db = get_db()
+    try:
+        # Mettre à jour l'ordre pour chaque technicien
+        for index, tech_id in enumerate(data["order"], start=1):
+            db.execute("UPDATE techniciens SET ordre=? WHERE id=?", (index, tech_id))
+        db.commit()
+        return jsonify({"success": True, "message": "Ordre mis à jour avec succès"})
+    except Exception as e:
+        db.rollback()
+        app.logger.error(f"Erreur lors de la mise à jour de l'ordre: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ----------- DRAG & DROP INCIDENTS (DASHBOARD ADMIN) -----------
 @app.route("/incidents/assign", methods=["POST"])
 def assign_incident():
@@ -444,8 +560,40 @@ def export_popup():
     return render_template("export_popup.html", techniciens=techniciens)
 
 
+def _generate_excel_export(tech_ids):
+    """
+    Fonction helper pour générer un export Excel
+    Utilisée par la route asynchrone
+    """
+    db = get_db()
+    try:
+        placeholders = ",".join("?" for _ in tech_ids)
+        query = f"SELECT prenom FROM techniciens WHERE id IN ({placeholders})"
+        techs = [row["prenom"] for row in db.execute(query, tech_ids).fetchall()]
+
+        if not techs:
+            df = pd.DataFrame()
+        else:
+            params = ",".join("?" for _ in techs)
+            sql = f"SELECT * FROM incidents WHERE collaborateur IN ({params}) AND archived=0"
+            df = pd.read_sql_query(sql, db.conn, params=techs)
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Incidents")
+        output.seek(0)
+
+        return output.getvalue()
+    finally:
+        db.close()
+
+
 @app.route("/export/incidents/excel", methods=["POST"])
 def export_incidents_excel():
+    """
+    Démarre un export Excel asynchrone
+    Retourne immédiatement un job_id pour suivre la progression
+    """
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
@@ -454,34 +602,49 @@ def export_incidents_excel():
         flash("Veuillez sélectionner au moins un technicien.", "warning")
         return redirect(url_for("export_popup"))
 
+    # Créer un job d'export
+    job_id = export_manager.create_job('excel', 'incidents_filtrés.xlsx')
+
+    # Démarrer l'export en arrière-plan
+    export_manager.start_job(job_id, _generate_excel_export, tech_ids)
+
+    # Rediriger vers une page de statut
+    return redirect(url_for("export_status", job_id=job_id))
+
+
+def _generate_pdf_export(tech_ids):
+    """
+    Fonction helper pour générer un export PDF
+    Utilisée par la route asynchrone
+    """
     db = get_db()
-    placeholders = ",".join("?" for _ in tech_ids)
-    query = f"SELECT prenom FROM techniciens WHERE id IN ({placeholders})"
-    techs = [row["prenom"] for row in db.execute(query, tech_ids).fetchall()]
+    try:
+        placeholders = ",".join("?" for _ in tech_ids)
+        query = f"SELECT prenom FROM techniciens WHERE id IN ({placeholders})"
+        techs = [row["prenom"] for row in db.execute(query, tech_ids).fetchall()]
 
-    if not techs:
-        # Aucun technicien trouvé → on renvoie un DataFrame vide
-        df = pd.DataFrame()
-    else:
-        params = ",".join("?" for _ in techs)
-        sql = f"SELECT * FROM incidents WHERE collaborateur IN ({params}) AND archived=0"
-        df = pd.read_sql_query(sql, db, params=techs)
+        if not techs:
+            incidents = []
+        else:
+            params = ",".join("?" for _ in techs)
+            sql = f"SELECT * FROM incidents WHERE collaborateur IN ({params}) AND archived=0"
+            incidents = db.execute(sql, techs).fetchall()
 
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Incidents")
-    output.seek(0)
+        # Générer le HTML depuis le template
+        html = render_template("export_pdf.html", incidents=incidents, techniciens=techs)
 
-    return send_file(
-        output,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        as_attachment=True,
-        download_name="incidents_filtrés.xlsx",
-    )
+        pdf_data = pdfkit.from_string(html, False, configuration=pdf_config)
+        return pdf_data
+    finally:
+        db.close()
 
 
 @app.route("/export/incidents/pdf", methods=["POST"])
 def export_incidents_pdf():
+    """
+    Démarre un export PDF asynchrone
+    Retourne immédiatement un job_id pour suivre la progression
+    """
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
@@ -490,35 +653,81 @@ def export_incidents_pdf():
         flash("Veuillez sélectionner au moins un technicien.", "warning")
         return redirect(url_for("export_popup"))
 
-    db = get_db()
-    placeholders = ",".join("?" for _ in tech_ids)
-    query = f"SELECT prenom FROM techniciens WHERE id IN ({placeholders})"
-    techs = [row["prenom"] for row in db.execute(query, tech_ids).fetchall()]
+    # Créer un job d'export
+    job_id = export_manager.create_job('pdf', 'incidents_filtrés.pdf')
 
-    if not techs:
-        incidents = []
-    else:
-        params = ",".join("?" for _ in techs)
-        sql = f"SELECT * FROM incidents WHERE collaborateur IN ({params}) AND archived=0"
-        incidents = db.execute(sql, techs).fetchall()
+    # Démarrer l'export en arrière-plan
+    export_manager.start_job(job_id, _generate_pdf_export, tech_ids)
 
-    html = render_template("export_pdf.html", incidents=incidents, techniciens=techs)
+    # Rediriger vers une page de statut
+    return redirect(url_for("export_status", job_id=job_id))
 
-    try:
-        pdf_data = pdfkit.from_string(html, False, configuration=pdf_config)
-    except Exception as e:
-        app.logger.error(f"Erreur wkhtmltopdf: {e}")
-        flash(
-            "La génération du PDF a échoué : vérifiez l'installation de wkhtmltopdf.",
-            "danger",
-        )
+
+@app.route("/export/status/<job_id>")
+def export_status(job_id):
+    """
+    Page de statut pour suivre la progression d'un export
+    Affiche un loader pendant la génération et redirige vers le téléchargement quand prêt
+    """
+    if "user" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    status = export_manager.get_job_status(job_id)
+    if not status:
+        flash("Export introuvable ou expiré.", "warning")
         return redirect(url_for("export_popup"))
 
+    return render_template("export_status.html", job_id=job_id, status=status)
+
+
+@app.route("/export/api/status/<job_id>")
+def export_api_status(job_id):
+    """
+    API pour vérifier le statut d'un export (polling depuis le frontend)
+    """
+    if "user" not in session or session["role"] != "admin":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    status = export_manager.get_job_status(job_id)
+    if not status:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(status)
+
+
+@app.route("/export/download/<job_id>")
+def export_download(job_id):
+    """
+    Télécharge le fichier généré par l'export
+    """
+    if "user" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    status = export_manager.get_job_status(job_id)
+    if not status:
+        flash("Export introuvable ou expiré.", "warning")
+        return redirect(url_for("export_popup"))
+
+    if status['status'] != 'completed':
+        flash("L'export n'est pas encore terminé.", "info")
+        return redirect(url_for("export_status", job_id=job_id))
+
+    file_data = export_manager.get_job_file(job_id)
+    if not file_data:
+        flash("Fichier d'export introuvable.", "danger")
+        return redirect(url_for("export_popup"))
+
+    # Déterminer le type MIME
+    mimetype = (
+        "application/pdf" if status['export_type'] == 'pdf'
+        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
     return send_file(
-        BytesIO(pdf_data),
-        mimetype="application/pdf",
+        BytesIO(file_data),
+        mimetype=mimetype,
         as_attachment=True,
-        download_name="incidents_filtrés.pdf",
+        download_name=status['filename']
     )
 
 
@@ -545,11 +754,12 @@ def configuration():
 def add_sujet():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     nom = request.form["nom"].strip()
     db = get_db()
     db.execute("INSERT INTO sujets (nom) VALUES (?)", (nom,))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -557,13 +767,14 @@ def add_sujet():
 def edit_sujet():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     id = request.form["id"].strip()
     nom = request.form["nom"].strip()
-    
+
     db = get_db()
     db.execute("UPDATE sujets SET nom=? WHERE id=?", (nom, id))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -571,10 +782,11 @@ def edit_sujet():
 def delete_sujet(id):
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     db = get_db()
     db.execute("DELETE FROM sujets WHERE id=?", (id,))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -589,6 +801,7 @@ def add_priorite():
     db = get_db()
     db.execute("INSERT INTO priorites (nom, couleur, niveau) VALUES (?, ?, ?)", (nom, couleur, niveau))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -596,15 +809,16 @@ def add_priorite():
 def edit_priorite():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     id = request.form["id"].strip()
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     niveau = request.form["niveau"].strip()
-    
+
     db = get_db()
     db.execute("UPDATE priorites SET nom=?, couleur=?, niveau=? WHERE id=?", (nom, couleur, niveau, id))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -612,10 +826,11 @@ def edit_priorite():
 def delete_priorite(id):
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     db = get_db()
     db.execute("DELETE FROM priorites WHERE id=?", (id,))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -623,12 +838,13 @@ def delete_priorite(id):
 def add_site():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     db = get_db()
     db.execute("INSERT INTO sites (nom, couleur) VALUES (?, ?)", (nom, couleur))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -636,14 +852,15 @@ def add_site():
 def edit_site():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     id = request.form["id"].strip()
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
-    
+
     db = get_db()
     db.execute("UPDATE sites SET nom=?, couleur=? WHERE id=?", (nom, couleur, id))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -651,10 +868,11 @@ def edit_site():
 def delete_site(id):
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     db = get_db()
     db.execute("DELETE FROM sites WHERE id=?", (id,))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -662,14 +880,15 @@ def delete_site(id):
 def add_statut():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     category = request.form["category"].strip()
-    
+
     db = get_db()
     db.execute("INSERT INTO statuts (nom, couleur, category) VALUES (?, ?, ?)", (nom, couleur, category))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -677,15 +896,16 @@ def add_statut():
 def edit_statut():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
-    
+
     id = request.form["id"].strip()
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     category = request.form["category"].strip()
-    
+
     db = get_db()
     db.execute("UPDATE statuts SET nom=?, couleur=?, category=? WHERE id=?", (nom, couleur, category, id))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 
@@ -697,6 +917,7 @@ def delete_statut(id):
     db = get_db()
     db.execute("DELETE FROM statuts WHERE id=?", (id,))
     db.commit()
+    invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
 
 

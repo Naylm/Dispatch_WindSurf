@@ -70,13 +70,39 @@ def ensure_database_integrity():
                 password VARCHAR(255),
                 role VARCHAR(50) DEFAULT 'technicien',
                 actif INTEGER DEFAULT 1,
-                force_password_reset INTEGER DEFAULT 0
+                force_password_reset INTEGER DEFAULT 0,
+                ordre INTEGER DEFAULT 0
             )
         """)
         tables_created.append("techniciens")
     else:
         tables_verified.append("techniciens")
         # Migration: s'assurer que la colonne force_password_reset existe
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='force_password_reset'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN force_password_reset INTEGER DEFAULT 0")
+            print("   - Colonne force_password_reset ajoutee a la table techniciens")
+        
+        # Migration: s'assurer que la colonne ordre existe
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='ordre'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN ordre INTEGER DEFAULT 0")
+            print("   - Colonne ordre ajoutee a la table techniciens")
+            # Initialiser l'ordre pour les techniciens existants basé sur leur id
+            cursor.execute("""
+                UPDATE techniciens 
+                SET ordre = id 
+                WHERE ordre = 0 OR ordre IS NULL
+            """)
+            print("   - Ordre initialise pour les techniciens existants")
         cursor.execute("""
             SELECT column_name
             FROM information_schema.columns

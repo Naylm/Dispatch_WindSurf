@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>Gestion des techniciens</title>
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
@@ -57,6 +58,7 @@
   <table class="table table-hover rounded shadow-sm">
     <thead>
       <tr>
+        <th style="width: 80px;">Ordre</th>
         <th>Prénom</th>
         <th>Rôle</th>
         <th>Statut</th>
@@ -64,9 +66,28 @@
         <th>Actions</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="techniciensTableBody">
       {% for tech in techniciens %}
-      <tr>
+      <tr data-tech-id="{{ tech.id }}">
+        <td>
+          <div class="d-flex flex-column gap-1 align-items-center">
+            <button class="btn btn-sm btn-outline-secondary order-btn" 
+                    data-tech-id="{{ tech.id }}" 
+                    data-direction="up"
+                    {% if loop.first %}disabled{% endif %}
+                    title="Monter">
+              ⬆️
+            </button>
+            <span class="badge bg-secondary">{{ tech.ordre or loop.index }}</span>
+            <button class="btn btn-sm btn-outline-secondary order-btn" 
+                    data-tech-id="{{ tech.id }}" 
+                    data-direction="down"
+                    {% if loop.last %}disabled{% endif %}
+                    title="Descendre">
+              ⬇️
+            </button>
+          </div>
+        </td>
         <td>
           <form
             method="post"
@@ -322,6 +343,74 @@
             myModal.show();
           }
         });
+    }
+
+    // Gestion du réordonnement des techniciens
+    document.querySelectorAll('.order-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const techId = parseInt(this.dataset.techId);
+        const direction = this.dataset.direction;
+        const row = this.closest('tr');
+        const tbody = document.getElementById('techniciensTableBody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const currentIndex = rows.indexOf(row);
+        
+        if (direction === 'up' && currentIndex > 0) {
+          // Échanger avec la ligne précédente
+          const prevRow = rows[currentIndex - 1];
+          tbody.insertBefore(row, prevRow);
+          updateOrderButtons();
+          saveOrder();
+        } else if (direction === 'down' && currentIndex < rows.length - 1) {
+          // Échanger avec la ligne suivante
+          const nextRow = rows[currentIndex + 1];
+          tbody.insertBefore(nextRow, row);
+          updateOrderButtons();
+          saveOrder();
+        }
+      });
+    });
+
+    function updateOrderButtons() {
+      const rows = Array.from(document.querySelectorAll('#techniciensTableBody tr'));
+      rows.forEach((row, index) => {
+        const upBtn = row.querySelector('[data-direction="up"]');
+        const downBtn = row.querySelector('[data-direction="down"]');
+        const badge = row.querySelector('.badge');
+        
+        if (upBtn) upBtn.disabled = index === 0;
+        if (downBtn) downBtn.disabled = index === rows.length - 1;
+        if (badge) badge.textContent = index + 1;
+      });
+    }
+
+    function saveOrder() {
+      const rows = Array.from(document.querySelectorAll('#techniciensTableBody tr'));
+      const order = rows.map(row => parseInt(row.dataset.techId));
+      
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+      fetch('{{ url_for("update_techniciens_order") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ order: order })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Optionnel: afficher un message de succès
+          console.log('Ordre mis à jour avec succès');
+        } else {
+          console.error('Erreur:', data.error);
+          alert('Erreur lors de la mise à jour de l\'ordre');
+        }
+      })
+      .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de la mise à jour de l\'ordre');
+      });
     }
   </script>
 </body>

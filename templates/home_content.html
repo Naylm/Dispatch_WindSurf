@@ -88,11 +88,35 @@
     </button>
   </div>
 
+  <!-- ========================= -->
+  <!-- SÉLECTEUR DE VUE MULTI-MODES -->
+  <!-- ========================= -->
+  <div class="card mb-3 shadow-sm" style="background-color: #f8f9fa; border: 2px solid #dee2e6;">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <strong style="color: #495057; font-size: 1rem;">Mode d'affichage :</strong>
+      </div>
+      <div class="d-flex flex-wrap gap-2" style="padding: 0.5rem 0;">
+        <button class="btn btn-primary active view-btn" data-view="kanban" onclick="window.switchView('kanban')" style="min-width: 120px;">
+          <span>📊</span> Kanban
+        </button>
+        <button class="btn btn-outline-primary view-btn" data-view="list" onclick="window.switchView('list')" style="min-width: 120px;">
+          <span>📋</span> Liste
+        </button>
+        <button class="btn btn-outline-primary view-btn" data-view="table" onclick="window.switchView('table')" style="min-width: 120px;">
+          <span>📑</span> Table
+        </button>
+        <button class="btn btn-outline-primary view-btn" data-view="grouped" onclick="window.switchView('grouped')" style="min-width: 120px;">
+          <span>📁</span> Groupé
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================= -->
-  <!-- VUE COLONNES (grille responsive) -->
+  <!-- VUE KANBAN (colonnes) -->
   <!-- ========================= -->
-  <div id="columnsView" style="display: block;">
+  <div id="kanban-view" class="view-container active">
     <div class="tech-grid">
       {% for tech in techniciens %}
         <div class="tech-column" data-technicien="{{ tech.prenom }}">
@@ -259,11 +283,362 @@
   </div>
 
   <!-- ========================= -->
+  <!-- VUE LISTE (groupée) -->
+  <!-- ========================= -->
+  <div id="list-view" class="view-container">
+    <div class="list-view-content">
+      {% for tech in techniciens %}
+        {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+        {% if tech_incidents|length > 0 %}
+          <div class="list-group mb-3">
+            <div class="list-group-item list-group-item-primary fw-bold">
+              {{ tech.prenom }} <span class="badge bg-light text-primary ms-2">{{ tech_incidents|length }}</span>
+            </div>
+            {% for i in tech_incidents %}
+              <div class="list-group-item incident-row-list"
+                   data-id="{{ i.id }}"
+                   data-incident-id="{{ i.id }}"
+                   data-numero="{{ i.numero|lower }}"
+                   data-site="{{ i.site|lower }}"
+                   data-sujet="{{ i.sujet|lower }}"
+                   data-urgence="{{ i.urgence|lower }}"
+                   data-etat="{{ i.etat|lower }}">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                      <strong>{{ i.numero }}</strong>
+                      <button class="btn btn-sm btn-light copy-btn" data-numero="{{ i.numero }}" title="Copier">📋</button>
+                      {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+                      {% if site_info %}
+                        <span class="badge site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+                      {% else %}
+                        <span class="badge bg-secondary">{{ i.site }}</span>
+                      {% endif %}
+                      {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+                      {% if priorite_info %}
+                        <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+                      {% else %}
+                        <span class="badge bg-warning">{{ i.urgence }}</span>
+                      {% endif %}
+                      {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+                      {% if statut_info %}
+                        <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                      {% else %}
+                        <span class="badge bg-secondary">{{ i.etat }}</span>
+                      {% endif %}
+                    </div>
+                    <div class="text-muted small">
+                      <span>{{ i.sujet }}</span>
+                      {% if i.localisation %}
+                        <span class="ms-2">📍 {{ i.localisation }}</span>
+                      {% endif %}
+                      <span class="ms-2">{{ i.date_affectation|format_date }}</span>
+                    </div>
+                  </div>
+                  <div class="d-flex gap-1">
+                    <a href="{{ url_for('historique', id=i.id) }}" class="btn btn-sm btn-outline-info" title="Historique">🕒</a>
+                    <a href="{{ url_for('edit_incident', id=i.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">✏️</a>
+                    <button class="btn btn-sm btn-outline-danger delete-btn" data-incident-id="{{ i.id }}" data-numero="{{ i.numero }}" title="Supprimer">🗑️</button>
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <select class="form-select form-select-sm status-selector-list" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}" style="max-width: 200px;">
+                    {% for st in statuts %}
+                      <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>{{ st.nom }}</option>
+                    {% endfor %}
+                  </select>
+                  <select class="form-select form-select-sm tech-selector-list" data-incident-id="{{ i.id }}" style="max-width: 150px;">
+                    {% for t in techniciens %}
+                      <option value="{{ t.prenom }}" {% if i.collaborateur == t.prenom %}selected{% endif %}>{{ t.prenom }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- VUE TABLE (compacte) -->
+  <!-- ========================= -->
+  <div id="table-view" class="view-container">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>N°</th>
+            <th>Site</th>
+            <th>Sujet</th>
+            <th>Priorité</th>
+            <th>Technicien</th>
+            <th>Statut</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in incidents %}
+            <tr class="incident-row-table"
+                data-id="{{ i.id }}"
+                data-incident-id="{{ i.id }}"
+                data-numero="{{ i.numero|lower }}"
+                data-site="{{ i.site|lower }}"
+                data-sujet="{{ i.sujet|lower }}"
+                data-urgence="{{ i.urgence|lower }}"
+                data-etat="{{ i.etat|lower }}">
+              <td>
+                <strong>{{ i.numero }}</strong>
+                <button class="btn btn-sm btn-link p-0 ms-1 copy-btn" data-numero="{{ i.numero }}" title="Copier">📋</button>
+              </td>
+              <td>
+                {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+                {% if site_info %}
+                  <span class="badge site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ i.site }}</span>
+                {% endif %}
+              </td>
+              <td>{{ i.sujet }}</td>
+              <td>
+                {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+                {% if priorite_info %}
+                  <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+                {% else %}
+                  <span class="badge bg-warning">{{ i.urgence }}</span>
+                {% endif %}
+              </td>
+              <td>{{ i.collaborateur }}</td>
+              <td>
+                {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+                {% if statut_info %}
+                  <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ i.etat }}</span>
+                {% endif %}
+              </td>
+              <td><small>{{ i.date_affectation|format_date }}</small></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{{ url_for('historique', id=i.id) }}" class="btn btn-sm btn-outline-info" title="Historique">🕒</a>
+                  <a href="{{ url_for('edit_incident', id=i.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">✏️</a>
+                  <button class="btn btn-sm btn-outline-danger delete-btn" data-incident-id="{{ i.id }}" data-numero="{{ i.numero }}" title="Supprimer">🗑️</button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- VUE GROUPÉE (accordion) -->
+  <!-- ========================= -->
+  <div id="grouped-view" class="view-container">
+    <div class="accordion" id="groupedAccordion">
+      {% for tech in techniciens %}
+        {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+        {% if tech_incidents|length > 0 %}
+          {% set tech_id = 'tech-' ~ tech.id %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-{{ tech_id }}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ tech_id }}" aria-expanded="false" aria-controls="collapse-{{ tech_id }}">
+                <span class="fw-bold">{{ tech.prenom }}</span>
+                <span class="badge bg-primary ms-2">{{ tech_incidents|length }}</span>
+              </button>
+            </h2>
+            <div id="collapse-{{ tech_id }}" class="accordion-collapse collapse" data-bs-parent="#groupedAccordion" aria-labelledby="heading-{{ tech_id }}">
+              <div class="accordion-body">
+                <div class="row g-2">
+                  {% for i in tech_incidents %}
+                    <div class="col-md-6 col-lg-4">
+                      <div class="card shadow-sm incident-card-grouped"
+                           data-id="{{ i.id }}"
+                           data-incident-id="{{ i.id }}"
+                           data-numero="{{ i.numero|lower }}"
+                           data-site="{{ i.site|lower }}"
+                           data-sujet="{{ i.sujet|lower }}"
+                           data-urgence="{{ i.urgence|lower }}"
+                           data-etat="{{ i.etat|lower }}">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start mb-2">
+                            <strong>{{ i.numero }}</strong>
+                            <div class="d-flex gap-1">
+                              <button class="btn btn-sm btn-light copy-btn"
+                                      data-numero="{{ i.numero }}"
+                                      title="Copier le numéro"
+                                      style="padding: 2px 8px; font-size: 0.8rem;">📋</button>
+                              <a href="{{ url_for('historique', id=i.id) }}"
+                                 class="btn btn-sm btn-outline-info"
+                                 title="Voir historique">🕒</a>
+                              <a href="{{ url_for('edit_incident', id=i.id) }}"
+                                 class="btn btn-sm btn-outline-primary"
+                                 title="Modifier">✏️</a>
+                              <button class="btn btn-sm btn-outline-danger delete-btn"
+                                      data-incident-id="{{ i.id }}"
+                                      data-numero="{{ i.numero }}"
+                                      title="Supprimer">🗑️</button>
+                            </div>
+                          </div>
+                          
+                          {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+                          {% if site_info %}
+                            <span class="badge mb-1 site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+                          {% else %}
+                            <span class="badge bg-secondary mb-1">{{ i.site }}</span>
+                          {% endif %}
+                          {% if i.localisation %}
+                            <small class="location-text d-block mb-1"> 📍 {{ i.localisation }}</small>
+                          {% endif %}
+                          
+                          <br><small>/ {{ i.sujet }}</small><br>
+                          
+                          {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+                          {% if priorite_info %}
+                            <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+                          {% else %}
+                            <span class="badge bg-warning">{{ i.urgence }}</span>
+                          {% endif %}
+                          
+                          <br><small>{{ i.date_affectation|format_date }}</small><br>
+                          
+                          {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+                          {% if statut_info %}
+                            <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                          {% else %}
+                            <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
+                          {% endif %}
+                          {% if i.valide %}
+                            <span class="badge bg-purple">Validé</span>
+                          {% endif %}
+
+                          <div class="mt-2">
+                            <label class="form-label small mb-1">Changer statut:</label>
+                            <select class="form-select form-select-sm status-selector-col" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+                              {% for st in statuts %}
+                                <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>
+                                  {{ st.nom }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          
+                          <div class="mt-2">
+                            <label class="form-label small mb-1">Changer technicien:</label>
+                            <select class="form-select form-select-sm tech-selector-col" data-incident-id="{{ i.id }}">
+                              {% for t in techniciens %}
+                                <option value="{{ t.prenom }}" {% if i.collaborateur == t.prenom %}selected{% endif %}>
+                                  {{ t.prenom }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ========================= -->
   <!-- SCRIPTS JAVASCRIPT -->
   <!-- ========================= -->
   <script>
     // Variables globales
-    let currentView = 'columns';
+    let currentView = 'kanban';
+
+    // Fonction pour basculer entre les vues (exposée globalement)
+    window.switchView = function(viewName) {
+      // Sauvegarder la préférence
+      localStorage.setItem('adminViewPreference', viewName);
+      
+      // Masquer toutes les vues
+      document.querySelectorAll('.view-container').forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none';
+      });
+      
+      // Activer la vue sélectionnée
+      const selectedView = document.getElementById(`${viewName}-view`);
+      if (selectedView) {
+        selectedView.classList.add('active');
+        selectedView.style.display = 'block';
+      }
+      
+      // Mettre à jour les boutons
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        const isActive = btn.dataset.view === viewName;
+        if (isActive) {
+          btn.classList.remove('btn-outline-primary');
+          btn.classList.add('btn-primary', 'active');
+        } else {
+          btn.classList.remove('btn-primary', 'active');
+          btn.classList.add('btn-outline-primary');
+        }
+      });
+
+      // Mettre à jour la variable globale
+      currentView = viewName;
+
+      // Réappliquer les filtres pour la nouvelle vue
+      if (typeof applySearchAndFilters === 'function') {
+        applySearchAndFilters();
+      }
+      
+      // Réappliquer les styles de badges
+      if (window.applyDataAttributesStyles) {
+        applyDataAttributesStyles();
+      }
+
+      // Réinitialiser l'accordion Bootstrap si on passe à la vue groupée
+      if (viewName === 'grouped') {
+        // S'assurer que Bootstrap est chargé
+        if (typeof bootstrap !== 'undefined') {
+          // Réinitialiser tous les collapses
+          const collapses = document.querySelectorAll('#groupedAccordion .accordion-collapse');
+          collapses.forEach(collapse => {
+            try {
+              const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+              bsCollapse.hide();
+            } catch (e) {
+              // Si Bootstrap n'est pas encore chargé, on laisse les collapses fermés par défaut
+              console.log('Bootstrap collapse non initialisé:', e);
+            }
+          });
+        }
+      }
+    }
+
+    // Charger la préférence au démarrage
+    function initializeView() {
+      const savedView = localStorage.getItem('adminViewPreference') || 'kanban';
+      // Attendre un peu pour que le DOM soit complètement chargé
+      setTimeout(() => {
+        if (window.switchView) {
+          window.switchView(savedView);
+        } else {
+          // Si la fonction n'existe pas encore, réessayer
+          setTimeout(initializeView, 100);
+        }
+      }, 50);
+    }
+
+    // Initialiser immédiatement si le DOM est déjà chargé
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeView);
+    } else {
+      // DOM déjà chargé
+      initializeView();
+    }
 
     // Fonction pour mettre à jour les compteurs de tickets par technicien
     function updateTechCounters() {
@@ -304,12 +679,21 @@
     }
 
     function applySearchAndFilters() {
-      if (currentView === 'compact') {
-        document.querySelectorAll('.incident-row').forEach((row) => {
+      // Appliquer les filtres selon la vue active
+      if (currentView === 'kanban') {
+        document.querySelectorAll('.incident-card-col').forEach((card) => {
+          card.style.display = matchesFilters(card) ? 'block' : 'none';
+        });
+      } else if (currentView === 'list') {
+        document.querySelectorAll('.incident-row-list').forEach((row) => {
           row.style.display = matchesFilters(row) ? '' : 'none';
         });
-      } else {
-        document.querySelectorAll('.incident-card-col').forEach((card) => {
+      } else if (currentView === 'table') {
+        document.querySelectorAll('.incident-row-table').forEach((row) => {
+          row.style.display = matchesFilters(row) ? '' : 'none';
+        });
+      } else if (currentView === 'grouped') {
+        document.querySelectorAll('.incident-card-grouped').forEach((card) => {
           card.style.display = matchesFilters(card) ? 'block' : 'none';
         });
       }
@@ -323,42 +707,81 @@
       const [criteria, order] = sortValue.split('-');
       const priorityOrder = { 'basse': 1, 'moyenne': 2, 'haute': 3, 'critique': 4 };
 
-      // Trier chaque colonne de technicien
-      document.querySelectorAll('.incident-list-col').forEach(list => {
-        const cards = Array.from(list.querySelectorAll('.incident-card-col'));
+      // Fonction de comparaison générique
+      function compareElements(a, b) {
+        let valA, valB;
         
-        cards.sort((a, b) => {
-          let valA, valB;
-          
-          switch(criteria) {
-            case 'urgence':
-              valA = priorityOrder[a.dataset.urgence] || 0;
-              valB = priorityOrder[b.dataset.urgence] || 0;
-              break;
-            case 'date':
-              valA = a.querySelector('small:nth-of-type(2)')?.textContent || '';
-              valB = b.querySelector('small:nth-of-type(2)')?.textContent || '';
-              break;
-            case 'site':
-              valA = a.dataset.site;
-              valB = b.dataset.site;
-              break;
-            case 'numero':
-              valA = a.dataset.numero;
-              valB = b.dataset.numero;
-              break;
-          }
-          
-          if (order === 'asc') {
-            return valA > valB ? 1 : valA < valB ? -1 : 0;
-          } else {
-            return valA < valB ? 1 : valA > valB ? -1 : 0;
+        switch(criteria) {
+          case 'urgence':
+            valA = priorityOrder[a.dataset.urgence] || 0;
+            valB = priorityOrder[b.dataset.urgence] || 0;
+            break;
+          case 'date':
+            // Extraire la date depuis le texte
+            const dateTextA = a.querySelector('small')?.textContent || '';
+            const dateTextB = b.querySelector('small')?.textContent || '';
+            valA = dateTextA;
+            valB = dateTextB;
+            break;
+          case 'site':
+            valA = a.dataset.site || '';
+            valB = b.dataset.site || '';
+            break;
+          case 'numero':
+            valA = a.dataset.numero || '';
+            valB = b.dataset.numero || '';
+            break;
+          default:
+            return 0;
+        }
+        
+        if (order === 'asc') {
+          return valA > valB ? 1 : valA < valB ? -1 : 0;
+        } else {
+          return valA < valB ? 1 : valA > valB ? -1 : 0;
+        }
+      }
+
+      // Trier selon la vue active
+      if (currentView === 'kanban') {
+        // Trier chaque colonne de technicien
+        document.querySelectorAll('.incident-list-col').forEach(list => {
+          const cards = Array.from(list.querySelectorAll('.incident-card-col'));
+          cards.sort(compareElements);
+          cards.forEach(card => list.appendChild(card));
+        });
+      } else if (currentView === 'list') {
+        // Trier les groupes de liste
+        document.querySelectorAll('.list-group').forEach(group => {
+          const rows = Array.from(group.querySelectorAll('.incident-row-list'));
+          rows.sort(compareElements);
+          rows.forEach(row => group.appendChild(row));
+        });
+      } else if (currentView === 'table') {
+        // Trier les lignes de table
+        const tbody = document.querySelector('#table-view tbody');
+        if (tbody) {
+          const rows = Array.from(tbody.querySelectorAll('.incident-row-table'));
+          rows.sort(compareElements);
+          rows.forEach(row => tbody.appendChild(row));
+        }
+      } else if (currentView === 'grouped') {
+        // Trier les cartes dans chaque accordion
+        document.querySelectorAll('.accordion-body').forEach(body => {
+          const cards = Array.from(body.querySelectorAll('.incident-card-grouped'));
+          cards.sort(compareElements);
+          // Réorganiser dans les colonnes
+          const container = body.querySelector('.row');
+          if (container) {
+            cards.forEach((card, index) => {
+              const col = document.createElement('div');
+              col.className = 'col-md-6 col-lg-4';
+              col.appendChild(card);
+              container.appendChild(col);
+            });
           }
         });
-        
-        // Réorganiser les cartes dans le DOM
-        cards.forEach(card => list.appendChild(card));
-      });
+      }
     }
 
     // Changement de technicien (vue compacte)
@@ -384,6 +807,41 @@
           });
         } else {
           e.target.value = currentTech;
+        }
+      }
+
+      // Changement de technicien (vue liste)
+      if (e.target.matches('.tech-selector-list')) {
+        const incidentId = e.target.dataset.incidentId;
+        const newTech = e.target.value;
+        const oldTech = e.target.closest('.incident-row-list')?.querySelector('.list-group-item-primary')?.textContent.trim().split(' ')[0];
+
+        if (confirm(`Affecter le ticket à ${newTech} ?`)) {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+          fetch('/incidents/assign', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
+            body: new URLSearchParams({
+              id: incidentId,
+              collaborateur: newTech
+            })
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === 'ok') {
+              // Recharger la page pour mettre à jour la vue
+              location.reload();
+            } else {
+              alert('Erreur lors du transfert du ticket');
+            }
+          });
+        } else {
+          // Restaurer l'ancienne valeur
+          const row = e.target.closest('.incident-row-list');
+          const currentTech = row ? row.closest('.list-group').querySelector('.list-group-item-primary')?.textContent.trim().split(' ')[0] : '';
+          e.target.value = currentTech || '';
         }
       }
 
@@ -532,7 +990,7 @@
         }
         
         // Sauvegarder la position de scroll horizontal
-        const columnsView = document.querySelector('#columnsView .row');
+        const columnsView = document.querySelector('#kanban-view .tech-grid');
         const scrollPosition = columnsView ? columnsView.scrollLeft : 0;
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -565,6 +1023,8 @@
                 if (columnsView) {
                   columnsView.scrollLeft = scrollPosition;
                 }
+                // Mettre à jour les compteurs
+                updateTechCounters();
               }, 300);
             }
           } else {
@@ -659,18 +1119,117 @@
   <!-- STYLES -->
   <!-- ========================= -->
   <style>
+    /* Sélecteur de vue */
+    .view-selector {
+      padding: 0.75rem;
+      background-color: #f8f9fa;
+      border-radius: 0.5rem;
+      border: 2px solid #dee2e6;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .view-btn {
+      padding: 0.6rem 1.2rem;
+      border: 2px solid #dee2e6;
+      background-color: white;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.95rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .view-btn:hover {
+      background-color: #e9ecef;
+      border-color: #adb5bd;
+    }
+
+    .view-btn.active {
+      background-color: #0d6efd;
+      color: white;
+      border-color: #0d6efd;
+    }
+
+    .view-btn.active:hover {
+      background-color: #0b5ed7;
+      border-color: #0a58ca;
+    }
+
+    /* Conteneurs de vue */
+    .view-container {
+      display: none;
+    }
+
+    .view-container.active {
+      display: block;
+    }
+
+    /* Vue liste */
+    .list-view-content {
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .incident-row-list:hover {
+      background-color: #f8f9fa;
+    }
+
+    /* Vue table */
+    .table-responsive {
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .incident-row-table:hover {
+      background-color: #f8f9fa;
+    }
+
+    .table-sm td {
+      vertical-align: middle;
+      font-size: 0.9rem;
+    }
+
+    /* Vue groupée */
+    .accordion-button {
+      font-weight: 600;
+    }
+
+    .incident-card-grouped {
+      height: 100%;
+    }
+
+    /* Styles communs */
     .incident-row:hover {
       background-color: #f8f9fa;
     }
-    .table-sm td {
-      vertical-align: middle;
-    }
+
     .badge {
       font-size: 0.75rem;
       padding: 0.25em 0.6em;
     }
-    .tech-selector, .tech-selector-col {
+
+    .tech-selector, .tech-selector-col, .tech-selector-list {
       cursor: pointer;
+    }
+
+    /* Responsive pour le sélecteur de vue */
+    @media (max-width: 768px) {
+      .view-selector {
+        flex-direction: column;
+      }
+
+      .view-btn {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 
