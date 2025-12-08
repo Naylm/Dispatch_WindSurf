@@ -88,7 +88,11 @@ socketio = SocketIO(
     cors_allowed_origins="*",
     ping_timeout=60,
     ping_interval=25,
-    max_http_buffer_size=1000000
+    max_http_buffer_size=1000000,
+    logger=False,
+    engineio_logger=False,
+    allow_upgrades=True,
+    transports=['polling', 'websocket']
 )
 
 # Configuration des chemins
@@ -198,6 +202,36 @@ def get_contrast_color(hex_color):
 # Exposer la fonction comme filtre Jinja2
 app.jinja_env.filters['contrast_color'] = get_contrast_color
 
+
+@app.template_filter("freshness_badge")
+def freshness_badge_filter(date_value):
+    """Retourne le badge de fraîcheur basé sur la date de mise à jour"""
+    if not date_value:
+        return {"text": "À revoir", "class": "bg-warning"}
+    
+    # Convertir en datetime si c'est une string
+    if isinstance(date_value, str):
+        try:
+            from dateutil import parser
+            date_value = parser.parse(date_value)
+        except:
+            return {"text": "À revoir", "class": "bg-warning"}
+    
+    # Calculer la différence en jours
+    now = datetime.now()
+    if date_value.tzinfo:
+        from datetime import timezone
+        now = now.replace(tzinfo=timezone.utc)
+    
+    delta = now - date_value
+    days = delta.days
+    
+    if days < 30:
+        return {"text": "Récent", "class": "bg-success"}
+    elif days < 180:  # 6 mois
+        return {"text": "À jour", "class": "bg-info"}
+    else:
+        return {"text": "À revoir", "class": "bg-warning"}
 
 @app.template_filter("format_date")
 def format_date(d):

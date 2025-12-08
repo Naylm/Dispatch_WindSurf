@@ -50,13 +50,15 @@ services:
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:-change_me_in_production_please_use_secrets_token_hex}
-      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-1}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
       - DB_TYPE=postgresql
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=dispatch
       - POSTGRES_USER=dispatch_user
       - POSTGRES_PASSWORD=dispatch_pass
+      - DB_POOL_MIN=${DB_POOL_MIN:-5}
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
       - WTF_CSRF_ENABLED=true
     depends_on:
       postgres:
@@ -69,15 +71,15 @@ services:
       start_period: 15s
     networks:
       - dispatch_network
-    # Limites de ressources (optionnel mais recommandé en production)
+    # Limites de ressources (ajustées pour 4 workers)
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '2.0'      # 2 CPUs pour 4 workers
+          memory: 2G       # 2GB RAM pour 4 workers
         reservations:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '1.0'      # Minimum garanti
+          memory: 1G       # Minimum garanti
 
   # ==========================================
   # Reverse Proxy Nginx
@@ -152,4 +154,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.28.0.0/16

@@ -253,6 +253,24 @@
             </div>
         </div>
 
+        <!-- Badges statut et fraîcheur -->
+        <div class="mb-3 d-flex gap-2 flex-wrap">
+            {% if article.status %}
+            <span class="badge {% if article.status == 'published' %}bg-success{% elif article.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+                {% if article.status == 'published' %}✅ Publié
+                {% elif article.status == 'draft' %}📝 Brouillon
+                {% else %}📦 Archivé{% endif %}
+            </span>
+            {% endif %}
+            {% if article.updated_at %}
+            {% set freshness = article.updated_at|freshness_badge %}
+            <span class="badge {{ freshness.class }}">{{ freshness.text }}</span>
+            {% endif %}
+            {% if article.owner %}
+            <span class="badge bg-info">👤 {{ article.owner }}</span>
+            {% endif %}
+        </div>
+        
         <!-- Tags -->
         {% if article.tags %}
         <div class="mb-3">
@@ -267,11 +285,11 @@
             <!-- Le contenu Markdown sera rendu ici -->
         </div>
 
-        <!-- Section de vote -->
+        <!-- Section de vote et feedback -->
         <div class="vote-section">
             <h5>Cet article vous a-t-il été utile ?</h5>
             <p class="text-muted">Votre avis aide à améliorer la base de connaissances</p>
-            <div class="vote-buttons">
+            <div class="vote-buttons mb-3">
                 <button class="vote-btn like-btn {% if user_vote and user_vote.vote_type == 'like' %}active{% endif %}" 
                         onclick="vote('like')">
                     <span>👍</span>
@@ -283,6 +301,22 @@
                     <span>👎</span>
                     <span>Non, pas utile</span>
                     <span id="dislikeCount">({{ article.dislikes_count }})</span>
+                </button>
+            </div>
+            
+            <!-- Boutons feedback -->
+            <div class="d-flex gap-2 flex-wrap justify-content-center">
+                <button class="btn btn-sm btn-outline-success" onclick="submitFeedback('useful')">
+                    ✅ Utile
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="submitFeedback('not_useful')">
+                    ❌ Pas utile
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="submitFeedback('outdated')">
+                    ⚠️ Signaler obsolète
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="submitFeedback('needs_update')">
+                    🔄 Demander mise à jour
                 </button>
             </div>
         </div>
@@ -411,6 +445,60 @@
             });
         }
 
+        // Fonction feedback
+        function submitFeedback(feedbackType) {
+            const csrfToken =
+                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            fetch('{{ url_for("submit_wiki_feedback", id=article.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ feedback_type: feedbackType })
+            })
+            .then(async (response) => {
+                const data = await response.json();
+                if (data.success) {
+                    alert('Merci pour votre feedback !');
+                } else {
+                    alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                }
+            })
+            .catch((err) => {
+                console.error("Erreur feedback:", err);
+                alert("Erreur lors de l'envoi du feedback");
+            });
+        }
+        
+        // Générer sommaire automatique depuis les titres Markdown
+        function generateTableOfContents() {
+            const content = document.getElementById('articleContent');
+            const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            if (headings.length === 0) return;
+            
+            const toc = document.createElement('div');
+            toc.className = 'table-of-contents mb-4 p-3 bg-light rounded';
+            toc.innerHTML = '<h6 class="mb-2">📑 Sommaire</h6><ul class="list-unstyled mb-0">';
+            
+            headings.forEach((heading, index) => {
+                const id = `heading-${index}`;
+                heading.id = id;
+                const level = parseInt(heading.tagName.charAt(1));
+                const indent = (level - 1) * 20;
+                toc.querySelector('ul').innerHTML += 
+                    `<li style="margin-left: ${indent}px;"><a href="#${id}" class="text-decoration-none">${heading.textContent}</a></li>`;
+            });
+            
+            toc.innerHTML += '</ul>';
+            content.insertBefore(toc, content.firstChild);
+        }
+        
+        // Générer le sommaire après le rendu Markdown
+        setTimeout(generateTableOfContents, 100);
+        
         // Theme toggle
         const themeToggle = document.getElementById('themeToggle');
         const savedTheme = localStorage.getItem('theme');

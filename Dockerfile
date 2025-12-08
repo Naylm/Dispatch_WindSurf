@@ -44,4 +44,6 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5000/ || exit 1
 
 # Run the application with Gunicorn and eventlet
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "app:app"]
+# Workers configuration: use environment variable or default to 4
+# Note: eventlet provides async I/O via greenlets, workers provide parallelism
+CMD gunicorn --worker-class eventlet -w ${GUNICORN_WORKERS:-4} --bind 0.0.0.0:5000 app:app
