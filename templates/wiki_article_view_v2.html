@@ -397,6 +397,8 @@
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                 document.querySelector('input[name="csrf_token"]')?.value || '';
 
+            console.log('Vote:', voteType, 'CSRF Token:', csrfToken ? 'present' : 'missing');
+
             fetch('{{ url_for("vote_wiki_article", id=article.id) }}', {
                 method: 'POST',
                 headers: {
@@ -407,6 +409,7 @@
                 body: JSON.stringify({ vote_type: voteType })
             })
             .then(async (response) => {
+                console.log('Vote response status:', response.status);
                 const contentType = response.headers.get("Content-Type") || "";
                 if (!contentType.includes("application/json")) {
                     const text = await response.text();
@@ -414,30 +417,43 @@
                     throw new Error("Réponse inattendue du serveur (pas JSON).");
                 }
                 const data = await response.json();
+                console.log('Vote response data:', data);
                 if (!response.ok || !data.success) {
                     throw new Error(data.error || "Erreur lors du vote");
                 }
                 return data;
             })
             .then((data) => {
+                console.log('Mise à jour de l\'interface avec:', data);
+
                 // Mettre à jour les compteurs
                 const likeCountEl = document.getElementById('likeCount');
                 const dislikeCountEl = document.getElementById('dislikeCount');
+
+                console.log('likeCountEl:', likeCountEl, 'dislikeCountEl:', dislikeCountEl);
+                console.log('data.likes:', data.likes, 'data.dislikes:', data.dislikes);
+
                 if (likeCountEl && typeof data.likes !== "undefined") {
+                    console.log('Mise à jour likes:', data.likes);
                     likeCountEl.textContent = `(${data.likes})`;
                 }
                 if (dislikeCountEl && typeof data.dislikes !== "undefined") {
+                    console.log('Mise à jour dislikes:', data.dislikes);
                     dislikeCountEl.textContent = `(${data.dislikes})`;
                 }
-                
+
                 // Mettre à jour les boutons actifs
+                console.log('Mise à jour bouton actif:', data.user_vote);
                 document.querySelectorAll('.vote-btn').forEach(btn => btn.classList.remove('active'));
                 if (data.user_vote) {
                     const activeBtn = document.querySelector(`.${data.user_vote}-btn`);
+                    console.log('Bouton trouvé:', activeBtn);
                     if (activeBtn) {
                         activeBtn.classList.add('active');
                     }
                 }
+
+                console.log('✅ Interface mise à jour');
             })
             .catch((err) => {
                 console.error("Erreur vote:", err);
@@ -449,7 +465,9 @@
         function submitFeedback(feedbackType) {
             const csrfToken =
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            
+
+            console.log('Feedback:', feedbackType, 'CSRF Token:', csrfToken ? 'present' : 'missing');
+
             fetch('{{ url_for("submit_wiki_feedback", id=article.id) }}', {
                 method: 'POST',
                 headers: {
@@ -460,7 +478,9 @@
                 body: JSON.stringify({ feedback_type: feedbackType })
             })
             .then(async (response) => {
+                console.log('Feedback response status:', response.status);
                 const data = await response.json();
+                console.log('Feedback response data:', data);
                 if (data.success) {
                     alert('Merci pour votre feedback !');
                 } else {
@@ -469,7 +489,7 @@
             })
             .catch((err) => {
                 console.error("Erreur feedback:", err);
-                alert("Erreur lors de l'envoi du feedback");
+                alert("Erreur lors de l'envoi du feedback : " + err.message);
             });
         }
         

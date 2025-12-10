@@ -71,6 +71,9 @@ class DualAccessRow:
         except (KeyError, IndexError):
             return default
 
+    def __repr__(self):
+        return f"DualAccessRow({dict(self.items())})"
+
 
 class DualAccessCursor:
     """

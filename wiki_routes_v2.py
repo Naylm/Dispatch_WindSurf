@@ -751,20 +751,27 @@ def wiki_votes_routes(app):
     @app.route("/wiki/article/<int:id>/vote", methods=["POST"])
     def vote_wiki_article(id):
         from flask_wtf.csrf import CSRFError
-        
+
         try:
+            current_app.logger.info(f"vote_wiki_article: Received vote for article {id}")
+            current_app.logger.info(f"vote_wiki_article: Headers: {dict(request.headers)}")
+            current_app.logger.info(f"vote_wiki_article: is_json: {request.is_json}")
+
             if "user" not in session:
+                current_app.logger.warning(f"vote_wiki_article: User not in session")
                 return jsonify({
                     "success": False,
                     "error": "Non autorisé"
                 }), 403
-            
+
             # Récupération du sens du vote (like/dislike)
             vote_type = None
             if request.is_json:
                 vote_type = request.json.get("vote_type") or request.json.get("direction")
             else:
                 vote_type = request.form.get("vote_type") or request.form.get("direction")
+
+            current_app.logger.info(f"vote_wiki_article: User {session['user']} voting {vote_type}")
             
             if vote_type not in ['like', 'dislike', 'up', 'down']:
                 return jsonify({
@@ -803,13 +810,28 @@ def wiki_votes_routes(app):
                     if old_vote == vote_type:
                         db.commit()
                         article = db.execute("SELECT likes_count, dislikes_count FROM wiki_articles WHERE id=?", (id,)).fetchone()
+
+                        current_app.logger.info(f"vote_wiki_article (remove): article={article}")
+
+                        # Récupérer directement les valeurs
+                        if article:
+                            current_app.logger.info(f"vote_wiki_article (remove): article.keys()={list(article.keys())}")
+                            likes_count = article['likes_count']
+                            dislikes_count = article['dislikes_count']
+                        else:
+                            current_app.logger.warning(f"vote_wiki_article (remove): Article {id} not found!")
+                            likes_count = 0
+                            dislikes_count = 0
+
                         db.close()
-                        article_dict = dict(article) if article else {}
+
+                        current_app.logger.info(f"vote_wiki_article (remove): FINAL likes={likes_count}, dislikes={dislikes_count}")
+
                         return jsonify({
                             "success": True,
                             "status": "ok",
-                            "likes": article_dict.get('likes_count', 0),
-                            "dislikes": article_dict.get('dislikes_count', 0),
+                            "likes": likes_count,
+                            "dislikes": dislikes_count,
                             "user_vote": None
                         }), 200
                 
@@ -828,14 +850,28 @@ def wiki_votes_routes(app):
                 db.commit()
                 
                 article = db.execute("SELECT likes_count, dislikes_count FROM wiki_articles WHERE id=?", (id,)).fetchone()
+
+                current_app.logger.info(f"vote_wiki_article: article={article}")
+
+                # Récupérer directement les valeurs pour éviter tout problème de clés
+                if article:
+                    current_app.logger.info(f"vote_wiki_article: article.keys()={list(article.keys())}")
+                    likes_count = article['likes_count']
+                    dislikes_count = article['dislikes_count']
+                else:
+                    current_app.logger.warning(f"vote_wiki_article: Article {id} not found after vote!")
+                    likes_count = 0
+                    dislikes_count = 0
+
                 db.close()
-                
-                article_dict = dict(article) if article else {}
+
+                current_app.logger.info(f"vote_wiki_article: FINAL likes={likes_count}, dislikes={dislikes_count}, user_vote={vote_type}")
+
                 return jsonify({
                     "success": True,
                     "status": "ok",
-                    "likes": article_dict.get('likes_count', 0),
-                    "dislikes": article_dict.get('dislikes_count', 0),
+                    "likes": likes_count,
+                    "dislikes": dislikes_count,
                     "user_vote": vote_type
                 }), 200
                 
@@ -846,10 +882,11 @@ def wiki_votes_routes(app):
                 raise
                 
         except CSRFError as e:
-            current_app.logger.warning(f"vote_wiki_article CSRF error: {e.description}")
+            current_app.logger.error(f"vote_wiki_article CSRF error: {e.description}")
+            current_app.logger.error(f"vote_wiki_article CSRF headers: X-CSRFToken={request.headers.get('X-CSRFToken')}, X-CSRF-Token={request.headers.get('X-CSRF-Token')}")
             return jsonify({
                 "success": False,
-                "error": "CSRF token invalide ou manquant"
+                "error": f"CSRF token invalide ou manquant: {e.description}"
             }), 400
         except Exception as e:
             current_app.logger.exception(f"vote_wiki_article: exception for article {id}")
