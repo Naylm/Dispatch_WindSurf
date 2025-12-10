@@ -413,6 +413,28 @@ def ensure_database_integrity():
     else:
         tables_verified.append("wiki_articles")
     
+    # Migration: ajouter colonnes métadonnées à wiki_articles si elles n'existent pas
+    metadata_columns = [
+        ('status', "VARCHAR(20) DEFAULT 'published'"),
+        ('owner', 'VARCHAR(255)'),
+        ('summary', 'TEXT'),
+        ('last_reviewed_at', 'TIMESTAMP'),
+        ('expires_at', 'TIMESTAMP')
+    ]
+    
+    for col_name, col_def in metadata_columns:
+        cursor.execute(f"""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='wiki_articles' AND column_name='{col_name}'
+        """)
+        if not cursor.fetchone():
+            try:
+                cursor.execute(f"ALTER TABLE wiki_articles ADD COLUMN {col_name} {col_def}")
+                print(f"   - Colonne {col_name} ajoutee a wiki_articles")
+            except Exception as e:
+                print(f"   - Erreur lors de l'ajout de {col_name}: {e}")
+    
     # Table: wiki_history
     cursor.execute("""
         SELECT EXISTS (
@@ -488,6 +510,152 @@ def ensure_database_integrity():
         tables_created.append("wiki_images")
     else:
         tables_verified.append("wiki_images")
+    
+    # Table: wiki_tags
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'wiki_tags'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE wiki_tags (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL,
+                color VARCHAR(20) DEFAULT '#4f46e5',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("wiki_tags")
+    else:
+        tables_verified.append("wiki_tags")
+    
+    # Table: wiki_article_tags (table de liaison)
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'wiki_article_tags'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE wiki_article_tags (
+                article_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (article_id, tag_id),
+                FOREIGN KEY (article_id) REFERENCES wiki_articles(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES wiki_tags(id) ON DELETE CASCADE
+            )
+        """)
+        tables_created.append("wiki_article_tags")
+        
+        # Migration: migrer les tags existants depuis le champ TEXT vers la structure normalisée
+        print("   - Migration des tags existants...")
+        cursor.execute("SELECT id, tags FROM wiki_articles WHERE tags IS NOT NULL AND tags != ''")
+        articles_with_tags = cursor.fetchall()
+        
+        tag_count = 0
+        for article in articles_with_tags:
+            tags_str = article['tags'] or ''
+            if tags_str:
+                # Séparer les tags par virgule
+                tag_names = [t.strip() for t in tags_str.split(',') if t.strip()]
+                for tag_name in tag_names:
+                    # Créer le tag s'il n'existe pas
+                    cursor.execute("""
+                        INSERT INTO wiki_tags (name) 
+                        VALUES (%s)
+                        ON CONFLICT (name) DO NOTHING
+                    """, (tag_name,))
+                    
+                    # Récupérer l'ID du tag
+                    cursor.execute("SELECT id FROM wiki_tags WHERE name = %s", (tag_name,))
+                    tag_row = cursor.fetchone()
+                    if tag_row:
+                        tag_id = tag_row['id']
+                        # Lier l'article au tag
+                        cursor.execute("""
+                            INSERT INTO wiki_article_tags (article_id, tag_id)
+                            VALUES (%s, %s)
+                            ON CONFLICT (article_id, tag_id) DO NOTHING
+                        """, (article['id'], tag_id))
+                        tag_count += 1
+        
+        if tag_count > 0:
+            print(f"   - {tag_count} tag(s) migre(s) depuis les articles existants")
+    else:
+        tables_verified.append("wiki_article_tags")
+    
+    # Table: wiki_feedback
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'wiki_feedback'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE wiki_feedback (
+                id SERIAL PRIMARY KEY,
+                article_id INTEGER NOT NULL,
+                user_name VARCHAR(255) NOT NULL,
+                feedback_type VARCHAR(20) NOT NULL CHECK(feedback_type IN ('useful', 'not_useful', 'outdated', 'needs_update')),
+                comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (article_id) REFERENCES wiki_articles(id) ON DELETE CASCADE
+            )
+        """)
+        tables_created.append("wiki_feedback")
+    else:
+        tables_verified.append("wiki_feedback")
+    
+    # Table: wiki_search_log
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'wiki_search_log'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE wiki_search_log (
+                id SERIAL PRIMARY KEY,
+                query VARCHAR(500) NOT NULL,
+                user_name VARCHAR(255),
+                results_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("wiki_search_log")
+    else:
+        tables_verified.append("wiki_search_log")
+    
+    # Index full-text pour recherche PostgreSQL
+    cursor.execute("""
+        SELECT indexname 
+        FROM pg_indexes 
+        WHERE tablename = 'wiki_articles' AND indexname = 'wiki_articles_search_idx'
+    """)
+    if not cursor.fetchone():
+        try:
+            cursor.execute("""
+                CREATE INDEX wiki_articles_search_idx ON wiki_articles 
+                USING GIN (to_tsvector('french', 
+                    coalesce(title, '') || ' ' || 
+                    coalesce(content, '') || ' ' || 
+                    coalesce(tags, '')
+                ))
+            """)
+            print("   - Index full-text GIN cree pour wiki_articles")
+        except Exception as e:
+            print(f"   - Erreur lors de la creation de l'index full-text: {e}")
+    else:
+        print("   - Index full-text deja existant")
     
     # Commit toutes les modifications
     conn.commit()

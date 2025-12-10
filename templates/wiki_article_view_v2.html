@@ -253,6 +253,24 @@
             </div>
         </div>
 
+        <!-- Badges statut et fraîcheur -->
+        <div class="mb-3 d-flex gap-2 flex-wrap">
+            {% if article.status %}
+            <span class="badge {% if article.status == 'published' %}bg-success{% elif article.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+                {% if article.status == 'published' %}✅ Publié
+                {% elif article.status == 'draft' %}📝 Brouillon
+                {% else %}📦 Archivé{% endif %}
+            </span>
+            {% endif %}
+            {% if article.updated_at %}
+            {% set freshness = article.updated_at|freshness_badge %}
+            <span class="badge {{ freshness.class }}">{{ freshness.text }}</span>
+            {% endif %}
+            {% if article.owner %}
+            <span class="badge bg-info">👤 {{ article.owner }}</span>
+            {% endif %}
+        </div>
+        
         <!-- Tags -->
         {% if article.tags %}
         <div class="mb-3">
@@ -267,11 +285,11 @@
             <!-- Le contenu Markdown sera rendu ici -->
         </div>
 
-        <!-- Section de vote -->
+        <!-- Section de vote et feedback -->
         <div class="vote-section">
             <h5>Cet article vous a-t-il été utile ?</h5>
             <p class="text-muted">Votre avis aide à améliorer la base de connaissances</p>
-            <div class="vote-buttons">
+            <div class="vote-buttons mb-3">
                 <button class="vote-btn like-btn {% if user_vote and user_vote.vote_type == 'like' %}active{% endif %}" 
                         onclick="vote('like')">
                     <span>👍</span>
@@ -283,6 +301,22 @@
                     <span>👎</span>
                     <span>Non, pas utile</span>
                     <span id="dislikeCount">({{ article.dislikes_count }})</span>
+                </button>
+            </div>
+            
+            <!-- Boutons feedback -->
+            <div class="d-flex gap-2 flex-wrap justify-content-center">
+                <button class="btn btn-sm btn-outline-success" onclick="submitFeedback('useful')">
+                    ✅ Utile
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="submitFeedback('not_useful')">
+                    ❌ Pas utile
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="submitFeedback('outdated')">
+                    ⚠️ Signaler obsolète
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="submitFeedback('needs_update')">
+                    🔄 Demander mise à jour
                 </button>
             </div>
         </div>
@@ -363,6 +397,8 @@
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                 document.querySelector('input[name="csrf_token"]')?.value || '';
 
+            console.log('Vote:', voteType, 'CSRF Token:', csrfToken ? 'present' : 'missing');
+
             fetch('{{ url_for("vote_wiki_article", id=article.id) }}', {
                 method: 'POST',
                 headers: {
@@ -373,6 +409,7 @@
                 body: JSON.stringify({ vote_type: voteType })
             })
             .then(async (response) => {
+                console.log('Vote response status:', response.status);
                 const contentType = response.headers.get("Content-Type") || "";
                 if (!contentType.includes("application/json")) {
                     const text = await response.text();
@@ -380,30 +417,43 @@
                     throw new Error("Réponse inattendue du serveur (pas JSON).");
                 }
                 const data = await response.json();
+                console.log('Vote response data:', data);
                 if (!response.ok || !data.success) {
                     throw new Error(data.error || "Erreur lors du vote");
                 }
                 return data;
             })
             .then((data) => {
+                console.log('Mise à jour de l\'interface avec:', data);
+
                 // Mettre à jour les compteurs
                 const likeCountEl = document.getElementById('likeCount');
                 const dislikeCountEl = document.getElementById('dislikeCount');
+
+                console.log('likeCountEl:', likeCountEl, 'dislikeCountEl:', dislikeCountEl);
+                console.log('data.likes:', data.likes, 'data.dislikes:', data.dislikes);
+
                 if (likeCountEl && typeof data.likes !== "undefined") {
+                    console.log('Mise à jour likes:', data.likes);
                     likeCountEl.textContent = `(${data.likes})`;
                 }
                 if (dislikeCountEl && typeof data.dislikes !== "undefined") {
+                    console.log('Mise à jour dislikes:', data.dislikes);
                     dislikeCountEl.textContent = `(${data.dislikes})`;
                 }
-                
+
                 // Mettre à jour les boutons actifs
+                console.log('Mise à jour bouton actif:', data.user_vote);
                 document.querySelectorAll('.vote-btn').forEach(btn => btn.classList.remove('active'));
                 if (data.user_vote) {
                     const activeBtn = document.querySelector(`.${data.user_vote}-btn`);
+                    console.log('Bouton trouvé:', activeBtn);
                     if (activeBtn) {
                         activeBtn.classList.add('active');
                     }
                 }
+
+                console.log('✅ Interface mise à jour');
             })
             .catch((err) => {
                 console.error("Erreur vote:", err);
@@ -411,6 +461,64 @@
             });
         }
 
+        // Fonction feedback
+        function submitFeedback(feedbackType) {
+            const csrfToken =
+                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            console.log('Feedback:', feedbackType, 'CSRF Token:', csrfToken ? 'present' : 'missing');
+
+            fetch('{{ url_for("submit_wiki_feedback", id=article.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ feedback_type: feedbackType })
+            })
+            .then(async (response) => {
+                console.log('Feedback response status:', response.status);
+                const data = await response.json();
+                console.log('Feedback response data:', data);
+                if (data.success) {
+                    alert('Merci pour votre feedback !');
+                } else {
+                    alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                }
+            })
+            .catch((err) => {
+                console.error("Erreur feedback:", err);
+                alert("Erreur lors de l'envoi du feedback : " + err.message);
+            });
+        }
+        
+        // Générer sommaire automatique depuis les titres Markdown
+        function generateTableOfContents() {
+            const content = document.getElementById('articleContent');
+            const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            if (headings.length === 0) return;
+            
+            const toc = document.createElement('div');
+            toc.className = 'table-of-contents mb-4 p-3 bg-light rounded';
+            toc.innerHTML = '<h6 class="mb-2">📑 Sommaire</h6><ul class="list-unstyled mb-0">';
+            
+            headings.forEach((heading, index) => {
+                const id = `heading-${index}`;
+                heading.id = id;
+                const level = parseInt(heading.tagName.charAt(1));
+                const indent = (level - 1) * 20;
+                toc.querySelector('ul').innerHTML += 
+                    `<li style="margin-left: ${indent}px;"><a href="#${id}" class="text-decoration-none">${heading.textContent}</a></li>`;
+            });
+            
+            toc.innerHTML += '</ul>';
+            content.insertBefore(toc, content.firstChild);
+        }
+        
+        // Générer le sommaire après le rendu Markdown
+        setTimeout(generateTableOfContents, 100);
+        
         // Theme toggle
         const themeToggle = document.getElementById('themeToggle');
         const savedTheme = localStorage.getItem('theme');

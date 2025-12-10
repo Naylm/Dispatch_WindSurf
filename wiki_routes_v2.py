@@ -418,6 +418,25 @@ def wiki_articles_routes(app):
             flash("Titre et sous-catégorie sont obligatoires.", "error")
             return redirect(request.referrer or url_for("wiki"))
         
+        if not content or len(content.strip()) < 10:
+            flash("Le contenu est obligatoire et doit contenir au moins 10 caractères.", "error")
+            return redirect(request.referrer or url_for("wiki"))
+        
+        # Validation des tags (format: séparés par virgules)
+        if tags:
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            if len(tag_list) > 10:
+                flash("Maximum 10 tags autorisés.", "error")
+                return redirect(request.referrer or url_for("wiki"))
+        
+        # Récupérer le statut (par défaut: draft)
+        status = request.form.get("status", "draft")
+        if status not in ['draft', 'published', 'archived']:
+            status = 'draft'
+        
+        owner = request.form.get("owner", session["user"])
+        summary = request.form.get("summary", "").strip()
+        
         db = get_db()
         try:
             current_app.logger.info(f"wiki_article_create: Attempting INSERT with title='{title[:30]}', subcategory_id={subcategory_id}")
@@ -425,11 +444,11 @@ def wiki_articles_routes(app):
             result = db.execute(
                 """
                 INSERT INTO wiki_articles 
-                (title, content, subcategory_id, icon, created_by, tags)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (title, content, subcategory_id, icon, created_by, tags, status, owner, summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-                (title, content, subcategory_id, icon, session["user"], tags)
+                (title, content, subcategory_id, icon, session["user"], tags, status, owner, summary)
             )
             
             row = result.fetchone()
@@ -607,6 +626,30 @@ def wiki_articles_routes(app):
         tags = request.form.get("tags", "").strip()
         change_description = request.form.get("change_description", "").strip()
         
+        # Validation
+        if not title:
+            flash("Le titre est obligatoire.", "error")
+            return redirect(request.referrer or url_for("wiki"))
+        
+        if not content or len(content.strip()) < 10:
+            flash("Le contenu est obligatoire et doit contenir au moins 10 caractères.", "error")
+            return redirect(request.referrer or url_for("wiki"))
+        
+        # Validation des tags
+        if tags:
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            if len(tag_list) > 10:
+                flash("Maximum 10 tags autorisés.", "error")
+                return redirect(request.referrer or url_for("wiki"))
+        
+        # Récupérer les métadonnées
+        status = request.form.get("status", article.get('status', 'draft'))
+        if status not in ['draft', 'published', 'archived']:
+            status = article.get('status', 'draft')
+        
+        owner = request.form.get("owner", article.get('owner', session["user"]))
+        summary = request.form.get("summary", article.get('summary', '')).strip()
+        
         # Sauvegarder dans l'historique
         db.execute("""
             INSERT INTO wiki_history (article_id, title, content, modified_by, change_description)
@@ -617,9 +660,10 @@ def wiki_articles_routes(app):
         db.execute("""
             UPDATE wiki_articles 
             SET title=?, content=?, subcategory_id=?, icon=?, tags=?,
+                status=?, owner=?, summary=?,
                 updated_at=CURRENT_TIMESTAMP, last_modified_by=?
             WHERE id=?
-        """, (title, content, subcategory_id, icon, tags, session["user"], id))
+        """, (title, content, subcategory_id, icon, tags, status, owner, summary, session["user"], id))
         
         db.commit()
         db.close()
@@ -707,20 +751,27 @@ def wiki_votes_routes(app):
     @app.route("/wiki/article/<int:id>/vote", methods=["POST"])
     def vote_wiki_article(id):
         from flask_wtf.csrf import CSRFError
-        
+
         try:
+            current_app.logger.info(f"vote_wiki_article: Received vote for article {id}")
+            current_app.logger.info(f"vote_wiki_article: Headers: {dict(request.headers)}")
+            current_app.logger.info(f"vote_wiki_article: is_json: {request.is_json}")
+
             if "user" not in session:
+                current_app.logger.warning(f"vote_wiki_article: User not in session")
                 return jsonify({
                     "success": False,
                     "error": "Non autorisé"
                 }), 403
-            
+
             # Récupération du sens du vote (like/dislike)
             vote_type = None
             if request.is_json:
                 vote_type = request.json.get("vote_type") or request.json.get("direction")
             else:
                 vote_type = request.form.get("vote_type") or request.form.get("direction")
+
+            current_app.logger.info(f"vote_wiki_article: User {session['user']} voting {vote_type}")
             
             if vote_type not in ['like', 'dislike', 'up', 'down']:
                 return jsonify({
@@ -759,13 +810,28 @@ def wiki_votes_routes(app):
                     if old_vote == vote_type:
                         db.commit()
                         article = db.execute("SELECT likes_count, dislikes_count FROM wiki_articles WHERE id=?", (id,)).fetchone()
+
+                        current_app.logger.info(f"vote_wiki_article (remove): article={article}")
+
+                        # Récupérer directement les valeurs
+                        if article:
+                            current_app.logger.info(f"vote_wiki_article (remove): article.keys()={list(article.keys())}")
+                            likes_count = article['likes_count']
+                            dislikes_count = article['dislikes_count']
+                        else:
+                            current_app.logger.warning(f"vote_wiki_article (remove): Article {id} not found!")
+                            likes_count = 0
+                            dislikes_count = 0
+
                         db.close()
-                        article_dict = dict(article) if article else {}
+
+                        current_app.logger.info(f"vote_wiki_article (remove): FINAL likes={likes_count}, dislikes={dislikes_count}")
+
                         return jsonify({
                             "success": True,
                             "status": "ok",
-                            "likes": article_dict.get('likes_count', 0),
-                            "dislikes": article_dict.get('dislikes_count', 0),
+                            "likes": likes_count,
+                            "dislikes": dislikes_count,
                             "user_vote": None
                         }), 200
                 
@@ -784,14 +850,28 @@ def wiki_votes_routes(app):
                 db.commit()
                 
                 article = db.execute("SELECT likes_count, dislikes_count FROM wiki_articles WHERE id=?", (id,)).fetchone()
+
+                current_app.logger.info(f"vote_wiki_article: article={article}")
+
+                # Récupérer directement les valeurs pour éviter tout problème de clés
+                if article:
+                    current_app.logger.info(f"vote_wiki_article: article.keys()={list(article.keys())}")
+                    likes_count = article['likes_count']
+                    dislikes_count = article['dislikes_count']
+                else:
+                    current_app.logger.warning(f"vote_wiki_article: Article {id} not found after vote!")
+                    likes_count = 0
+                    dislikes_count = 0
+
                 db.close()
-                
-                article_dict = dict(article) if article else {}
+
+                current_app.logger.info(f"vote_wiki_article: FINAL likes={likes_count}, dislikes={dislikes_count}, user_vote={vote_type}")
+
                 return jsonify({
                     "success": True,
                     "status": "ok",
-                    "likes": article_dict.get('likes_count', 0),
-                    "dislikes": article_dict.get('dislikes_count', 0),
+                    "likes": likes_count,
+                    "dislikes": dislikes_count,
                     "user_vote": vote_type
                 }), 200
                 
@@ -802,10 +882,11 @@ def wiki_votes_routes(app):
                 raise
                 
         except CSRFError as e:
-            current_app.logger.warning(f"vote_wiki_article CSRF error: {e.description}")
+            current_app.logger.error(f"vote_wiki_article CSRF error: {e.description}")
+            current_app.logger.error(f"vote_wiki_article CSRF headers: X-CSRFToken={request.headers.get('X-CSRFToken')}, X-CSRF-Token={request.headers.get('X-CSRF-Token')}")
             return jsonify({
                 "success": False,
-                "error": "CSRF token invalide ou manquant"
+                "error": f"CSRF token invalide ou manquant: {e.description}"
             }), 400
         except Exception as e:
             current_app.logger.exception(f"vote_wiki_article: exception for article {id}")
@@ -887,6 +968,37 @@ def wiki_upload_routes(app):
 
 # ========== RECHERCHE ==========
 def wiki_search_routes(app):
+    @app.route("/wiki/search/suggestions")
+    def wiki_search_suggestions():
+        if "user" not in session:
+            return jsonify({"suggestions": []})
+        
+        query = request.args.get("q", "").strip()
+        if len(query) < 2:
+            return jsonify({"suggestions": []})
+        
+        db = get_db()
+        
+        # Rechercher des titres d'articles similaires
+        try:
+            # Utiliser ILIKE pour suggestions rapides (insensible à la casse)
+            suggestions = db.execute("""
+                SELECT DISTINCT title, id
+                FROM wiki_articles
+                WHERE title ILIKE %s
+                ORDER BY title
+                LIMIT 10
+            """, (f"%{query}%",)).fetchall()
+            
+            result = [{"title": s['title'], "id": s['id']} for s in suggestions]
+        except Exception as e:
+            current_app.logger.warning(f"Erreur suggestions: {e}")
+            result = []
+        finally:
+            db.close()
+        
+        return jsonify({"suggestions": result})
+    
     @app.route("/wiki/search")
     def search_wiki():
         if "user" not in session:
@@ -897,21 +1009,197 @@ def wiki_search_routes(app):
         if not query:
             return redirect(url_for("wiki"))
         
+        # Préparer la requête pour PostgreSQL full-text search
+        # Échapper les caractères spéciaux et convertir en format tsquery
+        # Remplacer les espaces par & (AND) pour recherche stricte
+        query_terms = query.split()
+        query_ts = ' & '.join([term.replace("'", "''") for term in query_terms])
+        
         db = get_db()
-        results = db.execute("""
-            SELECT a.*, s.name as subcat_name, c.name as cat_name, c.icon as cat_icon
-            FROM wiki_articles a
-            LEFT JOIN wiki_subcategories s ON a.subcategory_id = s.id
-            LEFT JOIN wiki_categories c ON s.category_id = c.id
-            WHERE a.title LIKE ? OR a.content LIKE ? OR a.tags LIKE ?
-            ORDER BY a.created_at DESC
-        """, (f"%{query}%", f"%{query}%", f"%{query}%")).fetchall()
+        
+        # Recherche full-text avec ranking
+        try:
+            results = db.execute("""
+                SELECT a.*, 
+                       s.name as subcat_name, 
+                       c.name as cat_name, 
+                       c.icon as cat_icon,
+                       ts_rank(
+                           to_tsvector('french', 
+                               coalesce(a.title, '') || ' ' || 
+                               coalesce(a.content, '') || ' ' || 
+                               coalesce(a.tags, '')
+                           ),
+                           to_tsquery('french', %s)
+                       ) as rank
+                FROM wiki_articles a
+                LEFT JOIN wiki_subcategories s ON a.subcategory_id = s.id
+                LEFT JOIN wiki_categories c ON s.category_id = c.id
+                WHERE to_tsvector('french', 
+                    coalesce(a.title, '') || ' ' || 
+                    coalesce(a.content, '') || ' ' || 
+                    coalesce(a.tags, '')
+                ) @@ to_tsquery('french', %s)
+                ORDER BY rank DESC, a.updated_at DESC
+            """, (query_ts, query_ts)).fetchall()
+        except Exception as e:
+            # Fallback vers LIKE si erreur avec full-text
+            current_app.logger.warning(f"Erreur recherche full-text, fallback LIKE: {e}")
+            results = db.execute("""
+                SELECT a.*, s.name as subcat_name, c.name as cat_name, c.icon as cat_icon, 0 as rank
+                FROM wiki_articles a
+                LEFT JOIN wiki_subcategories s ON a.subcategory_id = s.id
+                LEFT JOIN wiki_categories c ON s.category_id = c.id
+                WHERE a.title LIKE %s OR a.content LIKE %s OR a.tags LIKE %s
+                ORDER BY a.created_at DESC
+            """, (f"%{query}%", f"%{query}%", f"%{query}%")).fetchall()
+        
+        # Logger la recherche (surtout si 0 résultat)
+        results_count = len(results)
+        try:
+            db.execute("""
+                INSERT INTO wiki_search_log (query, user_name, results_count)
+                VALUES (%s, %s, %s)
+            """, (query, session.get("user"), results_count))
+            db.commit()
+        except Exception as log_error:
+            current_app.logger.warning(f"Erreur logging recherche: {log_error}")
         
         db.close()
         
         return render_template("wiki_search_results_v2.html",
                              query=query,
                              results=[dict(r) for r in results],
+                             user=session["user"])
+
+# ========== FEEDBACK ==========
+def wiki_feedback_routes(app):
+    @app.route("/wiki/article/<int:id>/feedback", methods=["POST"])
+    def submit_wiki_feedback(id):
+        if "user" not in session:
+            return jsonify({"success": False, "error": "Non autorisé"}), 403
+        
+        data = request.get_json() or {}
+        feedback_type = data.get("feedback_type")
+        comment = data.get("comment", "").strip()
+        
+        if not feedback_type or feedback_type not in ['useful', 'not_useful', 'outdated', 'needs_update']:
+            return jsonify({"success": False, "error": "Type de feedback invalide"}), 400
+        
+        db = get_db()
+        try:
+            # Vérifier que l'article existe
+            article = db.execute("SELECT id FROM wiki_articles WHERE id = %s", (id,)).fetchone()
+            if not article:
+                return jsonify({"success": False, "error": "Article non trouvé"}), 404
+            
+            # Insérer le feedback
+            db.execute("""
+                INSERT INTO wiki_feedback (article_id, user_name, feedback_type, comment)
+                VALUES (%s, %s, %s, %s)
+            """, (id, session["user"], feedback_type, comment))
+            db.commit()
+            
+            return jsonify({"success": True, "message": "Feedback enregistré"})
+        except Exception as e:
+            db.rollback()
+            current_app.logger.exception(f"Erreur submit_wiki_feedback: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+        finally:
+            db.close()
+
+# ========== ADMIN DASHBOARD ==========
+def wiki_admin_routes(app):
+    @app.route("/wiki/admin")
+    def wiki_admin_dashboard():
+        if "user" not in session or session.get("role") != "admin":
+            flash("Accès réservé aux administrateurs", "error")
+            return redirect(url_for("wiki"))
+        
+        db = get_db()
+        
+        # Articles signalés obsolètes
+        outdated_articles = db.execute("""
+            SELECT a.*, COUNT(f.id) as feedback_count
+            FROM wiki_articles a
+            INNER JOIN wiki_feedback f ON a.id = f.article_id
+            WHERE f.feedback_type = 'outdated'
+            GROUP BY a.id
+            ORDER BY feedback_count DESC
+            LIMIT 20
+        """).fetchall()
+        
+        # Requêtes sans résultat (top 10)
+        no_result_queries = db.execute("""
+            SELECT query, COUNT(*) as count, MAX(created_at) as last_seen
+            FROM wiki_search_log
+            WHERE results_count = 0
+            GROUP BY query
+            ORDER BY count DESC, last_seen DESC
+            LIMIT 10
+        """).fetchall()
+        
+        # Articles peu consultés (< 5 vues)
+        low_views_articles = db.execute("""
+            SELECT * FROM wiki_articles
+            WHERE views_count < 5
+            ORDER BY views_count ASC, created_at DESC
+            LIMIT 20
+        """).fetchall()
+        
+        # Articles avec feedback négatif
+        negative_feedback = db.execute("""
+            SELECT a.*, COUNT(f.id) as negative_count
+            FROM wiki_articles a
+            INNER JOIN wiki_feedback f ON a.id = f.article_id
+            WHERE f.feedback_type IN ('not_useful', 'outdated')
+            GROUP BY a.id
+            ORDER BY negative_count DESC
+            LIMIT 20
+        """).fetchall()
+        
+        db.close()
+        
+        return render_template("wiki_admin_dashboard.html",
+                             outdated_articles=[dict(a) for a in outdated_articles],
+                             no_result_queries=[dict(q) for q in no_result_queries],
+                             low_views_articles=[dict(a) for a in low_views_articles],
+                             negative_feedback=[dict(a) for a in negative_feedback],
+                             user=session["user"])
+
+# ========== REVIEW SYSTEM ==========
+def wiki_review_routes(app):
+    @app.route("/wiki/review_needed")
+    def wiki_review_needed():
+        if "user" not in session:
+            return redirect(url_for("login"))
+        
+        db = get_db()
+        
+        # Articles à revoir (> 6 mois sans mise à jour OU signalés obsolètes)
+        articles_to_review = db.execute("""
+            SELECT DISTINCT a.*, 
+                   CASE 
+                       WHEN a.updated_at < NOW() - INTERVAL '6 months' THEN 'old'
+                       WHEN EXISTS (
+                           SELECT 1 FROM wiki_feedback f 
+                           WHERE f.article_id = a.id AND f.feedback_type = 'outdated'
+                       ) THEN 'outdated'
+                       ELSE 'other'
+                   END as review_reason
+            FROM wiki_articles a
+            WHERE a.updated_at < NOW() - INTERVAL '6 months'
+               OR EXISTS (
+                   SELECT 1 FROM wiki_feedback f 
+                   WHERE f.article_id = a.id AND f.feedback_type = 'outdated'
+               )
+            ORDER BY a.updated_at ASC
+        """).fetchall()
+        
+        db.close()
+        
+        return render_template("wiki_review_needed.html",
+                             articles=[dict(a) for a in articles_to_review],
                              user=session["user"])
 
 def register_wiki_routes(app):
@@ -923,3 +1211,6 @@ def register_wiki_routes(app):
     wiki_votes_routes(app)
     wiki_upload_routes(app)
     wiki_search_routes(app)
+    wiki_feedback_routes(app)
+    wiki_admin_routes(app)
+    wiki_review_routes(app)
