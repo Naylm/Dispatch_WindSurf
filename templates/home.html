@@ -394,8 +394,185 @@
     }
 
     // Socket.IO & AJAX refresh
-    const socket = io();
-    socket.emit('join', { room: '{{ user.lower() }}' });
+    // Rendre le socket accessible globalement
+    window.socket = io({
+      transports: ['websocket', 'polling'],
+      upgrade: true,
+      rememberUpgrade: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity
+    });
+    
+    const socket = window.socket;
+    
+    // Variable globale pour vérifier la connexion
+    window.socketConnected = false;
+    
+    // Gestionnaires de connexion Socket.IO
+    socket.on('connect', () => {
+      console.log('✅ Socket.IO connecté, SID:', socket.id);
+      window.socketConnected = true;
+      socket.emit('join', { room: '{{ user.lower() }}' });
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Socket.IO déconnecté, raison:', reason);
+      window.socketConnected = false;
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('❌ Erreur de connexion Socket.IO:', error);
+      window.socketConnected = false;
+    });
+    
+    // Fonction pour recharger uniquement une carte d'incident
+    function reloadIncidentCard(incidentId) {
+      // Trouver toutes les cartes existantes avec cet ID pour déterminer le type
+      const existingCards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+      
+      if (existingCards.length === 0) {
+        console.warn('⚠️ Aucune carte trouvée pour l\'incident', incidentId);
+        return;
+      }
+      
+      // Déterminer le type de vue (kanban, grouped ou list)
+      const firstCard = existingCards[0];
+      let viewType = 'kanban';
+      if (firstCard.classList.contains('incident-card-grouped')) {
+        viewType = 'grouped';
+      } else if (firstCard.classList.contains('incident-row-list')) {
+        viewType = 'list';
+      }
+      
+      fetch(`/api/incident/${incidentId}?view=${viewType}`)
+        .then(response => {
+          if (response.status === 404) {
+            // Incident supprimé, supprimer toutes les cartes
+            existingCards.forEach(card => {
+              card.style.transition = 'opacity 0.3s, transform 0.3s';
+              card.style.opacity = '0';
+              card.style.transform = 'scale(0.8)';
+              setTimeout(() => card.remove(), 300);
+            });
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.text();
+        })
+        .then(html => {
+          if (!html) return;
+          
+          // Créer un conteneur temporaire pour parser le HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html.trim();
+          
+          existingCards.forEach(oldCard => {
+            if (viewType === 'grouped') {
+              // Vue grouped : remplacer le div
+              const newCardDiv = tempDiv.querySelector('div.incident-card-grouped');
+              if (newCardDiv) {
+                oldCard.replaceWith(newCardDiv.cloneNode(true));
+              }
+            } else if (viewType === 'list') {
+              // Vue liste : remplacer le div
+              const newCardDiv = tempDiv.querySelector('div.incident-row-list');
+              if (newCardDiv) {
+                oldCard.replaceWith(newCardDiv.cloneNode(true));
+              }
+            } else {
+              // Vue kanban : remplacer le li
+              const newCardLi = tempDiv.querySelector('li');
+              if (newCardLi) {
+                oldCard.replaceWith(newCardLi.cloneNode(true));
+              }
+            }
+          });
+          
+          // Réinitialiser les event listeners pour la nouvelle carte
+          if (window.enableDragDrop) {
+            window.enableDragDrop();
+          }
+          if (window.applyBadgeContrast) {
+            window.applyBadgeContrast();
+          }
+          if (window.applyDataAttributesStyles) {
+            window.applyDataAttributesStyles();
+          }
+        })
+        .catch(error => {
+          console.error('❌ Erreur lors du rechargement de la carte:', error);
+        });
+    }
+    
+    // Handler pour les changements d'état - RECHARGEMENT PARTIEL
+    socket.on('incident_etat_changed', (data) => {
+      if (data && data.id) {
+        console.log('🔄 Rechargement de la carte incident:', data.id);
+        reloadIncidentCard(data.id);
+      }
+    });
+    
+    // Écouter TOUS les événements Socket.IO pour forcer le rechargement
+    if (socket.onAny) {
+      socket.onAny((eventName, ...args) => {
+        if (eventName === 'incident_etat_changed' || eventName === 'incident_update') {
+          const data = args[0];
+          if (data && data.id) {
+            console.log('🎯 Événement', eventName, 'détecté via onAny, rechargement carte:', data.id);
+            reloadIncidentCard(data.id);
+          }
+        }
+      });
+    }
+    
+    
+    // Fonction utilitaire simple pour mettre à jour un badge (utilisée pour la mise à jour locale)
+    window.updateStatusBadge = function(incidentId, newStatus, couleur, textColor) {
+      const incidentIdStr = String(incidentId);
+      let updated = 0;
+      
+      // Mettre à jour tous les selects de statut pour cet incident
+      document.querySelectorAll('.status-selector-col, .status-selector-list').forEach(select => {
+        const selectId = select.dataset.incidentId || select.getAttribute('data-incident-id');
+        if (String(selectId) === incidentIdStr && select.value !== newStatus) {
+          window.skipStatusChange = true;
+          // Trouver l'option correspondante
+          const option = Array.from(select.options).find(opt => 
+            opt.value.trim() === newStatus.trim() || opt.value.trim().toLowerCase() === newStatus.trim().toLowerCase()
+          );
+          if (option) {
+            select.value = option.value;
+            select.dataset.current = newStatus;
+          }
+          requestAnimationFrame(() => { window.skipStatusChange = false; });
+        }
+      });
+      
+      // Mettre à jour tous les badges de statut
+      document.querySelectorAll('.status-badge').forEach(badge => {
+        // Remonter pour trouver le parent avec data-incident-id
+        let el = badge;
+        for (let i = 0; i < 10 && el && el !== document.body; i++) {
+          const elId = el.dataset?.incidentId || el.getAttribute('data-incident-id');
+          if (elId && String(elId) === incidentIdStr) {
+            badge.textContent = newStatus;
+            if (couleur && textColor) {
+              badge.style.setProperty('background-color', couleur, 'important');
+              badge.style.setProperty('color', textColor, 'important');
+            }
+            updated++;
+            break;
+          }
+          el = el.parentElement;
+        }
+      });
+      
+      return updated;
+    };
     
     // Flag global pour éviter les boucles entre handler change et Socket.IO
     window.skipStatusChange = false;
@@ -453,44 +630,19 @@
         });
     }
     socket.on('incident_update', (data) => {
-      console.log('📡 Socket.IO: incident_update reçu (va refresh toute la page):', data);
-      refreshIncidents();
+      // Si l'événement contient un ID d'incident, recharger uniquement cette carte
+      if (data && data.incident_id) {
+        console.log('🔄 Rechargement de la carte incident:', data.incident_id);
+        reloadIncidentCard(data.incident_id);
+      } else {
+        // Sinon, recharger tout (comportement par défaut)
+        console.log('🔄 Rechargement complet suite à incident_update');
+        refreshIncidents();
+      }
     });
 
     // Handler spécifique pour les changements d'état (mise à jour granulaire)
-    socket.on('incident_etat_changed', (data) => {
-      // Trouver tous les conteneurs avec data-incident-id (admin + tech)
-      const containers = document.querySelectorAll(`[data-incident-id="${data.id}"]`);
-      
-      containers.forEach(container => {
-        // Mettre à jour tous les selects de statut dans ce conteneur
-        const selects = container.querySelectorAll('.status-selector-col, .status-selector-list');
-        selects.forEach(select => {
-          // Utiliser le flag global pour éviter de déclencher l'event handler change
-          window.skipStatusChange = true;
-          select.value = data.new_etat;
-          select.dataset.current = data.new_etat;
-          window.skipStatusChange = false;
-        });
-
-        // Mettre à jour le badge de statut
-        const badge = container.querySelector('.status-badge');
-        if (badge) {
-          badge.textContent = data.new_etat;
-          if (data.couleur && data.text_color) {
-            badge.dataset.bgColor = data.couleur;
-            badge.dataset.textColor = data.text_color;
-            badge.style.setProperty('background-color', data.couleur, 'important');
-            badge.style.setProperty('color', data.text_color, 'important');
-          }
-        }
-        
-        // Mettre à jour l'attribut data-etat pour le filtrage (si présent)
-        if (container.dataset.etat !== undefined) {
-          container.dataset.etat = data.new_etat.toLowerCase();
-        }
-      });
-    });
+    // Utiliser une fonction nommée pour pouvoir la déboguer
 
     // Handler spécifique pour la suppression en temps réel
     socket.on('incident_deleted', (data) => {

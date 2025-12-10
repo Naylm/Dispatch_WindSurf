@@ -1413,31 +1413,61 @@
 <!-- ========================= -->
 <script>
   // Handler unifié pour les changements de statut - PARTAGÉ entre admin et techniciens
+  // Utiliser un flag pour éviter les doubles traitements
+  const statusUpdateInProgress = new Set();
+  
   document.addEventListener('change', function(e) {
     // Vérifier si c'est un select de statut (vue colonnes ou liste)
     if (!e.target.matches('.status-selector-col, .status-selector-list')) return;
     
     // Ignorer si c'est un changement programmatique (Socket.IO)
     if (window.skipStatusChange) {
+      console.log('⏭️ Changement ignoré (programmatique)');
       return;
     }
     
     const select = e.target;
     const container = select.closest('[data-incident-id]');
     const incidentId = container?.dataset.incidentId || select.dataset.incidentId;
-    const previousStatus = select.dataset.current;
-    const newStatus = select.value;
+    const previousStatus = (select.dataset.current || select.value).trim();
+    const newStatus = select.value.trim();
     
-    // Validation : ignorer si pas de changement réel
+    // Validation : ignorer si pas de changement réel (comparaison normalisée)
     if (!incidentId || !newStatus || newStatus === previousStatus) {
+      console.log('⏭️ Pas de changement réel, ignoré');
       return;
     }
     
-    // Mise à jour optimiste immédiate
+    // Vérifier si une mise à jour est déjà en cours pour cet incident
+    if (statusUpdateInProgress.has(incidentId)) {
+      console.log('⏭️ Mise à jour déjà en cours pour cet incident, ignoré');
+      return;
+    }
+    
+    // Marquer comme en cours
+    statusUpdateInProgress.add(incidentId);
+    
+    // Mise à jour OPTIMISTE IMMÉDIATE du badge AVANT même la requête
+    const currentBadge = container?.querySelector('.status-badge');
+    let couleur = currentBadge?.dataset.bgColor || '#6c757d';
+    let textColor = currentBadge?.dataset.textColor || '#ffffff';
+    
+    // Mise à jour immédiate du badge (optimiste) - SANS déclencher d'autres handlers
+    if (window.updateStatusBadge) {
+      window.updateStatusBadge(incidentId, newStatus, couleur, textColor);
+      console.log('⚡ Badge mis à jour OPTIMISTEMENT (avant la requête)');
+    }
+    
+    // Mise à jour optimiste du select
     select.dataset.current = newStatus;
     
     // Récupérer le token CSRF
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!csrfToken) {
+      console.error('❌ Token CSRF non trouvé');
+      statusUpdateInProgress.delete(incidentId);
+      return;
+    }
     
     // Envoi de la requête
     fetch(`/update_etat/${incidentId}`, {
@@ -1449,21 +1479,44 @@
       },
       body: new URLSearchParams({ etat: newStatus })
     })
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) {
+        throw new Error(`HTTP ${r.status}`);
+      }
+      return r.json();
+    })
     .then(data => {
+      // Retirer du set de mise à jour en cours
+      statusUpdateInProgress.delete(incidentId);
+      
       if (data.status !== 'ok') {
         // Rollback en cas d'erreur backend
+        console.error('❌ Erreur backend:', data);
         select.value = previousStatus;
         select.dataset.current = previousStatus;
+        if (window.updateStatusBadge) {
+          window.updateStatusBadge(incidentId, previousStatus, couleur, textColor);
+        }
         alert('Erreur lors du changement de statut');
+      } else {
+        // Mise à jour avec les vraies couleurs du serveur
+        if (data.couleur && data.text_color && window.updateStatusBadge) {
+          window.updateStatusBadge(incidentId, newStatus, data.couleur, data.text_color);
+          console.log('✅ Badge mis à jour avec les couleurs du serveur');
+        }
       }
-      // Socket.IO se charge de la synchronisation globale (badge + autres vues)
     })
     .catch(err => {
-      console.error('Erreur changement statut:', err);
+      // Retirer du set de mise à jour en cours
+      statusUpdateInProgress.delete(incidentId);
+      
+      console.error('❌ Erreur changement statut:', err);
       // Rollback en cas d'erreur réseau
       select.value = previousStatus;
       select.dataset.current = previousStatus;
+      if (window.updateStatusBadge) {
+        window.updateStatusBadge(incidentId, previousStatus, couleur, textColor);
+      }
       alert('Erreur lors du changement de statut');
     });
   });

@@ -1,0 +1,61 @@
+{# Template partiel pour une carte d'incident dans la vue liste #}
+<div class="list-group-item incident-row-list"
+     data-id="{{ i.id }}"
+     data-incident-id="{{ i.id }}"
+     data-numero="{{ i.numero|lower }}"
+     data-site="{{ i.site|lower }}"
+     data-sujet="{{ i.sujet|lower }}"
+     data-urgence="{{ i.urgence|lower }}"
+     data-etat="{{ i.etat|lower }}">
+  <div class="d-flex justify-content-between align-items-start">
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <strong>{{ i.numero }}</strong>
+        <button class="btn btn-sm btn-light copy-btn" data-numero="{{ i.numero }}" title="Copier">📋</button>
+        {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+        {% if site_info %}
+          <span class="badge site-badge" data-bg-color="{{ site_info.couleur }}" data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ i.site }}</span>
+        {% endif %}
+        {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+        {% if priorite_info %}
+          <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}" data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+        {% else %}
+          <span class="badge bg-warning">{{ i.urgence }}</span>
+        {% endif %}
+        {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+        {% if statut_info %}
+          <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ i.etat }}</span>
+        {% endif %}
+      </div>
+      <div class="text-muted small">
+        <span>{{ i.sujet }}</span>
+        {% if i.localisation %}
+          <span class="ms-2">📍 {{ i.localisation }}</span>
+        {% endif %}
+        <span class="ms-2">{{ i.date_affectation|format_date }}</span>
+      </div>
+    </div>
+    <div class="d-flex gap-1">
+      <a href="{{ url_for('historique', id=i.id) }}" class="btn btn-sm btn-outline-info" title="Historique">🕒</a>
+      <a href="{{ url_for('edit_incident', id=i.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">✏️</a>
+      <button class="btn btn-sm btn-outline-danger delete-btn" data-incident-id="{{ i.id }}" data-numero="{{ i.numero }}" title="Supprimer">🗑️</button>
+    </div>
+  </div>
+  <div class="mt-2 d-flex gap-2">
+    <select class="form-select form-select-sm status-selector-list" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}" style="max-width: 200px;">
+      {% for st in statuts %}
+        <option value="{{ st.nom }}" {% if i.etat == st.nom %}selected{% endif %}>{{ st.nom }}</option>
+      {% endfor %}
+    </select>
+    <select class="form-select form-select-sm tech-selector-list" data-incident-id="{{ i.id }}" style="max-width: 150px;">
+      {% for t in techniciens %}
+        <option value="{{ t.prenom }}" {% if i.collaborateur == t.prenom %}selected{% endif %}>{{ t.prenom }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+

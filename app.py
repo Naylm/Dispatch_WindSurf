@@ -90,11 +90,34 @@ socketio = SocketIO(
     ping_timeout=60,
     ping_interval=25,
     max_http_buffer_size=1000000,
-    logger=False,
-    engineio_logger=False,
+    logger=True,  # Activer les logs pour déboguer
+    engineio_logger=True,  # Activer les logs Engine.IO
     allow_upgrades=True,
-    transports=['polling', 'websocket']
+    transports=['polling', 'websocket'],
+    manage_session=False  # Ne pas gérer les sessions Flask pour éviter les conflits
 )
+
+# Gestionnaires Socket.IO
+@socketio.on('connect')
+def handle_connect(auth):
+    """Gestionnaire de connexion Socket.IO"""
+    # Ne pas vérifier la session Flask pour éviter les erreurs "Invalid session"
+    app.logger.info(f"✅ Client Socket.IO connecté: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Gestionnaire de déconnexion Socket.IO"""
+    app.logger.info(f"❌ Client Socket.IO déconnecté: {request.sid}")
+
+@socketio.on('join')
+def handle_join(data):
+    """Gestionnaire pour rejoindre une room"""
+    room = data.get('room')
+    if room:
+        join_room(room)
+        app.logger.info(f"📦 Client {request.sid} a rejoint la room: {room}")
+    else:
+        app.logger.warning(f"⚠️ Tentative de join sans room de la part de {request.sid}")
 
 # Configuration des chemins
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -413,6 +436,74 @@ def home_content_api():
         sites=sites,
         statuts=statuts,
         stats_by_category=stats_by_category,
+    )
+
+
+@app.route("/api/incident/<int:id>")
+def api_incident(id):
+    """API pour récupérer le HTML d'un seul incident (pour rechargement partiel)"""
+    if "user" not in session:
+        return "", 403
+    
+    db = get_db()
+    
+    # Récupérer l'incident
+    incident = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    
+    if not incident:
+        return "", 404
+    
+    # Vérifier les permissions (technicien ne peut voir que ses incidents)
+    if session.get("user_type") == "technicien":
+        current_tech_id = None
+        tech = db.execute(
+            "SELECT id FROM techniciens WHERE username=?",
+            (session["user"],)
+        ).fetchone()
+        if tech:
+            current_tech_id = tech['id']
+        
+        # Vérifier que l'incident appartient au technicien
+        if current_tech_id and incident.get("technicien_id") != current_tech_id:
+            # Fallback pour compatibilité
+            if incident.get("collaborateur") != session["user"]:
+                return "", 403
+    
+    # Récupérer les données de référence
+    ref_data = get_reference_data()
+    priorites = ref_data['priorites']
+    sites = ref_data['sites']
+    statuts = ref_data['statuts']
+    
+    # Récupérer les techniciens (pour le select)
+    if session["role"] == "admin":
+        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
+    else:
+        techniciens = []
+    
+    # Convertir l'incident en liste pour le template (compatibilité)
+    incidents = [incident]
+    
+    # Détecter le type de vue demandé (par défaut kanban/li)
+    view_type = request.args.get('view', 'kanban')
+    
+    if view_type == 'grouped':
+        template_name = "incident_card_grouped_partial.html"
+    elif view_type == 'list':
+        template_name = "incident_card_list_partial.html"
+    else:
+        template_name = "incident_card_partial.html"
+    
+    return render_template(
+        template_name,
+        i=incident,
+        incidents=incidents,
+        user=session["user"],
+        role=session["role"],
+        techniciens=techniciens,
+        priorites=priorites,
+        sites=sites,
+        statuts=statuts,
     )
 
 
@@ -1531,8 +1622,12 @@ def edit_note(id):
     db = get_db()
     inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
     # Comparaison exacte (sensible à la casse) pour sécurité
-    if inc["collaborateur"] != session["user"] and session["role"] != "admin":
-        return redirect(url_for("home"))
+    # Vérifier les permissions (technicien propriétaire ou admin)
+    if session["role"] != "admin":
+        tech = db.execute("SELECT id FROM techniciens WHERE username=? OR prenom=?",
+                         (session["user"], session["user"])).fetchone()
+        if not tech or inc["technicien_id"] != tech["id"]:
+            return redirect(url_for("home"))
 
     if request.method == "POST":
         note = request.form["note"] or ""
@@ -1605,9 +1700,13 @@ def edit_note_inline(id):
         return jsonify({"error": "Incident introuvable"}), 404
 
     # Vérifier les permissions (technicien propriétaire ou admin)
-    # Comparaison exacte (sensible à la casse) pour sécurité
-    if inc["collaborateur"] != session["user"] and session["role"] != "admin":
-        return jsonify({"error": "Permission refusée"}), 403
+    # Utiliser technicien_id pour éviter les problèmes de username != prenom
+    if session["role"] != "admin":
+        # Récupérer l'ID du technicien connecté
+        tech = db.execute("SELECT id FROM techniciens WHERE username=? OR prenom=?",
+                         (session["user"], session["user"])).fetchone()
+        if not tech or inc["technicien_id"] != tech["id"]:
+            return jsonify({"error": "Permission refusée"}), 403
 
     new_note = request.json.get("note", "").strip()
 
@@ -1745,25 +1844,37 @@ def update_etat(id):
         # Si c'est une requête AJAX, retourner JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-        if is_ajax:
-            # Récupérer les infos du statut (couleur)
-            statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=?", (new,)).fetchone()
-            statut_couleur = statut_info["couleur"] if statut_info else "#6c757d"
-            statut_text_color = get_contrast_color(statut_couleur)
+        # TOUJOURS émettre l'événement incident_etat_changed pour les mises à jour en temps réel
+        # Récupérer les infos du statut (couleur)
+        statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=?", (new,)).fetchone()
+        statut_couleur = statut_info["couleur"] if statut_info else "#6c757d"
+        statut_text_color = get_contrast_color(statut_couleur)
 
-            # Émettre broadcast pour que les autres clients se rafraîchissent
-            # Note: emit() fait déjà un broadcast par défaut, pas besoin du paramètre
-            socketio.emit("incident_etat_changed", {
-                "action": "etat",
-                "id": id,
-                "new_etat": new,
-                "numero": inc["numero"],
-                "couleur": statut_couleur,
-                "text_color": statut_text_color
-            })
+        # Émettre broadcast pour que les autres clients se rafraîchissent
+        # Depuis une route Flask, socketio.emit() broadcast automatiquement à tous
+        event_data = {
+            "action": "etat",
+            "id": id,
+            "new_etat": new,
+            "numero": inc["numero"],
+            "couleur": statut_couleur,
+            "text_color": statut_text_color
+        }
+        app.logger.info(f"📡 Émission Socket.IO: incident_etat_changed pour incident {id}, nouveau statut: {new}")
+        app.logger.info(f"📡 Données à émettre: {event_data}")
+        try:
+            # Depuis une route Flask, socketio.emit() broadcast automatiquement
+            socketio.emit("incident_etat_changed", event_data)
+            app.logger.info(f"✅ Événement Socket.IO émis avec succès")
+        except Exception as e:
+            app.logger.error(f"❌ Erreur lors de l'émission Socket.IO: {e}")
+            import traceback
+            app.logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        
+        if is_ajax:
             return jsonify({"status": "ok", "new_etat": new, "couleur": statut_couleur, "text_color": statut_text_color})
         else:
-            # Requête normale (formulaire), émettre le broadcast classique
+            # Requête normale (formulaire), émettre aussi le broadcast classique pour compatibilité
             socketio.emit("incident_update", {"action": "etat"})
 
     except Exception as e:
