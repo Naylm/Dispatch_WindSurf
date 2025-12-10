@@ -119,16 +119,16 @@
   <div id="kanban-view" class="view-container active">
     <div class="tech-grid">
       {% for tech in techniciens %}
-        <div class="tech-column" data-technicien="{{ tech.prenom }}">
-          <div class="card shadow-sm h-100">
-            <div class="card-header text-center fw-bold bg-primary text-white">
+        <div class="tech-column" data-technicien="{{ tech.prenom }}" style="height: calc(100vh - 280px); max-height: calc(100vh - 280px); display: flex; flex-direction: column;">
+          <div class="card shadow-sm h-100" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
+            <div class="card-header text-center fw-bold bg-primary text-white" style="flex-shrink: 0;">
               {{ tech.prenom }} 
               <span class="badge bg-light text-primary ms-1" id="tech-count-{{ tech.prenom }}">
                 {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
                 {{ tech_incidents|length }}
               </span>
             </div>
-            <ul class="list-group list-group-flush incident-list-col" data-technicien="{{ tech.prenom }}">
+            <ul class="list-group list-group-flush incident-list-col" data-technicien="{{ tech.prenom }}" style="flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0;">
               {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
               {% if tech_incidents|length > 0 %}
                 {% for i in tech_incidents %}

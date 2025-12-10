@@ -291,18 +291,66 @@ body.with-sidebar-permanent .navbar {
 .tech-column {
   min-width: 370px;
   max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 280px); /* Hauteur fixe pour permettre le scroll */
+  max-height: calc(100vh - 280px);
 }
 
 .tech-column .card {
   height: 100%;
   background: var(--bg-card);
   min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Empêche le card de déborder */
+  max-height: 100%;
+  position: relative;
+  /* S'assurer que la carte prend toute la hauteur disponible */
 }
 
 .tech-column .card-header {
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  flex-shrink: 0; /* Empêche le header de rétrécir */
+  position: relative;
+  z-index: 1;
+}
+
+/* Liste scrollable dans chaque colonne */
+.incident-list-col {
+  flex: 1 1 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important; /* CRITIQUE : Permet au flex de fonctionner avec overflow */
+  position: relative;
+  /* Le flex: 1 1 0 permet à la liste de prendre l'espace restant après le header */
+}
+
+/* Scrollbar personnalisée pour les colonnes */
+.incident-list-col::-webkit-scrollbar {
+  width: 8px;
+}
+
+.incident-list-col::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.incident-list-col::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.incident-list-col::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Firefox */
+.incident-list-col {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
 }
 
 /* Incident Items */
@@ -560,6 +608,18 @@ body:not(.dark) .incident-note {
 
   .tech-column {
     min-height: auto;
+    height: calc(100vh - 200px);
+    max-height: calc(100vh - 200px);
+  }
+  
+  .tech-column .card {
+    max-height: 100%;
+    height: 100%;
+  }
+  
+  .incident-list-col {
+    max-height: 100%;
+    height: 100% !important;
   }
 
   /* Badges et boutons plus petits sur mobile */

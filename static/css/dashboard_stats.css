@@ -1,0 +1,367 @@
+/* ==============================
+   DASHBOARD STATISTIQUES CSS
+   Style PowerBI-like avec scroll dans tableaux
+   ============================== */
+
+:root {
+  --kpi-card-height: 140px;
+  --chart-height: 300px;
+  --transition-speed: 0.3s;
+  --table-max-height: 500px;
+}
+
+body {
+  background-color: #f5f7fa;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ===================== */
+/* KPI CARDS */
+/* ===================== */
+.kpi-card {
+  height: var(--kpi-card-height);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+  border-left: 4px solid;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.kpi-card.primary {
+  border-left-color: #0d6efd;
+  background: linear-gradient(135deg, #ffffff 0%, #e7f1ff 100%);
+}
+
+.kpi-card.success {
+  border-left-color: #198754;
+  background: linear-gradient(135deg, #ffffff 0%, #d1e7dd 100%);
+}
+
+.kpi-card.warning {
+  border-left-color: #ffc107;
+  background: linear-gradient(135deg, #ffffff 0%, #fff3cd 100%);
+}
+
+.kpi-card.danger {
+  border-left-color: #dc3545;
+  background: linear-gradient(135deg, #ffffff 0%, #f8d7da 100%);
+}
+
+.kpi-card.info {
+  border-left-color: #0dcaf0;
+  background: linear-gradient(135deg, #ffffff 0%, #cff4fc 100%);
+}
+
+.kpi-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.kpi-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-variation {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.kpi-variation.positive {
+  color: #198754;
+}
+
+.kpi-variation.negative {
+  color: #dc3545;
+}
+
+.kpi-icon {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 3rem;
+  opacity: 0.2;
+}
+
+/* ===================== */
+/* CHART CONTAINERS */
+/* ===================== */
+.chart-container {
+  position: relative;
+  height: var(--chart-height);
+  width: 100%;
+}
+
+.card {
+  border: none;
+  border-radius: 12px;
+  transition: box-shadow var(--transition-speed);
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.card-header {
+  border-radius: 12px 12px 0 0 !important;
+  font-weight: 600;
+}
+
+/* ===================== */
+/* TABLES SCROLLABLES */
+/* ===================== */
+.table {
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+.table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  background-color: #212529 !important;
+  color: #fff !important;
+  z-index: 10;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+  border-bottom: 2px solid #fff;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+/* Conteneur scrollable pour tableaux */
+.table-scrollable {
+  max-height: var(--table-max-height);
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+/* Scrollbar personnalisée */
+.table-scrollable::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.table-scrollable::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+  border: 2px solid #f1f1f1;
+}
+
+.table-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Firefox */
+.table-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+/* Pagination info */
+.pagination-info {
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* ===================== */
+/* FILTERS */
+/* ===================== */
+.form-select[multiple] {
+  min-height: 120px;
+}
+
+.form-check {
+  margin-bottom: 0.25rem;
+}
+
+.form-check-label {
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ===================== */
+/* LOADING OVERLAY */
+/* ===================== */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-overlay .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* ===================== */
+/* RESPONSIVE */
+/* ===================== */
+@media (max-width: 768px) {
+  .kpi-card {
+    height: auto;
+    min-height: 120px;
+  }
+  
+  .kpi-value {
+    font-size: 2rem;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+  
+  .table-scrollable {
+    max-height: 300px;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .kpi-value {
+    font-size: 1.75rem;
+  }
+  
+  .chart-container {
+    height: 200px;
+  }
+  
+  .table-scrollable {
+    max-height: 250px;
+  }
+}
+
+/* ===================== */
+/* DARK MODE */
+/* ===================== */
+body.dark {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+body.dark .card {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+}
+
+body.dark .table {
+  color: #e0e0e0;
+}
+
+body.dark .table-striped tbody tr:nth-of-type(odd) {
+  background-color: #252525;
+}
+
+body.dark .table-scrollable {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark .table thead th {
+  background-color: #212529 !important;
+}
+
+body.dark .form-control,
+body.dark .form-select {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark .form-control:focus,
+body.dark .form-select:focus {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #0d6efd;
+}
+
+/* ===================== */
+/* ANIMATIONS */
+/* ===================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+/* ===================== */
+/* PRINT STYLES */
+/* ===================== */
+@media print {
+  .navbar,
+  .card-header,
+  .btn,
+  #loadingOverlay {
+    display: none !important;
+  }
+  
+  .card {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+  
+  .chart-container {
+    height: 300px;
+  }
+  
+  .table-scrollable {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
