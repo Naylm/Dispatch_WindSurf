@@ -53,6 +53,10 @@
             -moz-user-select: text !important;
             -ms-user-select: text !important;
             cursor: text !important;
+            /* Styles pour les retours à la ligne intelligents */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
         
         /* Forcer la sélection sur tous les enfants */
@@ -64,6 +68,28 @@
             -moz-user-select: text !important;
             -ms-user-select: text !important;
             cursor: text !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        /* Cas spéciaux pour les blocs de code et pre dans l'article */
+        .article-content pre,
+        .article-content code,
+        #articleContent pre,
+        #articleContent code {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        /* URLs et liens longs dans l'article */
+        .article-content a,
+        #articleContent a {
+            word-break: break-all;
+            overflow-wrap: break-word;
         }
         
         .article-content img {
@@ -170,6 +196,27 @@
             margin-right: 0.5rem;
             margin-bottom: 0.5rem;
         }
+
+        /* Styles pour l'état loading des boutons */
+        .vote-btn.loading,
+        .btn.loading {
+            opacity: 0.6;
+            cursor: wait;
+            position: relative;
+        }
+
+        .vote-btn.loading::after,
+        .btn.loading::after {
+            content: "...";
+            animation: dots 1.5s infinite;
+            margin-left: 0.25rem;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
     </style>
 </head>
 <body>
@@ -229,12 +276,12 @@
             </div>
             <div class="meta-item" style="color: var(--success);">
                 <span>👍</span>
-                <strong>{{ article.likes_count }}</strong>
+                <strong id="metaLikesCount">{{ article.likes_count }}</strong>
                 <span>likes</span>
             </div>
             <div class="meta-item" style="color: var(--danger);">
                 <span>👎</span>
-                <strong>{{ article.dislikes_count }}</strong>
+                <strong id="metaDislikesCount">{{ article.dislikes_count }}</strong>
                 <span>dislikes</span>
             </div>
             <div class="meta-item ms-auto">
@@ -268,6 +315,12 @@
             {% endif %}
             {% if article.owner %}
             <span class="badge bg-info">👤 {{ article.owner }}</span>
+            {% endif %}
+            {% if update_requested %}
+            <span id="updateRequestedBadge" class="badge bg-warning text-dark">
+                ⚠️ Mise à jour demandée
+                <button onclick="markAsUpdated()" class="btn btn-sm btn-link text-dark p-0 ms-1" title="Marquer comme mis à jour" style="text-decoration: none; font-size: 0.9rem;">✓</button>
+            </span>
             {% endif %}
         </div>
         
@@ -442,6 +495,17 @@
                     dislikeCountEl.textContent = `(${data.dislikes})`;
                 }
 
+                // Mettre à jour aussi les compteurs dans la section métadonnées
+                const metaLikesEl = document.getElementById('metaLikesCount');
+                const metaDislikesEl = document.getElementById('metaDislikesCount');
+
+                if (metaLikesEl && typeof data.likes !== "undefined") {
+                    metaLikesEl.textContent = data.likes;
+                }
+                if (metaDislikesEl && typeof data.dislikes !== "undefined") {
+                    metaDislikesEl.textContent = data.dislikes;
+                }
+
                 // Mettre à jour les boutons actifs
                 console.log('Mise à jour bouton actif:', data.user_vote);
                 document.querySelectorAll('.vote-btn').forEach(btn => btn.classList.remove('active'));
@@ -461,12 +525,58 @@
             });
         }
 
+        // Fonction pour marquer l'article comme mis à jour
+        function markAsUpdated() {
+            if (!confirm('Marquer cet article comme mis à jour ? Cela supprimera toutes les demandes de mise à jour.')) {
+                return;
+            }
+
+            const csrfToken =
+                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            fetch('{{ url_for("mark_article_updated", id=article.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(async (response) => {
+                const data = await response.json();
+                if (data.success) {
+                    // Retirer le badge du DOM
+                    const badge = document.getElementById('updateRequestedBadge');
+                    if (badge) {
+                        badge.remove();
+                    }
+                    alert('✓ Article marqué comme mis à jour !');
+                } else {
+                    alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                }
+            })
+            .catch((err) => {
+                console.error("Erreur mark as updated:", err);
+                alert("Erreur : " + err.message);
+            });
+        }
+
         // Fonction feedback
         function submitFeedback(feedbackType) {
             const csrfToken =
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
             console.log('Feedback:', feedbackType, 'CSRF Token:', csrfToken ? 'present' : 'missing');
+
+            // Trouver le bouton qui a été cliqué
+            const buttonElement = event?.target?.closest('button');
+            const originalHTML = buttonElement?.innerHTML;
+            const originalClasses = buttonElement?.className;
+
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.classList.add('loading');
+            }
 
             fetch('{{ url_for("submit_wiki_feedback", id=article.id) }}', {
                 method: 'POST',
@@ -481,13 +591,46 @@
                 console.log('Feedback response status:', response.status);
                 const data = await response.json();
                 console.log('Feedback response data:', data);
+
                 if (data.success) {
-                    alert('Merci pour votre feedback !');
+                    // Changer le bouton pour indiquer le succès
+                    if (buttonElement) {
+                        buttonElement.classList.remove('loading');
+                        buttonElement.classList.add('btn-success');
+                        buttonElement.innerHTML = '✅ Merci !';
+
+                        // Réactiver après 2 secondes et restaurer l'apparence originale
+                        setTimeout(() => {
+                            buttonElement.disabled = false;
+                            buttonElement.className = originalClasses;
+                            buttonElement.innerHTML = originalHTML;
+                        }, 2000);
+                    }
+
+                    // Si c'est un feedback "outdated" ou "needs_update", ajouter un badge
+                    if ((feedbackType === 'outdated' || feedbackType === 'needs_update') && !document.getElementById('updateRequestedBadge')) {
+                        const badgeContainer = document.querySelector('.mb-3.d-flex.gap-2.flex-wrap');
+                        if (badgeContainer) {
+                            const badge = document.createElement('span');
+                            badge.id = 'updateRequestedBadge';
+                            badge.className = 'badge bg-warning text-dark';
+                            badge.textContent = '⚠️ Mise à jour demandée';
+                            badgeContainer.appendChild(badge);
+                        }
+                    }
                 } else {
+                    if (buttonElement) {
+                        buttonElement.disabled = false;
+                        buttonElement.classList.remove('loading');
+                    }
                     alert('Erreur : ' + (data.error || 'Erreur inconnue'));
                 }
             })
             .catch((err) => {
+                if (buttonElement) {
+                    buttonElement.disabled = false;
+                    buttonElement.classList.remove('loading');
+                }
                 console.error("Erreur feedback:", err);
                 alert("Erreur lors de l'envoi du feedback : " + err.message);
             });

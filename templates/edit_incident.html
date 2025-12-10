@@ -81,11 +81,11 @@
           </div>
 
           <div class="col-md-6 mb-3">
-            <label for="collaborateur" class="form-label">Technicien affecté</label>
-            <select class="form-select" id="collaborateur" name="collaborateur" required>
+            <label for="technicien_id" class="form-label">Technicien affecté</label>
+            <select class="form-select" id="technicien_id" name="technicien_id" required>
               <option value="">-- Sélectionner un technicien --</option>
               {% for tech in techniciens %}
-                <option value="{{ tech.prenom }}" {% if incident.collaborateur == tech.prenom %}selected{% endif %}>{{ tech.prenom }}</option>
+                <option value="{{ tech.id }}" {% if incident.technicien_id == tech.id %}selected{% endif %}>{{ tech.prenom }}{% if tech.nom %} {{ tech.nom }}{% endif %}</option>
               {% endfor %}
             </select>
           </div>

@@ -62,9 +62,9 @@
       </div>
       <div class="col-md-6">
         <label class="form-label">Collaborateur</label>
-        <select name="collaborateur" class="form-select" required>
+        <select name="technicien_id" class="form-select" required>
           {% for tech in techniciens %}
-            <option value="{{ tech.prenom }}">{{ tech.prenom }}</option>
+            <option value="{{ tech.id }}">{{ tech.prenom }}{% if tech.nom %} {{ tech.nom }}{% endif %}</option>
           {% endfor %}
         </select>
       </div>

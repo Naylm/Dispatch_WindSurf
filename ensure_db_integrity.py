@@ -111,7 +111,54 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN force_password_reset INTEGER DEFAULT 0")
             print("   - Colonne force_password_reset ajoutee a la table techniciens")
-    
+
+        # Migration: ajouter colonne 'nom' pour nom de famille
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='nom'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN nom VARCHAR(255)")
+            print("   - Colonne nom ajoutee a la table techniciens")
+
+        # Migration: ajouter colonne 'username' pour identifiant de connexion
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='username'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN username VARCHAR(255) UNIQUE")
+            print("   - Colonne username ajoutee a la table techniciens")
+            # Générer des usernames temporaires depuis prenom (en minuscules)
+            cursor.execute("""
+                UPDATE techniciens
+                SET username = LOWER(prenom)
+                WHERE username IS NULL
+            """)
+            print("   - Usernames generes depuis prenom pour techniciens existants")
+
+        # Migration: ajouter colonne 'email' pour mail CHU
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='email'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN email VARCHAR(255) UNIQUE")
+            print("   - Colonne email ajoutee a la table techniciens")
+
+        # Migration: ajouter colonne 'dect_number' pour numéro de téléphone DECT
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='dect_number'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN dect_number VARCHAR(20)")
+            print("   - Colonne dect_number ajoutee a la table techniciens")
+
     # ========== TABLE: incidents ==========
     cursor.execute("""
         SELECT EXISTS (
@@ -150,7 +197,33 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN note_dispatch TEXT")
             print("   - Colonne note_dispatch ajoutee a la table incidents")
-    
+
+        # Migration: ajouter colonne technicien_id pour remplacer collaborateur (string par ID)
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='technicien_id'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN technicien_id INTEGER REFERENCES techniciens(id) ON DELETE SET NULL")
+            print("   - Colonne technicien_id ajoutee a la table incidents")
+
+            # Migrer les données existantes : mapper collaborateur (prenom) vers technicien_id
+            cursor.execute("SELECT id, prenom FROM techniciens")
+            techs = cursor.fetchall()
+
+            migration_count = 0
+            for tech in techs:
+                cursor.execute("""
+                    UPDATE incidents
+                    SET technicien_id = %s
+                    WHERE collaborateur = %s AND technicien_id IS NULL
+                """, (tech['id'], tech['prenom']))
+                migration_count += cursor.rowcount
+
+            if migration_count > 0:
+                print(f"   - {migration_count} incidents migres vers technicien_id")
+
     # ========== TABLE: historique ==========
     cursor.execute("""
         SELECT EXISTS (

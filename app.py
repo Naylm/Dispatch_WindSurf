@@ -261,6 +261,19 @@ def home():
 
     db = get_db()
 
+    # Récupérer les informations du technicien connecté pour l'affichage
+    user_display_name = session["user"].capitalize()
+    current_tech_id = None
+
+    if session.get("user_type") == "technicien":
+        tech = db.execute(
+            "SELECT id, prenom, nom FROM techniciens WHERE username=?",
+            (session["user"],)
+        ).fetchone()
+        if tech:
+            current_tech_id = tech['id']
+            user_display_name = tech['prenom']  # Utiliser le prénom pour l'affichage
+
     # Récupérer les données de référence avec cache (optimisation)
     ref_data = get_reference_data()
     priorites = ref_data['priorites']
@@ -275,14 +288,22 @@ def home():
         # Ne récupérer que les techniciens actifs pour l'affichage des colonnes, triés par ordre
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
-        # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
-        incidents = db.execute(
-            "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
-            "ORDER BY id ASC",
-            (session["user"],),
-        ).fetchall()
+        # Utiliser technicien_id au lieu de collaborateur (avec fallback sur collaborateur pour compatibilité)
+        if current_tech_id:
+            incidents = db.execute(
+                "SELECT * FROM incidents WHERE technicien_id=? AND archived=0 "
+                "ORDER BY id ASC",
+                (current_tech_id,),
+            ).fetchall()
+        else:
+            # Fallback pour les utilisateurs non-techniciens ou anciens systèmes
+            incidents = db.execute(
+                "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
+                "ORDER BY id ASC",
+                (session["user"],),
+            ).fetchall()
         techniciens = []
-    
+
     # Calculer les statistiques par catégorie de statut (optimisé : 1 requête au lieu de 4)
     stats_results = db.execute("""
         SELECT s.category, COUNT(*) as count
@@ -306,7 +327,7 @@ def home():
     return render_template(
         "home.html",
         incidents=incidents,
-        user=session["user"].capitalize(),
+        user=user_display_name,
         role=session["role"],
         techniciens=techniciens,
         priorites=priorites,
@@ -323,6 +344,16 @@ def home_content_api():
 
     db = get_db()
 
+    # Récupérer les informations du technicien connecté
+    current_tech_id = None
+    if session.get("user_type") == "technicien":
+        tech = db.execute(
+            "SELECT id FROM techniciens WHERE username=?",
+            (session["user"],)
+        ).fetchone()
+        if tech:
+            current_tech_id = tech['id']
+
     # Récupérer les données de référence avec cache (optimisation)
     ref_data = get_reference_data()
     priorites = ref_data['priorites']
@@ -336,15 +367,22 @@ def home_content_api():
         ).fetchall()
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
-        # Même ordre strict pour la vue technicien
-        # Comparaison exacte (sensible à la casse) pour éviter l'énumération d'utilisateurs
-        incidents = db.execute(
-            "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
-            "ORDER BY id ASC",
-            (session["user"],),
-        ).fetchall()
+        # Utiliser technicien_id au lieu de collaborateur
+        if current_tech_id:
+            incidents = db.execute(
+                "SELECT * FROM incidents WHERE technicien_id=? AND archived=0 "
+                "ORDER BY id ASC",
+                (current_tech_id,),
+            ).fetchall()
+        else:
+            # Fallback pour compatibilité
+            incidents = db.execute(
+                "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
+                "ORDER BY id ASC",
+                (session["user"],),
+            ).fetchall()
         techniciens = []
-    
+
     # Calculer les statistiques par catégorie de statut (optimisé : 1 requête au lieu de 4)
     stats_results = db.execute("""
         SELECT s.category, COUNT(*) as count
@@ -394,23 +432,59 @@ def add_technicien():
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
-    prenom = request.form["prenom"].strip()
-    password = request.form["password"].strip()
+    # Récupérer tous les champs du formulaire
+    nom = request.form.get("nom", "").strip()
+    prenom = request.form.get("prenom", "").strip()
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
+    dect_number = request.form.get("dect_number", "").strip()
+    password = request.form.get("password", "").strip()
     role = request.form.get("role", "technicien")
-    
+
+    # Validation des champs obligatoires
+    if not all([nom, prenom, username, email, password]):
+        flash("Tous les champs sont obligatoires", "error")
+        return redirect(url_for("techniciens"))
+
+    if len(password) < 8:
+        flash("Le mot de passe doit contenir au moins 8 caractères", "error")
+        return redirect(url_for("techniciens"))
+
     # Hash du mot de passe
     hashed_password = generate_password_hash(password)
 
     db = get_db()
-    # Récupérer le max ordre pour mettre le nouveau technicien à la fin
-    max_ordre_result = db.execute("SELECT COALESCE(MAX(ordre), 0) as max_ordre FROM techniciens").fetchone()
-    new_ordre = (max_ordre_result['max_ordre'] if max_ordre_result else 0) + 1
-    
-    db.execute(
-        "INSERT INTO techniciens (prenom, role, password, ordre) VALUES (?, ?, ?, ?)",
-        (prenom, role, hashed_password, new_ordre),
-    )
-    db.commit()
+    try:
+        # Vérifier l'unicité du username
+        existing = db.execute("SELECT id FROM techniciens WHERE username=?", (username,)).fetchone()
+        if existing:
+            flash("Ce nom d'utilisateur existe déjà", "error")
+            return redirect(url_for("techniciens"))
+
+        # Vérifier l'unicité de l'email
+        existing = db.execute("SELECT id FROM techniciens WHERE email=?", (email,)).fetchone()
+        if existing:
+            flash("Cet email est déjà utilisé", "error")
+            return redirect(url_for("techniciens"))
+
+        # Récupérer le max ordre pour mettre le nouveau technicien à la fin
+        max_ordre_result = db.execute("SELECT COALESCE(MAX(ordre), 0) as max_ordre FROM techniciens").fetchone()
+        new_ordre = (max_ordre_result['max_ordre'] if max_ordre_result else 0) + 1
+
+        # Insérer le nouveau technicien avec tous les champs
+        db.execute("""
+            INSERT INTO techniciens (nom, prenom, username, email, dect_number, password, role, actif, ordre)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        """, (nom, prenom, username, email, dect_number, hashed_password, role, new_ordre))
+        db.commit()
+
+        flash(f"Technicien {prenom} {nom} ajouté avec succès!", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Erreur lors de l'ajout : {str(e)}", "error")
+    finally:
+        db.close()
+
     return redirect(url_for("techniciens"))
 
 
@@ -419,24 +493,62 @@ def edit_technicien(id):
     if "user" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
-    prenom = request.form["prenom"].strip()
+    # Récupérer tous les champs du formulaire
+    nom = request.form.get("nom", "").strip()
+    prenom = request.form.get("prenom", "").strip()
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
+    dect_number = request.form.get("dect_number", "").strip()
     role = request.form.get("role", "technicien")
     new_pass = request.form.get("password", "").strip()
 
+    # Validation des champs obligatoires (sauf password qui est optionnel en édition)
+    if not all([nom, prenom, username, email]):
+        flash("Les champs nom, prénom, username et email sont obligatoires", "error")
+        return redirect(url_for("techniciens"))
+
+    if new_pass and len(new_pass) < 8:
+        flash("Le mot de passe doit contenir au moins 8 caractères", "error")
+        return redirect(url_for("techniciens"))
+
     db = get_db()
-    if new_pass:
-        # Hash du nouveau mot de passe
-        hashed_password = generate_password_hash(new_pass)
-        db.execute(
-            "UPDATE techniciens SET prenom=?, role=?, password=? WHERE id=?",
-            (prenom, role, hashed_password, id),
-        )
-    else:
-        db.execute(
-            "UPDATE techniciens SET prenom=?, role=? WHERE id=?",
-            (prenom, role, id),
-        )
-    db.commit()
+    try:
+        # Vérifier l'unicité du username (sauf pour l'utilisateur actuel)
+        existing = db.execute("SELECT id FROM techniciens WHERE username=? AND id!=?", (username, id)).fetchone()
+        if existing:
+            flash("Ce nom d'utilisateur existe déjà", "error")
+            return redirect(url_for("techniciens"))
+
+        # Vérifier l'unicité de l'email (sauf pour l'utilisateur actuel)
+        existing = db.execute("SELECT id FROM techniciens WHERE email=? AND id!=?", (email, id)).fetchone()
+        if existing:
+            flash("Cet email est déjà utilisé", "error")
+            return redirect(url_for("techniciens"))
+
+        # Mise à jour avec ou sans nouveau mot de passe
+        if new_pass:
+            # Hash du nouveau mot de passe
+            hashed_password = generate_password_hash(new_pass)
+            db.execute("""
+                UPDATE techniciens
+                SET nom=?, prenom=?, username=?, email=?, dect_number=?, role=?, password=?
+                WHERE id=?
+            """, (nom, prenom, username, email, dect_number, role, hashed_password, id))
+        else:
+            db.execute("""
+                UPDATE techniciens
+                SET nom=?, prenom=?, username=?, email=?, dect_number=?, role=?
+                WHERE id=?
+            """, (nom, prenom, username, email, dect_number, role, id))
+
+        db.commit()
+        flash(f"Technicien {prenom} {nom} modifié avec succès!", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Erreur lors de la modification : {str(e)}", "error")
+    finally:
+        db.close()
+
     return redirect(url_for("techniciens"))
 
 
@@ -451,7 +563,7 @@ def technicien_incidents(id):
         return jsonify({"error": "Not found"}), 404
 
     incidents = db.execute(
-        "SELECT * FROM incidents WHERE collaborateur=?", (tech["prenom"],)
+        "SELECT * FROM incidents WHERE technicien_id=?", (id,)
     ).fetchall()
     autres_techs = db.execute(
         "SELECT id, prenom FROM techniciens WHERE id != ?", (id,)
@@ -1059,21 +1171,25 @@ def login():
                 flash("Votre mot de passe doit être réinitialisé. Contactez l'administrateur.", "danger")
                 return render_template("login.html")
 
-        # 2) Sinon, essayer dans techniciens (ATTENTION: utilise prenom - devrait être username)
-        tech = db.execute(
-            "SELECT * FROM techniciens WHERE prenom=?",
-            (u,),
-        ).fetchone()
+        # 2) Sinon, essayer dans techniciens (recherche par username OU email)
+        tech = db.execute("""
+            SELECT * FROM techniciens
+            WHERE (username=? OR email=? OR prenom=?) AND actif=1
+        """, (u, u, u)).fetchone()
+
         if tech and tech["password"]:
             app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
             # Vérifier le mot de passe hashé (OBLIGATOIRE - plus de fallback en clair)
             if tech["password"].startswith("pbkdf2:") or tech["password"].startswith("scrypt:"):
                 if check_password_hash(tech["password"], p):
-                    session["user"] = tech["prenom"]
+                    # Utiliser le username au lieu de prenom pour la session
+                    username = tech.get("username") or tech["prenom"]
+                    session["user"] = username
                     session["role"] = tech["role"] or "technicien"
                     session["user_type"] = "technicien"  # Pour savoir quelle table
+                    session["user_display_name"] = f"{tech.get('prenom', '')} {tech.get('nom', '')}".strip() or username
                     session.permanent = True
-                    app.logger.info(f"Connexion technicien réussie: {tech['prenom']}")
+                    app.logger.info(f"Connexion technicien réussie: {username}")
 
                     # Vérifier si réinitialisation forcée requise
                     try:
@@ -1084,7 +1200,7 @@ def login():
                     db.close()
                     if force_reset == 1:
                         session["force_password_reset"] = True
-                        app.logger.info(f"Réinitialisation forcée requise pour technicien {tech['prenom']}")
+                        app.logger.info(f"Réinitialisation forcée requise pour technicien {username}")
                         return redirect(url_for("change_password_forced"))
 
                     return redirect(url_for("home"))
@@ -1216,20 +1332,24 @@ def add_incident():
         site = request.form["site"]
         sujet = request.form["sujet"]
         urgence = request.form["urgence"]
-        collab = request.form["collaborateur"]
+        technicien_id = int(request.form["technicien_id"])
         date_aff = request.form["date_affectation"]
         note_dispatch = request.form.get("note_dispatch", "")
         localisation = request.form.get("localisation", "")
 
+        # Récupérer le prénom du technicien pour collaborateur (rétrocompatibilité) et notification
+        tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (technicien_id,)).fetchone()
+        collab_prenom = tech['prenom'] if tech else "Non affecté"
+
         sql = """
           INSERT INTO incidents (
             numero, site, sujet, urgence,
-            collaborateur, etat, note_dispatch,
+            collaborateur, technicien_id, etat, note_dispatch,
             valide, date_affectation, archived, localisation
-          ) VALUES (?, ?, ?, ?, ?, 'Affecté', ?, 0, ?, 0, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, 'Affecté', ?, 0, ?, 0, ?)
           RETURNING id
         """
-        result = db.execute(sql, (numero, site, sujet, urgence, collab, note_dispatch, date_aff, localisation))
+        result = db.execute(sql, (numero, site, sujet, urgence, collab_prenom, technicien_id, note_dispatch, date_aff, localisation))
         incident_id = result.fetchone()["id"]
         db.commit()
 
@@ -1244,8 +1364,8 @@ def add_incident():
             "localisation": localisation
         }
 
-        # Émettre la notification de nouveau ticket
-        emit_new_assignment_notification(socketio, incident_data, collab)
+        # Émettre la notification de nouveau ticket (utiliser le prénom pour compatibilité)
+        emit_new_assignment_notification(socketio, incident_data, collab_prenom)
 
         # Émettre aussi l'event classique pour le refresh
         socketio.emit("incident_update", {"action": "add"})
@@ -1340,20 +1460,24 @@ def edit_incident(id):
         site = request.form["site"].strip()
         sujet = request.form["sujet"].strip()
         urgence = request.form["urgence"].strip()
-        collaborateur = request.form["collaborateur"].strip()
+        technicien_id = int(request.form["technicien_id"])
         etat = request.form["etat"].strip()
         notes = request.form.get("notes", "").strip()
         note_dispatch = request.form.get("note_dispatch", "").strip()
         date_aff = request.form["date_affectation"]
         localisation = request.form.get("localisation", "").strip()
 
+        # Récupérer le prénom du technicien pour collaborateur (rétrocompatibilité)
+        tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (technicien_id,)).fetchone()
+        collaborateur = tech['prenom'] if tech else "Non affecté"
+
         # Mise à jour de l'incident avec protection transactionnelle
         try:
             db.execute("BEGIN")
             db.execute(
                 """UPDATE incidents SET numero=?, site=?, sujet=?, urgence=?,
-                   collaborateur=?, etat=?, notes=?, note_dispatch=?, date_affectation=?, localisation=? WHERE id=?""",
-                (numero, site, sujet, urgence, collaborateur, etat, notes, note_dispatch, date_aff, localisation, id)
+                   collaborateur=?, technicien_id=?, etat=?, notes=?, note_dispatch=?, date_affectation=?, localisation=? WHERE id=?""",
+                (numero, site, sujet, urgence, collaborateur, technicien_id, etat, notes, note_dispatch, date_aff, localisation, id)
             )
         except Exception:
             db.rollback()

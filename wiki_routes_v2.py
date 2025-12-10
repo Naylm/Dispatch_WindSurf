@@ -573,19 +573,32 @@ def wiki_articles_routes(app):
                         history_list.append(hist_dict)
             except Exception as hist_error:
                 current_app.logger.warning(f"view_wiki_article: Could not fetch history: {hist_error}")
-            
+
+            # Vérifier s'il y a des demandes de mise à jour ou signalements d'obsolescence
+            update_requested = False
+            try:
+                feedback_check = db.execute("""
+                    SELECT COUNT(*) as count FROM wiki_feedback
+                    WHERE article_id=? AND feedback_type IN ('outdated', 'needs_update')
+                """, (id,)).fetchone()
+                if feedback_check and feedback_check['count'] > 0:
+                    update_requested = True
+            except Exception as feedback_error:
+                current_app.logger.warning(f"view_wiki_article: Could not check feedback: {feedback_error}")
+
             # Ajouter les infos supplémentaires au dictionnaire article
             article_dict['subcat_name'] = subcat_name
             article_dict['cat_name'] = cat_name
             article_dict['cat_icon'] = cat_icon
             article_dict['cat_id'] = cat_id
-            
+
             current_app.logger.info(f"view_wiki_article: Rendering template for article {id}")
-            
+
             return render_template("wiki_article_view_v2.html",
                                  article=article_dict,
                                  user_vote=user_vote_dict,
                                  history=history_list,
+                                 update_requested=update_requested,
                                  user=session["user"],
                                  role=session["role"])
                                  
@@ -648,7 +661,7 @@ def wiki_articles_routes(app):
             status = article.get('status', 'draft')
         
         owner = request.form.get("owner", article.get('owner', session["user"]))
-        summary = request.form.get("summary", article.get('summary', '')).strip()
+        summary = (request.form.get("summary") or article.get('summary') or '').strip()
         
         # Sauvegarder dans l'historique
         db.execute("""
@@ -1074,6 +1087,34 @@ def wiki_search_routes(app):
 
 # ========== FEEDBACK ==========
 def wiki_feedback_routes(app):
+    @app.route("/wiki/article/<int:id>/mark_updated", methods=["POST"])
+    def mark_article_updated(id):
+        """Marquer l'article comme mis à jour et supprimer les demandes de mise à jour"""
+        if "user" not in session:
+            return jsonify({"success": False, "error": "Non autorisé"}), 403
+
+        db = get_db()
+        try:
+            # Vérifier que l'article existe
+            article = db.execute("SELECT id FROM wiki_articles WHERE id = ?", (id,)).fetchone()
+            if not article:
+                return jsonify({"success": False, "error": "Article non trouvé"}), 404
+
+            # Supprimer tous les feedbacks "outdated" et "needs_update" pour cet article
+            db.execute("""
+                DELETE FROM wiki_feedback
+                WHERE article_id = ? AND feedback_type IN ('outdated', 'needs_update')
+            """, (id,))
+            db.commit()
+
+            return jsonify({"success": True, "message": "Article marqué comme mis à jour"})
+        except Exception as e:
+            db.rollback()
+            current_app.logger.exception(f"Erreur mark_article_updated: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+        finally:
+            db.close()
+
     @app.route("/wiki/article/<int:id>/feedback", methods=["POST"])
     def submit_wiki_feedback(id):
         if "user" not in session:

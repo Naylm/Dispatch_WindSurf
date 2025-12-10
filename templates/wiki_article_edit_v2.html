@@ -91,13 +91,42 @@
         .preview-column .preview-box {
             background: #fff;
             border: 1px solid var(--border-color, #ddd);
+            /* Styles pour les retours à la ligne intelligents */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
         }
-        
+
         #preview {
             min-height: 350px;
             max-height: 550px;
         }
-        
+
+        /* Appliquer aussi aux éléments enfants de la preview */
+        #preview,
+        #preview * {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        /* Cas spéciaux pour les blocs de code et pre */
+        #preview pre,
+        #preview code {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        /* URLs et liens longs */
+        #preview a {
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+
         #preview img {
             max-width: 100%;
             height: auto;
