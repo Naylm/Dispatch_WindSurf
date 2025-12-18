@@ -30,6 +30,7 @@ COPY . .
 # Create necessary directories for persistence
 RUN mkdir -p /app/data && \
     mkdir -p /app/static/uploads/wiki && \
+    mkdir -p /app/static/uploads/avatars && \
     chmod -R 755 /app/static/uploads && \
     chmod -R 755 /app/data
 

@@ -174,7 +174,10 @@ def wiki_categories_routes(app):
     @app.route("/wiki/category/<int:id>/edit", methods=["POST"])
     def edit_wiki_category(id):
         if "user" not in session:
-            return jsonify({"error": "Non autorisé"}), 403
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"error": "Non autorisé"}), 403
+            flash("Non autorisé", "error")
+            return redirect(url_for("wiki"))
         
         name = request.form.get("name", "").strip()
         icon = request.form.get("icon", "📁").strip()
@@ -182,15 +185,32 @@ def wiki_categories_routes(app):
         color = request.form.get("color", "#4f46e5").strip()
         
         db = get_db()
-        db.execute("""
-            UPDATE wiki_categories 
-            SET name=?, icon=?, description=?, color=?
-            WHERE id=?
-        """, (name, icon, description, color, id))
-        db.commit()
-        db.close()
-        
-        return jsonify({"success": True})
+        try:
+            db.execute("""
+                UPDATE wiki_categories 
+                SET name=?, icon=?, description=?, color=?
+                WHERE id=?
+            """, (name, icon, description, color, id))
+            db.commit()
+            
+            # Si c'est une requête AJAX, retourner JSON
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+            if is_ajax:
+                return jsonify({"success": True, "message": "Catégorie modifiée avec succès!"})
+            
+            # Sinon, rediriger vers la page wiki avec un message flash
+            flash("Catégorie modifiée avec succès!", "success")
+            return redirect(url_for("wiki"))
+        except Exception as e:
+            db.rollback()
+            current_app.logger.exception(f"edit_wiki_category: exception: {e}")
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+            if is_ajax:
+                return jsonify({"error": f"Erreur serveur: {str(e)}"}), 500
+            flash(f"Erreur lors de la modification: {str(e)}", "error")
+            return redirect(url_for("wiki"))
+        finally:
+            db.close()
     
     @app.route("/wiki/category/<int:id>/delete", methods=["POST"])
     def delete_wiki_category(id):
@@ -297,22 +317,42 @@ def wiki_subcategories_routes(app):
     @app.route("/wiki/subcategory/<int:id>/edit", methods=["POST"])
     def edit_wiki_subcategory(id):
         if "user" not in session:
-            return jsonify({"error": "Non autorisé"}), 403
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+                return jsonify({"error": "Non autorisé"}), 403
+            flash("Non autorisé", "error")
+            return redirect(url_for("wiki"))
         
         name = request.form.get("name", "").strip()
         icon = request.form.get("icon", "📄").strip()
         description = request.form.get("description", "").strip()
         
         db = get_db()
-        db.execute("""
-            UPDATE wiki_subcategories 
-            SET name=?, icon=?, description=?
-            WHERE id=?
-        """, (name, icon, description, id))
-        db.commit()
-        db.close()
-        
-        return jsonify({"success": True})
+        try:
+            db.execute("""
+                UPDATE wiki_subcategories 
+                SET name=?, icon=?, description=?
+                WHERE id=?
+            """, (name, icon, description, id))
+            db.commit()
+            
+            # Si c'est une requête AJAX, retourner JSON
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+            if is_ajax:
+                return jsonify({"success": True, "message": "Sous-catégorie modifiée avec succès!"})
+            
+            # Sinon, rediriger vers la page wiki avec un message flash
+            flash("Sous-catégorie modifiée avec succès!", "success")
+            return redirect(url_for("wiki"))
+        except Exception as e:
+            db.rollback()
+            current_app.logger.exception(f"edit_wiki_subcategory: exception: {e}")
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+            if is_ajax:
+                return jsonify({"error": f"Erreur serveur: {str(e)}"}), 500
+            flash(f"Erreur lors de la modification: {str(e)}", "error")
+            return redirect(url_for("wiki"))
+        finally:
+            db.close()
     
     @app.route("/wiki/subcategory/<int:id>/delete", methods=["POST"])
     def delete_wiki_subcategory(id):

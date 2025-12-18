@@ -276,6 +276,15 @@ body.with-sidebar-permanent .navbar {
 .card-body {
   padding: 1.5rem;
   flex: 1;
+  overflow: visible; /* Permet aux notes de s'afficher complètement */
+  min-height: 0; /* Permet au contenu de s'adapter */
+}
+
+/* Assurer que les cartes technicien permettent l'affichage complet des notes */
+.small-card .card-body {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 0;
 }
 
 /* Tech Grid & Columns - Vue Admin (Revert to original) */
@@ -303,7 +312,8 @@ body.with-sidebar-permanent .navbar {
   min-width: 360px;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Empêche le card de déborder */
+  overflow-y: auto; /* Permet le scroll vertical si nécessaire */
+  overflow-x: hidden; /* Empêche le débordement horizontal */
   max-height: 100%;
   position: relative;
   /* S'assurer que la carte prend toute la hauteur disponible */
@@ -835,6 +845,20 @@ body.content-expanded .container {
   height: auto;
   display: block;
   overflow: visible;
+  min-height: 0; /* Permet au contenu de s'adapter */
+}
+
+/* Assurer que les notes dans les cartes technicien s'affichent correctement */
+.small-card .note-wrapper {
+  overflow: visible;
+  height: auto;
+  min-height: 0;
+}
+
+.small-card .note-view-mode {
+  overflow: visible;
+  height: auto;
+  min-height: 0;
 }
 
 /* ===== VIEW MODE - COMPACT ===== */
@@ -979,11 +1003,23 @@ body.dark .note-edit-btn:hover {
   overflow-wrap: break-word;
   text-align: left;
   height: auto;
+  min-height: 0;
+  max-height: none !important; /* Force l'affichage complet */
   overflow: visible;
   padding: 0;
   margin: 0;
   text-indent: 0;
   display: block;
+}
+
+/* Assurer que les notes dans les cartes technicien s'affichent correctement */
+.small-card .note-view-content {
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 /* Force no indent on paragraphs inside notes */

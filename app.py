@@ -529,6 +529,364 @@ def api_incident(id):
     )
 
 
+# ---------- ANNuaire DES TECHNICIENS (Accessible à tous) ----------
+@app.route("/annuaire")
+def annuaire():
+    """Annuaire des techniciens accessible à tous les utilisateurs"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    db = get_db()
+    # Récupérer les techniciens actifs (y compris les admins dans la table techniciens)
+    techniciens_list = db.execute("""
+        SELECT id, nom, prenom, dect_number, email, actif, role, ordre
+        FROM techniciens 
+        WHERE actif=%s 
+        ORDER BY ordre ASC, prenom ASC
+    """, (1,)).fetchall()
+    
+    # Récupérer les admins de la table users (comme Melvin)
+    admins_users = db.execute("""
+        SELECT id, NULL as nom, username as prenom, NULL as dect_number, NULL as email, 1 as actif, role, 0 as ordre
+        FROM users 
+        WHERE role='admin'
+    """).fetchall()
+    
+    # Combiner les deux listes
+    all_people = list(techniciens_list) + list(admins_users)
+    
+    # Trier par ordre puis prénom
+    all_people.sort(key=lambda x: (x.get('ordre', 0), x.get('prenom', '')))
+    
+    return render_template("annuaire.html", techniciens=all_people, role=session.get("role"))
+
+
+# ---------- PROFIL UTILISATEUR ----------
+@app.route("/profil")
+def profil():
+    """Page de profil utilisateur (technicien ou admin)"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    db = get_db()
+    username = session["user"]
+    user_type = session.get("user_type", "user")
+    
+    # Récupérer les données de l'utilisateur
+    if user_type == "technicien":
+        user_data = db.execute("""
+            SELECT id, nom, prenom, username, email, dect_number, role, photo_profil, created_at
+            FROM techniciens 
+            WHERE (username=%s OR prenom=%s) AND actif=1
+        """, (username, username)).fetchone()
+    else:
+        # Pour les admins de la table users
+        user_data = db.execute("""
+            SELECT id, 
+                   COALESCE(nom, NULL) as nom, 
+                   COALESCE(prenom, username) as prenom, 
+                   username, 
+                   COALESCE(email, NULL) as email, 
+                   COALESCE(dect_number, NULL) as dect_number, 
+                   role, 
+                   COALESCE(photo_profil, NULL) as photo_profil, 
+                   NULL as created_at
+            FROM users 
+            WHERE username=%s
+        """, (username,)).fetchone()
+    
+    db.close()
+    
+    if not user_data:
+        flash("Utilisateur introuvable", "danger")
+        return redirect(url_for("home"))
+    
+    return render_template("profil.html", user_data=dict(user_data), role=session.get("role"))
+
+
+@app.route("/profil/update_info", methods=["POST"])
+def update_profile_info():
+    """Mise à jour des informations de profil (nom, prénom, téléphone, email)"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    nom = request.form.get("nom", "").strip()
+    prenom = request.form.get("prenom", "").strip()
+    dect_number = request.form.get("dect_number", "").strip()
+    email = request.form.get("email", "").strip()
+    
+    db = get_db()
+    username = session["user"]
+    user_type = session.get("user_type", "user")
+    role = session.get("role", "")
+    
+    try:
+        if user_type == "technicien":
+            # Les techniciens ne peuvent modifier que téléphone et email (nom/prénom gérés par admin)
+            db.execute("""
+                UPDATE techniciens 
+                SET dect_number=%s, email=%s
+                WHERE (username=%s OR prenom=%s)
+            """, (dect_number, email, username, username))
+        else:
+            # Pour les admins de la table users - peuvent modifier nom, prénom, téléphone et email
+            if not prenom:
+                flash("Le prénom est obligatoire", "danger")
+                db.close()
+                return redirect(url_for("profil"))
+            
+            db.execute("""
+                UPDATE users 
+                SET nom=%s, prenom=%s, dect_number=%s, email=%s
+                WHERE username=%s
+            """, (nom if nom else None, prenom, dect_number if dect_number else None, email if email else None, username))
+        
+        db.commit()
+        flash("Informations mises à jour avec succès!", "success")
+    except Exception as e:
+        db.rollback()
+        app.logger.error(f"Erreur mise à jour profil: {e}")
+        flash("Erreur lors de la mise à jour", "danger")
+    finally:
+        db.close()
+    
+    return redirect(url_for("profil"))
+
+
+@app.route("/profil/update_password", methods=["POST"])
+def update_profile_password():
+    """Changement de mot de passe par l'utilisateur"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    current_password = request.form.get("current_password", "").strip()
+    new_password = request.form.get("new_password", "").strip()
+    confirm_password = request.form.get("confirm_password", "").strip()
+    
+    # Validations
+    if not current_password or not new_password or not confirm_password:
+        flash("Tous les champs sont obligatoires", "danger")
+        return redirect(url_for("profil"))
+    
+    if new_password != confirm_password:
+        flash("Les mots de passe ne correspondent pas", "danger")
+        return redirect(url_for("profil"))
+    
+    if len(new_password) < 8:
+        flash("Le mot de passe doit contenir au moins 8 caractères", "danger")
+        return redirect(url_for("profil"))
+    
+    db = get_db()
+    username = session["user"]
+    user_type = session.get("user_type", "user")
+    
+    try:
+        # Récupérer l'utilisateur
+        if user_type == "technicien":
+            user = db.execute("""
+                SELECT id, password FROM techniciens 
+                WHERE (username=%s OR prenom=%s) AND actif=1
+            """, (username, username)).fetchone()
+        else:
+            user = db.execute("SELECT id, password FROM users WHERE username=%s", (username,)).fetchone()
+        
+        if not user:
+            db.close()
+            flash("Utilisateur introuvable", "danger")
+            return redirect(url_for("profil"))
+        
+        # Vérifier le mot de passe actuel
+        is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
+        
+        if is_password_hashed:
+            password_valid = check_password_hash(user["password"], current_password)
+        else:
+            password_valid = (user["password"] == current_password)
+        
+        if not password_valid:
+            db.close()
+            flash("Mot de passe actuel incorrect", "danger")
+            return redirect(url_for("profil"))
+        
+        # Hasher le nouveau mot de passe
+        hashed_password = generate_password_hash(new_password)
+        
+        # Mettre à jour
+        if user_type == "technicien":
+            db.execute("UPDATE techniciens SET password=%s WHERE id=%s", (hashed_password, user["id"]))
+        else:
+            db.execute("UPDATE users SET password=%s WHERE id=%s", (hashed_password, user["id"]))
+        
+        db.commit()
+        app.logger.info(f"Mot de passe modifié pour {username}")
+        flash("Mot de passe modifié avec succès!", "success")
+        
+    except Exception as e:
+        db.rollback()
+        app.logger.error(f"Erreur changement mot de passe: {e}")
+        flash("Erreur lors du changement de mot de passe", "danger")
+    finally:
+        db.close()
+    
+    return redirect(url_for("profil"))
+
+
+@app.route("/profil/update_photo", methods=["POST"])
+def update_profile_photo():
+    """Mise à jour de la photo de profil"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    if 'photo' not in request.files:
+        flash("Aucun fichier sélectionné", "danger")
+        return redirect(url_for("profil"))
+    
+    file = request.files['photo']
+    
+    if file.filename == '':
+        flash("Aucun fichier sélectionné", "danger")
+        return redirect(url_for("profil"))
+    
+    # Extensions autorisées
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    
+    if not allowed_file(file.filename):
+        flash("Type de fichier non autorisé (PNG, JPG, GIF, WEBP uniquement)", "danger")
+        return redirect(url_for("profil"))
+    
+    # Créer le dossier d'avatars si nécessaire
+    import uuid
+    UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads', 'avatars')
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
+    # Générer un nom de fichier unique
+    from werkzeug.utils import secure_filename
+    file_extension = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+    filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+    
+    try:
+        file.save(filepath)
+        
+        db = get_db()
+        username = session["user"]
+        user_type = session.get("user_type", "user")
+        
+        if user_type == "technicien":
+            # Supprimer l'ancienne photo si elle existe
+            old_photo = db.execute("""
+                SELECT photo_profil FROM techniciens 
+                WHERE (username=%s OR prenom=%s)
+            """, (username, username)).fetchone()
+            
+            if old_photo and old_photo.get("photo_profil"):
+                old_path = os.path.join(UPLOAD_FOLDER, old_photo["photo_profil"])
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            
+            db.execute("""
+                UPDATE techniciens SET photo_profil=%s
+                WHERE (username=%s OR prenom=%s)
+            """, (unique_filename, username, username))
+        else:
+            # Pour les admins de la table users
+            # Supprimer l'ancienne photo si elle existe
+            old_photo = db.execute("""
+                SELECT photo_profil FROM users 
+                WHERE username=%s
+            """, (username,)).fetchone()
+            
+            if old_photo and old_photo.get("photo_profil"):
+                old_path = os.path.join(UPLOAD_FOLDER, old_photo["photo_profil"])
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            
+            db.execute("""
+                UPDATE users SET photo_profil=%s
+                WHERE username=%s
+            """, (unique_filename, username))
+        
+        db.commit()
+        flash("Photo de profil mise à jour!", "success")
+        
+    except Exception as e:
+        app.logger.error(f"Erreur upload photo: {e}")
+        flash("Erreur lors de l'upload de la photo", "danger")
+        # Supprimer le fichier si l'upload a échoué
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    finally:
+        db.close()
+    
+    return redirect(url_for("profil"))
+
+
+@app.route("/profil/delete_photo", methods=["POST"])
+def delete_profile_photo():
+    """Suppression de la photo de profil"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    db = get_db()
+    username = session["user"]
+    user_type = session.get("user_type", "user")
+    
+    try:
+        # Récupérer le nom de la photo actuelle
+        if user_type == "technicien":
+            user = db.execute("""
+                SELECT photo_profil FROM techniciens 
+                WHERE (username=%s OR prenom=%s)
+            """, (username, username)).fetchone()
+        else:
+            user = db.execute("""
+                SELECT photo_profil FROM users 
+                WHERE username=%s
+            """, (username,)).fetchone()
+        
+        if not user:
+            db.close()
+            flash("Utilisateur introuvable", "danger")
+            return redirect(url_for("profil"))
+        
+        # Supprimer le fichier physique si il existe
+        if user.get("photo_profil"):
+            UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads', 'avatars')
+            photo_path = os.path.join(UPLOAD_FOLDER, user["photo_profil"])
+            if os.path.exists(photo_path):
+                try:
+                    os.remove(photo_path)
+                except Exception as e:
+                    app.logger.warning(f"Impossible de supprimer le fichier photo: {e}")
+        
+        # Mettre à jour la base de données
+        if user_type == "technicien":
+            db.execute("""
+                UPDATE techniciens SET photo_profil=NULL
+                WHERE (username=%s OR prenom=%s)
+            """, (username, username))
+        else:
+            db.execute("""
+                UPDATE users SET photo_profil=NULL
+                WHERE username=%s
+            """, (username,))
+        
+        db.commit()
+        flash("Photo de profil supprimée avec succès!", "success")
+        
+    except Exception as e:
+        db.rollback()
+        app.logger.error(f"Erreur suppression photo: {e}")
+        flash("Erreur lors de la suppression de la photo", "danger")
+    finally:
+        db.close()
+    
+    return redirect(url_for("profil"))
+
+
 # ---------- GESTION DES TECHNICIENS (CRUD) ----------
 @app.route("/techniciens")
 def techniciens():
@@ -1226,13 +1584,13 @@ def force_password_reset():
     try:
         if user_type == "user":
             db.execute(
-                "UPDATE users SET force_password_reset=1 WHERE username=?",
+                "UPDATE users SET force_password_reset=1 WHERE username=%s",
                 (username,)
             )
         else:  # technicien
             db.execute(
-                "UPDATE techniciens SET force_password_reset=1 WHERE prenom=?",
-                (username,)
+                "UPDATE techniciens SET force_password_reset=1 WHERE (username=%s OR prenom=%s)",
+                (username, username)
             )
 
         db.commit()
@@ -1256,88 +1614,118 @@ def login():
 
         # 1) Essayer dans users
         user = db.execute(
-            "SELECT * FROM users WHERE username=?", (u,)
+            "SELECT * FROM users WHERE username=%s", (u,)
         ).fetchone()
         if user:
             app.logger.debug(f"Tentative de connexion pour l'utilisateur: {u}")
-            # Vérifier le mot de passe hashé (OBLIGATOIRE - plus de fallback en clair)
-            if user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:")):
-                if check_password_hash(user["password"], p):
-                    session["user"] = u
-                    session["role"] = user["role"]
-                    session["user_type"] = "user"  # Pour savoir quelle table
-                    session.permanent = True
-                    app.logger.info(f"Connexion réussie: {u} (role: {user['role']})")
+            # Vérifier le mot de passe hashé ou en clair (pour compatibilité)
+            password_valid = False
+            is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
+            
+            if is_password_hashed:
+                # Mot de passe hashé - vérifier avec check_password_hash
+                password_valid = check_password_hash(user["password"], p)
+            elif user["password"]:
+                # Mot de passe en clair - vérifier directement (compatibilité)
+                password_valid = (user["password"] == p)
+            
+            if password_valid:
+                session["user"] = u
+                session["role"] = user["role"]
+                session["user_type"] = "user"  # Pour savoir quelle table
+                session.permanent = True
+                app.logger.info(f"Connexion réussie: {u} (role: {user['role']})")
 
-                    # Vérifier si réinitialisation forcée requise
-                    try:
-                        force_reset = user["force_password_reset"]
-                    except (KeyError, IndexError):
-                        force_reset = 0
+                # Vérifier si réinitialisation forcée requise ou si mot de passe en clair
+                try:
+                    force_reset = user["force_password_reset"]
+                except (KeyError, IndexError):
+                    force_reset = 0
 
-                    db.close()
-                    if force_reset == 1:
-                        session["force_password_reset"] = True
-                        app.logger.info(f"Réinitialisation forcée requise pour {u}")
-                        return redirect(url_for("change_password_forced"))
+                # Forcer la réinitialisation si le mot de passe n'est pas hashé
+                if not is_password_hashed:
+                    force_reset = 1
+                    # Mettre à jour le flag dans la base
+                    db.execute("UPDATE users SET force_password_reset=1 WHERE username=%s", (u,))
+                    db.commit()
 
-                    return redirect(url_for("home"))
-                else:
-                    app.logger.warning(f"Échec de connexion pour {u}: mot de passe incorrect")
-                    db.close()
-                    flash("Mauvais identifiants", "danger")
-                    return render_template("login.html")
-            else:
-                # Mot de passe non hashé ou vide - REFUSER LA CONNEXION
-                app.logger.error(f"Échec de connexion pour {u}: mot de passe non hashé (réinitialisation requise)")
                 db.close()
-                flash("Votre mot de passe doit être réinitialisé. Contactez l'administrateur.", "danger")
+                if force_reset == 1:
+                    session["force_password_reset"] = True
+                    app.logger.info(f"Réinitialisation forcée requise pour {u}")
+                    return redirect(url_for("change_password_forced"))
+
+                return redirect(url_for("home"))
+            else:
+                app.logger.warning(f"Échec de connexion pour {u}: mot de passe incorrect")
+                db.close()
+                flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
         # 2) Sinon, essayer dans techniciens (recherche par username OU email)
         tech = db.execute("""
             SELECT * FROM techniciens
-            WHERE (username=? OR email=? OR prenom=?) AND actif=1
+            WHERE (username=%s OR email=%s OR prenom=%s) AND actif=1
         """, (u, u, u)).fetchone()
 
         if tech and tech["password"]:
             app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
-            # Vérifier le mot de passe hashé (OBLIGATOIRE - plus de fallback en clair)
-            if tech["password"].startswith("pbkdf2:") or tech["password"].startswith("scrypt:"):
-                if check_password_hash(tech["password"], p):
-                    # Utiliser le username au lieu de prenom pour la session
-                    username = tech.get("username") or tech["prenom"]
-                    session["user"] = username
-                    session["role"] = tech["role"] or "technicien"
-                    session["user_type"] = "technicien"  # Pour savoir quelle table
-                    session["user_display_name"] = f"{tech.get('prenom', '')} {tech.get('nom', '')}".strip() or username
-                    session.permanent = True
-                    app.logger.info(f"Connexion technicien réussie: {username}")
-
-                    # Vérifier si réinitialisation forcée requise
-                    try:
-                        force_reset = tech["force_password_reset"]
-                    except (KeyError, IndexError):
-                        force_reset = 0
-
-                    db.close()
-                    if force_reset == 1:
-                        session["force_password_reset"] = True
-                        app.logger.info(f"Réinitialisation forcée requise pour technicien {username}")
-                        return redirect(url_for("change_password_forced"))
-
-                    return redirect(url_for("home"))
-                else:
-                    app.logger.warning(f"Échec de connexion pour technicien {u}: mot de passe incorrect")
-                    db.close()
-                    flash("Mauvais identifiants", "danger")
-                    return render_template("login.html")
+            # Vérifier le mot de passe hashé ou en clair (pour compatibilité)
+            password_valid = False
+            is_password_hashed = tech["password"].startswith("pbkdf2:") or tech["password"].startswith("scrypt:")
+            
+            if is_password_hashed:
+                # Mot de passe hashé - vérifier avec check_password_hash
+                password_valid = check_password_hash(tech["password"], p)
             else:
-                # Mot de passe non hashé ou vide - REFUSER LA CONNEXION
-                app.logger.error(f"Échec de connexion pour technicien {u}: mot de passe non hashé")
+                # Mot de passe en clair - vérifier directement (compatibilité)
+                password_valid = (tech["password"] == p)
+            
+            if password_valid:
+                # Utiliser le username au lieu de prenom pour la session
+                username = tech.get("username") or tech["prenom"]
+                session["user"] = username
+                session["role"] = tech["role"] or "technicien"
+                session["user_type"] = "technicien"  # Pour savoir quelle table
+                session["user_display_name"] = f"{tech.get('prenom', '')} {tech.get('nom', '')}".strip() or username
+                session.permanent = True
+                app.logger.info(f"Connexion technicien réussie: {username}")
+
+                # Vérifier si réinitialisation forcée requise ou si mot de passe en clair
+                try:
+                    force_reset = tech["force_password_reset"]
+                except (KeyError, IndexError):
+                    force_reset = 0
+
+                # Forcer la réinitialisation si le mot de passe n'est pas hashé
+                if not is_password_hashed:
+                    force_reset = 1
+                    # Mettre à jour le flag dans la base
+                    tech_id = tech.get("id")
+                    if tech_id:
+                        db.execute("UPDATE techniciens SET force_password_reset=1 WHERE id=%s", (tech_id,))
+                    else:
+                        db.execute("UPDATE techniciens SET force_password_reset=1 WHERE (username=%s OR prenom=%s)", (username, username))
+                    db.commit()
+
                 db.close()
-                flash("Votre mot de passe doit être réinitialisé. Contactez l'administrateur.", "danger")
+                if force_reset == 1:
+                    session["force_password_reset"] = True
+                    app.logger.info(f"Réinitialisation forcée requise pour technicien {username}")
+                    return redirect(url_for("change_password_forced"))
+
+                return redirect(url_for("home"))
+            else:
+                app.logger.warning(f"Échec de connexion pour technicien {u}: mot de passe incorrect")
+                db.close()
+                flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
+        elif tech and not tech["password"]:
+            # Technicien sans mot de passe - refuser la connexion
+            app.logger.error(f"Échec de connexion pour technicien {u}: aucun mot de passe défini")
+            db.close()
+            flash("Aucun mot de passe défini. Contactez l'administrateur.", "danger")
+            return render_template("login.html")
 
         # Aucun utilisateur trouvé
         db.close()
@@ -1387,23 +1775,38 @@ def change_password_forced():
 
         # Récupérer l'utilisateur selon le type
         if user_type == "user":
-            user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            user = db.execute("SELECT * FROM users WHERE username=%s", (username,)).fetchone()
         else:
-            user = db.execute("SELECT * FROM techniciens WHERE prenom=?", (username,)).fetchone()
+            # Pour les techniciens, chercher par username (qui peut être username ou prenom)
+            user = db.execute("SELECT * FROM techniciens WHERE (username=%s OR prenom=%s) AND actif=1", (username, username)).fetchone()
 
         if not user:
             db.close()
             flash("Utilisateur introuvable", "danger")
             return redirect(url_for("logout"))
 
-        # Vérifier le mot de passe actuel
-        if not check_password_hash(user["password"], current_password):
+        # Vérifier le mot de passe actuel (hashé ou en clair)
+        password_valid = False
+        is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
+        
+        if is_password_hashed:
+            password_valid = check_password_hash(user["password"], current_password)
+        else:
+            password_valid = (user["password"] == current_password)
+        
+        if not password_valid:
             db.close()
             flash("Mot de passe actuel incorrect", "danger")
             return render_template("change_password_forced.html")
 
         # Vérifier que le nouveau mot de passe est différent
-        if check_password_hash(user["password"], new_password):
+        new_is_same = False
+        if is_password_hashed:
+            new_is_same = check_password_hash(user["password"], new_password)
+        else:
+            new_is_same = (user["password"] == new_password)
+        
+        if new_is_same:
             db.close()
             flash("Le nouveau mot de passe doit être différent de l'ancien", "danger")
             return render_template("change_password_forced.html")
@@ -1414,14 +1817,22 @@ def change_password_forced():
         # Mettre à jour le mot de passe et réinitialiser le flag
         if user_type == "user":
             db.execute(
-                "UPDATE users SET password=?, force_password_reset=0 WHERE username=?",
+                "UPDATE users SET password=%s, force_password_reset=0 WHERE username=%s",
                 (hashed_password, username)
             )
         else:
-            db.execute(
-                "UPDATE techniciens SET password=?, force_password_reset=0 WHERE prenom=?",
-                (hashed_password, username)
-            )
+            # Pour les techniciens, utiliser l'ID si disponible, sinon username/prenom
+            tech_id = user.get("id")
+            if tech_id:
+                db.execute(
+                    "UPDATE techniciens SET password=%s, force_password_reset=0 WHERE id=%s",
+                    (hashed_password, tech_id)
+                )
+            else:
+                db.execute(
+                    "UPDATE techniciens SET password=%s, force_password_reset=0 WHERE (username=%s OR prenom=%s)",
+                    (hashed_password, username, username)
+                )
 
         db.commit()
         db.close()

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Annuaire techniciens - Dispatch Manager</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link href="{{ url_for('static', filename='css/style.css') }}?v=7.0" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .annuaire-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .technicien-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .technicien-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .technicien-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e9ecef;
+    }
+    .technicien-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .technicien-name {
+      flex: 1;
+    }
+    .technicien-name h4 {
+      margin: 0;
+      color: #212529;
+      font-size: 1.25rem;
+    }
+    .technicien-name p {
+      margin: 0.25rem 0 0 0;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    .technicien-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .info-item .icon {
+      font-size: 1.25rem;
+      width: 30px;
+      text-align: center;
+    }
+    .info-item .label {
+      font-weight: 600;
+      color: #495057;
+      min-width: 80px;
+    }
+    .info-item .value {
+      color: #212529;
+      flex: 1;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #6c757d;
+    }
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    .page-header {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .page-header h1 {
+      margin: 0;
+      color: #212529;
+      font-size: 2rem;
+    }
+    .page-header p {
+      margin: 0.5rem 0 0 0;
+      color: #6c757d;
+    }
+    @media (max-width: 768px) {
+      .annuaire-container {
+        padding: 1rem;
+      }
+      .technicien-info {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <div class="container-fluid">
+      <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm">🏠 Accueil</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="annuaire-container">
+    <div class="page-header">
+      <h1>📞 Annuaire techniciens</h1>
+      <p>Liste des techniciens actifs avec leurs coordonnées</p>
+    </div>
+
+    {% if techniciens|length > 0 %}
+      <div class="techniciens-list">
+        {% for tech in techniciens %}
+          <div class="technicien-card">
+            <div class="technicien-header">
+              <div class="technicien-avatar">
+                {{ tech.prenom[0] if tech.prenom else '?' }}{{ tech.nom[0] if tech.nom and tech.nom != 'None' else '' }}
+              </div>
+              <div class="technicien-name">
+                <h4>
+                  {{ tech.prenom }} {% if tech.nom and tech.nom != 'None' %}{{ tech.nom }}{% endif %}
+                </h4>
+                <p>{% if tech.role and tech.role.lower() == 'admin' %}Admin{% else %}Technicien{% endif %}</p>
+              </div>
+            </div>
+            <div class="technicien-info">
+              {% if tech.dect_number %}
+              <div class="info-item">
+                <span class="icon">📞</span>
+                <span class="label">Téléphone:</span>
+                <span class="value">{{ tech.dect_number }}</span>
+              </div>
+              {% endif %}
+              {% if tech.email %}
+              <div class="info-item">
+                <span class="icon">📧</span>
+                <span class="label">Email:</span>
+                <span class="value">
+                  <a href="mailto:{{ tech.email }}" style="color: #0d6efd; text-decoration: none;">{{ tech.email }}</a>
+                </span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📞</div>
+        <h3>Aucun technicien trouvé</h3>
+        <p>Il n'y a actuellement aucun technicien actif dans l'annuaire.</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>
+

@@ -53,6 +53,59 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN force_password_reset INTEGER DEFAULT 0")
             print("   - Colonne force_password_reset ajoutee a la table users")
+        
+        # Migration: ajouter colonne 'email' pour email
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='email'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
+            print("   - Colonne email ajoutee a la table users")
+        
+        # Migration: ajouter colonne 'dect_number' pour numéro de téléphone DECT
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='dect_number'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN dect_number VARCHAR(20)")
+            print("   - Colonne dect_number ajoutee a la table users")
+        
+        # Migration: ajouter colonne 'photo_profil' pour photo de profil
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='photo_profil'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN photo_profil VARCHAR(255)")
+            print("   - Colonne photo_profil ajoutee a la table users")
+        
+        # Migration: ajouter colonne 'prenom' pour prénom
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='prenom'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN prenom VARCHAR(255)")
+            print("   - Colonne prenom ajoutee a la table users")
+            # Initialiser prenom avec username pour les utilisateurs existants
+            cursor.execute("UPDATE users SET prenom = username WHERE prenom IS NULL")
+            print("   - Prenom initialise avec username pour les utilisateurs existants")
+        
+        # Migration: ajouter colonne 'nom' pour nom de famille
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users' AND column_name='nom'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN nom VARCHAR(255)")
+            print("   - Colonne nom ajoutee a la table users")
     
     # ========== TABLE: techniciens ==========
     cursor.execute("""
@@ -158,6 +211,26 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN dect_number VARCHAR(20)")
             print("   - Colonne dect_number ajoutee a la table techniciens")
+
+        # Migration: ajouter colonne 'photo_profil' pour photo de profil
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='photo_profil'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN photo_profil VARCHAR(255)")
+            print("   - Colonne photo_profil ajoutee a la table techniciens")
+
+        # Migration: ajouter colonne 'created_at' pour date de création
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='created_at'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            print("   - Colonne created_at ajoutee a la table techniciens")
 
     # ========== TABLE: incidents ==========
     cursor.execute("""

@@ -5,112 +5,90 @@
   <!-- ========================= -->
   <!-- COMPTEURS EN TEMPS RÉEL -->
   <!-- ========================= -->
-  <div class="row mb-3" id="statsCounters">
-    <div class="col-md-3 col-sm-6 mb-2">
-      <div class="card text-center shadow-sm">
-        <div class="card-body py-2">
-          <h6 class="card-title mb-0 text-muted">Total incidents</h6>
-          <h3 class="mb-0 text-primary" id="totalCount">{{ incidents|length }}</h3>
-        </div>
-      </div>
+  <div class="d-flex flex-wrap gap-2 mb-2" id="statsCounters">
+    <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+      <small class="text-muted mb-0" style="font-size: 0.75rem;">Total</small>
+      <strong class="text-primary mb-0" style="font-size: 1.1rem;" id="totalCount">{{ incidents|length }}</strong>
     </div>
-    <div class="col-md-3 col-sm-6 mb-2">
-      <div class="card text-center shadow-sm">
-        <div class="card-body py-2">
-          <h6 class="card-title mb-0 text-muted">En cours</h6>
-          <h3 class="mb-0 text-warning" id="enCoursCount">{{ stats_by_category.en_cours if stats_by_category else incidents|selectattr("etat", "in", ["Affecté", "En cours de préparation", "En intervention"])|list|length }}</h3>
-        </div>
-      </div>
+    <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+      <small class="text-muted mb-0" style="font-size: 0.75rem;">En cours</small>
+      <strong class="text-warning mb-0" style="font-size: 1.1rem;" id="enCoursCount">{{ stats_by_category.en_cours if stats_by_category else incidents|selectattr("etat", "in", ["Affecté", "En cours de préparation", "En intervention"])|list|length }}</strong>
     </div>
-    <div class="col-md-3 col-sm-6 mb-2">
-      <div class="card text-center shadow-sm">
-        <div class="card-body py-2">
-          <h6 class="card-title mb-0 text-muted">Suspendus</h6>
-          <h3 class="mb-0 text-danger" id="suspendusCount">{{ stats_by_category.suspendu if stats_by_category else incidents|selectattr("etat", "in", ["Suspendu", "Intervention programmée"])|list|length }}</h3>
-        </div>
-      </div>
+    <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+      <small class="text-muted mb-0" style="font-size: 0.75rem;">Suspendus</small>
+      <strong class="text-danger mb-0" style="font-size: 1.1rem;" id="suspendusCount">{{ stats_by_category.suspendu if stats_by_category else incidents|selectattr("etat", "in", ["Suspendu", "Intervention programmée"])|list|length }}</strong>
     </div>
-    <div class="col-md-3 col-sm-6 mb-2">
-      <div class="card text-center shadow-sm">
-        <div class="card-body py-2">
-          <h6 class="card-title mb-0 text-muted">Transférés</h6>
-          <h3 class="mb-0 text-info" id="transferesCount">{{ stats_by_category.transfere if stats_by_category else incidents|selectattr("etat", "in", ["Transféré", "En réservation"])|list|length }}</h3>
-        </div>
-      </div>
+    <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+      <small class="text-muted mb-0" style="font-size: 0.75rem;">Transférés</small>
+      <strong class="text-info mb-0" style="font-size: 1.1rem;" id="transferesCount">{{ stats_by_category.transfere if stats_by_category else incidents|selectattr("etat", "in", ["Transféré", "En réservation"])|list|length }}</strong>
     </div>
   </div>
 
   <!-- ========================= -->
   <!-- BARRE DE RECHERCHE & FILTRES -->
   <!-- ========================= -->
-  <div class="mb-4 d-flex flex-wrap align-items-center gap-2">
+  <div class="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-light rounded border" style="background-color: #f8f9fa !important;">
     <input
       id="searchInput"
       type="text"
-      class="form-control"
-      style="max-width: 300px;"
-      placeholder="🔍 Rechercher (n° / site / sujet)"
+      class="form-control form-control-sm"
+      style="width: 220px;"
+      placeholder="🔍 Rechercher..."
     />
 
-    <select id="filterEtat" class="form-select" style="max-width: 180px;">
-      <option value="">— Filtrer par état —</option>
+    <select id="filterEtat" class="form-select form-select-sm" style="width: 160px;">
+      <option value="">📊 État</option>
       {% for st in statuts %}
         <option value="{{ st.nom|lower }}">{{ st.nom }}</option>
       {% endfor %}
     </select>
 
-    <select id="filterUrgence" class="form-select" style="max-width: 140px;">
-      <option value="">— Filtrer par priorité —</option>
+    <select id="filterUrgence" class="form-select form-select-sm" style="width: 140px;">
+      <option value="">⚡ Priorité</option>
       {% for p in priorites %}
         <option value="{{ p.nom|lower }}">{{ p.nom }}</option>
       {% endfor %}
     </select>
 
-    <select id="filterSite" class="form-select" style="max-width: 200px;">
-      <option value="">— Filtrer par site —</option>
+    <select id="filterSite" class="form-select form-select-sm" style="width: 160px;">
+      <option value="">📍 Site</option>
       {% for s in sites %}
         <option value="{{ s.nom|lower }}">{{ s.nom }}</option>
       {% endfor %}
     </select>
 
-    <select id="sortBy" class="form-select" style="max-width: 180px;">
-      <option value="">— Trier par —</option>
-      <option value="urgence-asc">Priorité (croissant)</option>
-      <option value="urgence-desc">Priorité (décroissant)</option>
-      <option value="date-asc">Date (plus ancien)</option>
-      <option value="date-desc">Date (plus récent)</option>
-      <option value="site-asc">Site (A-Z)</option>
-      <option value="numero-asc">N° ticket (A-Z)</option>
+    <select id="sortBy" class="form-select form-select-sm" style="width: 160px;">
+      <option value="">🔄 Trier</option>
+      <option value="urgence-asc">Priorité ↑</option>
+      <option value="urgence-desc">Priorité ↓</option>
+      <option value="date-asc">Date ↑</option>
+      <option value="date-desc">Date ↓</option>
+      <option value="site-asc">Site A-Z</option>
+      <option value="numero-asc">N° A-Z</option>
     </select>
 
-    <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm">
-      🔄 Réinitialiser
+    <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm" style="white-space: nowrap;">
+      ✕ Réinit
     </button>
   </div>
 
   <!-- ========================= -->
   <!-- SÉLECTEUR DE VUE MULTI-MODES -->
   <!-- ========================= -->
-  <div class="card mb-3 shadow-sm" style="background-color: #f8f9fa; border: 2px solid #dee2e6;">
-    <div class="card-body">
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <strong style="color: #495057; font-size: 1rem;">Mode d'affichage :</strong>
-      </div>
-      <div class="d-flex flex-wrap gap-2" style="padding: 0.5rem 0;">
-        <button class="btn btn-primary active view-btn" data-view="kanban" onclick="window.switchView('kanban')" style="min-width: 120px;">
-          <span>📊</span> Kanban
-        </button>
-        <button class="btn btn-outline-primary view-btn" data-view="list" onclick="window.switchView('list')" style="min-width: 120px;">
-          <span>📋</span> Liste
-        </button>
-        <button class="btn btn-outline-primary view-btn" data-view="table" onclick="window.switchView('table')" style="min-width: 120px;">
-          <span>📑</span> Table
-        </button>
-        <button class="btn btn-outline-primary view-btn" data-view="grouped" onclick="window.switchView('grouped')" style="min-width: 120px;">
-          <span>📁</span> Groupé
-        </button>
-      </div>
-    </div>
+  <div class="mb-2 d-flex align-items-center gap-2" style="padding: 0.25rem 0;">
+    <strong style="color: #495057; font-size: 0.875rem; margin-right: 0.25rem;">Mode :</strong>
+    <button class="btn btn-sm btn-primary active view-btn" data-view="kanban" onclick="window.switchView('kanban')" style="min-width: 80px; padding: 0.25rem 0.5rem;">
+      <span>📊</span> Kanban
+    </button>
+    <button class="btn btn-sm btn-outline-primary view-btn" data-view="list" onclick="window.switchView('list')" style="min-width: 80px; padding: 0.25rem 0.5rem;">
+      <span>📋</span> Liste
+    </button>
+    <button class="btn btn-sm btn-outline-primary view-btn" data-view="table" onclick="window.switchView('table')" style="min-width: 80px; padding: 0.25rem 0.5rem;">
+      <span>📑</span> Table
+    </button>
+    <button class="btn btn-sm btn-outline-primary view-btn" data-view="grouped" onclick="window.switchView('grouped')" style="min-width: 80px; padding: 0.25rem 0.5rem;">
+      <span>📁</span> Groupé
+    </button>
   </div>
 
   <!-- ========================= -->
