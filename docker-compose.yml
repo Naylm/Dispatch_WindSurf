@@ -8,6 +8,24 @@
 
 services:
   # ==========================================
+  # Redis (Message Queue pour Socket.IO)
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: dispatch_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dispatch_network
+
+  # ==========================================
   # Base de données PostgreSQL
   # ==========================================
   postgres:
@@ -50,7 +68,7 @@ services:
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:-change_me_in_production_please_use_secrets_token_hex}
-      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-1}
       - DB_TYPE=postgresql
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -60,8 +78,11 @@ services:
       - DB_POOL_MIN=${DB_POOL_MIN:-5}
       - DB_POOL_MAX=${DB_POOL_MAX:-20}
       - WTF_CSRF_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
@@ -142,6 +163,8 @@ volumes:
   dispatch_uploads:
     driver: local
   dispatch_data:
+    driver: local
+  redis_data:
     driver: local
   # pgadmin_data:
   #   driver: local

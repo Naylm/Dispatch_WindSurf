@@ -1,3 +1,7 @@
+# Monkey-patch eventlet en PREMIER pour éviter les problèmes DNS et autres
+import eventlet
+eventlet.monkey_patch()
+
 from flask import (
     Flask, render_template, request, redirect,
     url_for, session, flash, jsonify, send_file, g
@@ -82,7 +86,22 @@ else:
     app.jinja_env.auto_reload = True
     app.jinja_env.cache = {}
 
-# SocketIO optimisé pour 10 utilisateurs concurrents
+# SocketIO optimisé pour synchronisation temps réel
+# Avec 1 worker Gunicorn, Redis n'est pas nécessaire pour le broadcast
+redis_url = os.environ.get("REDIS_URL")
+use_redis = False
+
+# Tester Redis uniquement si configuré et si plus d'1 worker
+if redis_url:
+    import redis as redis_lib
+    try:
+        r = redis_lib.from_url(redis_url, socket_timeout=2, socket_connect_timeout=2)
+        r.ping()
+        use_redis = True
+        print(f"✅ Redis connecté : {redis_url}")
+    except Exception as e:
+        print(f"⚠️ Redis non disponible ({e}), fonctionnement en mode single-worker")
+
 socketio = SocketIO(
     app, 
     async_mode="eventlet",
@@ -94,7 +113,8 @@ socketio = SocketIO(
     engineio_logger=True,  # Activer les logs Engine.IO
     allow_upgrades=True,
     transports=['polling', 'websocket'],
-    manage_session=False  # Ne pas gérer les sessions Flask pour éviter les conflits
+    manage_session=False,  # Ne pas gérer les sessions Flask pour éviter les conflits
+    message_queue=redis_url if use_redis else None  # Redis pour multi-workers
 )
 
 # Gestionnaires Socket.IO
@@ -491,6 +511,8 @@ def api_incident(id):
         template_name = "incident_card_grouped_partial.html"
     elif view_type == 'list':
         template_name = "incident_card_list_partial.html"
+    elif view_type == 'tech':
+        template_name = "incident_card_tech_partial.html"
     else:
         template_name = "incident_card_partial.html"
     
@@ -1140,9 +1162,14 @@ def add_statut():
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     category = request.form["category"].strip()
+    has_relances = request.form.get("has_relances") == "1"
+    has_rdv = request.form.get("has_rdv") == "1"
 
     db = get_db()
-    db.execute("INSERT INTO statuts (nom, couleur, category) VALUES (?, ?, ?)", (nom, couleur, category))
+    db.execute(
+        "INSERT INTO statuts (nom, couleur, category, has_relances, has_rdv) VALUES (?, ?, ?, ?, ?)",
+        (nom, couleur, category, has_relances, has_rdv)
+    )
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1157,9 +1184,14 @@ def edit_statut():
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     category = request.form["category"].strip()
+    has_relances = request.form.get("has_relances") == "1"
+    has_rdv = request.form.get("has_rdv") == "1"
 
     db = get_db()
-    db.execute("UPDATE statuts SET nom=?, couleur=?, category=? WHERE id=?", (nom, couleur, category, id))
+    db.execute(
+        "UPDATE statuts SET nom=?, couleur=?, category=?, has_relances=?, has_rdv=? WHERE id=?",
+        (nom, couleur, category, has_relances, has_rdv, id)
+    )
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1787,6 +1819,145 @@ def edit_note_dispatch(id):
     return jsonify({"success": True, "note_dispatch": new_note_dispatch, "unchanged": True})
 
 
+# ---------- UPDATE RELANCES ----------
+@app.route("/api/incident/<int:id>/relances", methods=["POST"])
+@csrf.exempt
+def update_relances(id):
+    """Met à jour les checkboxes de relances d'un incident"""
+    if "user" not in session:
+        return jsonify({"error": "Non authentifié"}), 401
+
+    db = get_db()
+    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
+    
+    if not inc:
+        return jsonify({"error": "Incident non trouvé"}), 404
+
+    # Récupérer les valeurs depuis le JSON ou form
+    data = request.get_json() if request.is_json else request.form
+    
+    relance_mail = data.get("relance_mail") in [True, "true", "1", 1]
+    relance_1 = data.get("relance_1") in [True, "true", "1", 1]
+    relance_2 = data.get("relance_2") in [True, "true", "1", 1]
+    relance_cloture = data.get("relance_cloture") in [True, "true", "1", 1]
+
+    # Mettre à jour
+    db.execute("""
+        UPDATE incidents 
+        SET relance_mail=%s, relance_1=%s, relance_2=%s, relance_cloture=%s
+        WHERE id=%s
+    """, (relance_mail, relance_1, relance_2, relance_cloture, id))
+    
+    # Historique
+    changes = []
+    if inc.get("relance_mail") != relance_mail:
+        changes.append(("relance_mail", str(inc.get("relance_mail")), str(relance_mail)))
+    if inc.get("relance_1") != relance_1:
+        changes.append(("relance_1", str(inc.get("relance_1")), str(relance_1)))
+    if inc.get("relance_2") != relance_2:
+        changes.append(("relance_2", str(inc.get("relance_2")), str(relance_2)))
+    if inc.get("relance_cloture") != relance_cloture:
+        changes.append(("relance_cloture", str(inc.get("relance_cloture")), str(relance_cloture)))
+    
+    for champ, ancien, nouveau in changes:
+        db.execute("""
+            INSERT INTO historique (incident_id, champ, ancienne_valeur, nouvelle_valeur, modifie_par, date_modification)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (id, champ, ancien, nouveau, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")))
+    
+    db.commit()
+    
+    # Émettre un événement Socket.IO pour synchroniser tous les clients
+    socketio.emit("incident_relances_changed", {
+        "id": id,
+        "relance_mail": relance_mail,
+        "relance_1": relance_1,
+        "relance_2": relance_2,
+        "relance_cloture": relance_cloture
+    })
+    
+    return jsonify({
+        "success": True,
+        "relance_mail": relance_mail,
+        "relance_1": relance_1,
+        "relance_2": relance_2,
+        "relance_cloture": relance_cloture
+    })
+
+
+# ---------- UPDATE RDV ----------
+@app.route("/api/incident/<int:id>/rdv", methods=["POST"])
+@csrf.exempt
+def update_rdv(id):
+    """Met à jour la date de rendez-vous d'un incident"""
+    print(f"📅 UPDATE_RDV appelé pour incident {id}", flush=True)
+    
+    if "user" not in session:
+        print("❌ Non authentifié", flush=True)
+        return jsonify({"error": "Non authentifié"}), 401
+
+    db = get_db()
+    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
+    
+    if not inc:
+        print(f"❌ Incident {id} non trouvé", flush=True)
+        return jsonify({"error": "Incident non trouvé"}), 404
+
+    # Récupérer la valeur depuis le JSON ou form (avec silent=True pour éviter erreur 400)
+    try:
+        data = request.get_json(force=True, silent=True) or request.form or {}
+    except Exception as e:
+        print(f"❌ Erreur parsing JSON: {e}", flush=True)
+        data = request.form or {}
+    
+    date_rdv_str = data.get("date_rdv", "").strip() if data else ""
+    print(f"📅 Date reçue: '{date_rdv_str}'", flush=True)
+    
+    # Convertir en datetime ou None
+    date_rdv = None
+    if date_rdv_str:
+        try:
+            date_rdv = datetime.fromisoformat(date_rdv_str.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                date_rdv = datetime.strptime(date_rdv_str, "%Y-%m-%dT%H:%M")
+            except ValueError:
+                return jsonify({"error": "Format de date invalide"}), 400
+
+    # Mettre à jour
+    db.execute("UPDATE incidents SET date_rdv=%s WHERE id=%s", (date_rdv, id))
+    
+    # Historique
+    old_rdv = inc.get("date_rdv")
+    old_rdv_str = old_rdv.strftime("%d/%m/%Y %H:%M") if old_rdv else "Non défini"
+    new_rdv_str = date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else "Non défini"
+    
+    if old_rdv_str != new_rdv_str:
+        db.execute("""
+            INSERT INTO historique (incident_id, champ, ancienne_valeur, nouvelle_valeur, modifie_par, date_modification)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (id, "date_rdv", old_rdv_str, new_rdv_str, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")))
+    
+    db.commit()
+    print(f"✅ RDV sauvegardé pour incident {id}: {date_rdv}", flush=True)
+    
+    # Émettre un événement Socket.IO pour synchroniser tous les clients
+    socketio.emit("incident_rdv_changed", {
+        "id": id,
+        "date_rdv": date_rdv.isoformat() if date_rdv else None,
+        "date_rdv_formatted": date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
+        "date_rdv_input": date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else ""
+    })
+    print(f"📡 Événement incident_rdv_changed émis", flush=True)
+    
+    return jsonify({
+        "success": True,
+        "date_rdv": date_rdv.isoformat() if date_rdv else None,
+        "date_rdv_formatted": date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
+        "date_rdv_input": date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else ""
+    })
+
+
 # ---------- UPDATE ETAT ----------
 @app.route("/update_etat/<int:id>", methods=["POST"])
 def update_etat(id):
@@ -1820,13 +1991,26 @@ def update_etat(id):
             )
 
             # Notification de changement de statut
+            # Récupérer le prénom de l'utilisateur qui fait le changement
+            changed_by = session["user"]  # Par défaut le username
+            if session.get("user_type") == "technicien":
+                tech_info = db.execute(
+                    "SELECT prenom FROM techniciens WHERE username=?",
+                    (session["user"],)
+                ).fetchone()
+                if tech_info:
+                    changed_by = tech_info["prenom"]
+            
+            # Toujours émettre la notification (l'admin doit tout recevoir)
+            # Le filtrage côté client exclura le technicien s'il est l'auteur
             emit_status_change_notification(
                 socketio,
                 id,
                 inc["numero"],
                 inc["etat"],
                 new,
-                inc["collaborateur"]
+                inc["collaborateur"],
+                changed_by  # Qui a fait le changement
             )
 
             # Si passage à un état critique sur ticket urgent

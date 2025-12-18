@@ -249,6 +249,48 @@
                       </div>
                     </div>
 
+                    {# Système de relances - affiché si le statut actuel a has_relances #}
+                    {% if statut_info and statut_info.has_relances %}
+                    <div class="relances-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+                      <small class="fw-bold d-block mb-1">📧 Relances :</small>
+                      <div class="d-flex flex-wrap gap-2">
+                        <label class="form-check form-check-inline mb-0">
+                          <input type="checkbox" class="form-check-input relance-check" data-field="relance_mail" {% if i.relance_mail %}checked{% endif %}>
+                          <small>Mail info</small>
+                        </label>
+                        <label class="form-check form-check-inline mb-0">
+                          <input type="checkbox" class="form-check-input relance-check" data-field="relance_1" {% if i.relance_1 %}checked{% endif %}>
+                          <small>Relance 1</small>
+                        </label>
+                        <label class="form-check form-check-inline mb-0">
+                          <input type="checkbox" class="form-check-input relance-check" data-field="relance_2" {% if i.relance_2 %}checked{% endif %}>
+                          <small>Relance 2</small>
+                        </label>
+                        <label class="form-check form-check-inline mb-0">
+                          <input type="checkbox" class="form-check-input relance-check" data-field="relance_cloture" {% if i.relance_cloture %}checked{% endif %}>
+                          <small>Clôture</small>
+                        </label>
+                      </div>
+                    </div>
+                    {% endif %}
+
+                    {# Système de RDV - affiché si le statut actuel a has_rdv #}
+                    {% if statut_info and statut_info.has_rdv %}
+                    <div class="rdv-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+                      <small class="fw-bold d-block mb-1">📅 Rendez-vous :</small>
+                      <div class="d-flex gap-1 align-items-center">
+                        <input type="datetime-local" class="form-control form-control-sm rdv-input" 
+                               data-incident-id="{{ i.id }}"
+                               value="{{ i.date_rdv.strftime('%Y-%m-%dT%H:%M') if i.date_rdv else '' }}"
+                               style="flex: 1;">
+                        <button type="button" class="btn btn-sm btn-success rdv-save-btn" data-incident-id="{{ i.id }}" title="Valider le RDV">✓</button>
+                      </div>
+                      {% if i.date_rdv %}
+                      <small class="text-success d-block mt-1 rdv-display">📅 {{ i.date_rdv.strftime('%d/%m/%Y à %H:%M') }}</small>
+                      {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="mt-2">
                       <label class="form-label small mb-1">Changer statut:</label>
                       <select class="form-select form-select-sm status-selector-col" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
@@ -513,6 +555,48 @@
                           {% endif %}
                           {% if i.valide %}
                             <span class="badge bg-purple">Validé</span>
+                          {% endif %}
+
+                          {# Système de relances - affiché si le statut actuel a has_relances #}
+                          {% if statut_info and statut_info.has_relances %}
+                          <div class="relances-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+                            <small class="fw-bold d-block mb-1">📧 Relances :</small>
+                            <div class="d-flex flex-wrap gap-2">
+                              <label class="form-check form-check-inline mb-0">
+                                <input type="checkbox" class="form-check-input relance-check" data-field="relance_mail" {% if i.relance_mail %}checked{% endif %}>
+                                <small>Mail info</small>
+                              </label>
+                              <label class="form-check form-check-inline mb-0">
+                                <input type="checkbox" class="form-check-input relance-check" data-field="relance_1" {% if i.relance_1 %}checked{% endif %}>
+                                <small>Relance 1</small>
+                              </label>
+                              <label class="form-check form-check-inline mb-0">
+                                <input type="checkbox" class="form-check-input relance-check" data-field="relance_2" {% if i.relance_2 %}checked{% endif %}>
+                                <small>Relance 2</small>
+                              </label>
+                              <label class="form-check form-check-inline mb-0">
+                                <input type="checkbox" class="form-check-input relance-check" data-field="relance_cloture" {% if i.relance_cloture %}checked{% endif %}>
+                                <small>Clôture</small>
+                              </label>
+                            </div>
+                          </div>
+                          {% endif %}
+
+                          {# Système de RDV - affiché si le statut actuel a has_rdv #}
+                          {% if statut_info and statut_info.has_rdv %}
+                          <div class="rdv-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+                            <small class="fw-bold d-block mb-1">📅 Rendez-vous :</small>
+                            <div class="d-flex gap-1 align-items-center">
+                              <input type="datetime-local" class="form-control form-control-sm rdv-input" 
+                                     data-incident-id="{{ i.id }}"
+                                     value="{{ i.date_rdv.strftime('%Y-%m-%dT%H:%M') if i.date_rdv else '' }}"
+                                     style="flex: 1;">
+                              <button type="button" class="btn btn-sm btn-success rdv-save-btn" data-incident-id="{{ i.id }}" title="Valider le RDV">✓</button>
+                            </div>
+                            {% if i.date_rdv %}
+                            <small class="text-success d-block mt-1 rdv-display">📅 {{ i.date_rdv.strftime('%d/%m/%Y à %H:%M') }}</small>
+                            {% endif %}
+                          </div>
                           {% endif %}
 
                           <div class="mt-2">
@@ -1324,6 +1408,48 @@
               </div>
             </div>
           </div>
+
+          {# Système de relances - affiché si le statut actuel a has_relances #}
+          {% if statut_info and statut_info.has_relances %}
+          <div class="relances-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+            <small class="fw-bold d-block mb-1">📧 Relances :</small>
+            <div class="d-flex flex-wrap gap-2">
+              <label class="form-check form-check-inline mb-0">
+                <input type="checkbox" class="form-check-input relance-check" data-field="relance_mail" {% if i.relance_mail %}checked{% endif %}>
+                <small>Mail info</small>
+              </label>
+              <label class="form-check form-check-inline mb-0">
+                <input type="checkbox" class="form-check-input relance-check" data-field="relance_1" {% if i.relance_1 %}checked{% endif %}>
+                <small>Relance 1</small>
+              </label>
+              <label class="form-check form-check-inline mb-0">
+                <input type="checkbox" class="form-check-input relance-check" data-field="relance_2" {% if i.relance_2 %}checked{% endif %}>
+                <small>Relance 2</small>
+              </label>
+              <label class="form-check form-check-inline mb-0">
+                <input type="checkbox" class="form-check-input relance-check" data-field="relance_cloture" {% if i.relance_cloture %}checked{% endif %}>
+                <small>Clôture</small>
+              </label>
+            </div>
+          </div>
+          {% endif %}
+
+          {# Système de RDV - affiché si le statut actuel a has_rdv #}
+          {% if statut_info and statut_info.has_rdv %}
+          <div class="rdv-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+            <small class="fw-bold d-block mb-1">📅 Rendez-vous :</small>
+            <div class="d-flex gap-1 align-items-center">
+              <input type="datetime-local" class="form-control form-control-sm rdv-input" 
+                     data-incident-id="{{ i.id }}"
+                     value="{{ i.date_rdv.strftime('%Y-%m-%dT%H:%M') if i.date_rdv else '' }}"
+                     style="flex: 1;">
+              <button type="button" class="btn btn-sm btn-success rdv-save-btn" data-incident-id="{{ i.id }}" title="Valider le RDV">✓</button>
+            </div>
+            {% if i.date_rdv %}
+            <small class="text-success d-block mt-1 rdv-display">📅 {{ i.date_rdv.strftime('%d/%m/%Y à %H:%M') }}</small>
+            {% endif %}
+          </div>
+          {% endif %}
 
           <div class="d-flex flex-wrap gap-1 mt-2">
             <a href="{{ url_for('edit_note', id=i.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifier localisation">📍</a>

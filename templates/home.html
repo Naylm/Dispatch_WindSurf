@@ -437,13 +437,15 @@
         return;
       }
       
-      // Déterminer le type de vue (kanban, grouped ou list)
+      // Déterminer le type de vue (kanban, grouped, list ou tech)
       const firstCard = existingCards[0];
       let viewType = 'kanban';
       if (firstCard.classList.contains('incident-card-grouped')) {
         viewType = 'grouped';
       } else if (firstCard.classList.contains('incident-row-list')) {
         viewType = 'list';
+      } else if (firstCard.classList.contains('small-card')) {
+        viewType = 'tech';
       }
       
       fetch(`/api/incident/${incidentId}?view=${viewType}`)
@@ -483,6 +485,12 @@
               if (newCardDiv) {
                 oldCard.replaceWith(newCardDiv.cloneNode(true));
               }
+            } else if (viewType === 'tech') {
+              // Vue technicien : remplacer le div.small-card
+              const newCardDiv = tempDiv.querySelector('div.small-card');
+              if (newCardDiv) {
+                oldCard.replaceWith(newCardDiv.cloneNode(true));
+              }
             } else {
               // Vue kanban : remplacer le li
               const newCardLi = tempDiv.querySelector('li');
@@ -513,6 +521,61 @@
       if (data && data.id) {
         console.log('🔄 Rechargement de la carte incident:', data.id);
         reloadIncidentCard(data.id);
+      }
+    });
+    
+    // Handler pour les changements de RDV - MISE À JOUR EN TEMPS RÉEL
+    socket.on('incident_rdv_changed', (data) => {
+      if (data && data.id) {
+        console.log('📅 Mise à jour RDV incident:', data.id, data);
+        
+        // Mettre à jour tous les inputs de RDV pour cet incident
+        document.querySelectorAll(`.rdv-wrapper[data-incident-id="${data.id}"]`).forEach(wrapper => {
+          const input = wrapper.querySelector('.rdv-input');
+          if (input) {
+            input.value = data.date_rdv_input || '';
+          }
+          
+          // Mettre à jour ou créer l'affichage de la date
+          let dateDisplay = wrapper.querySelector('.rdv-display');
+          if (data.date_rdv_formatted) {
+            if (!dateDisplay) {
+              dateDisplay = document.createElement('small');
+              dateDisplay.className = 'text-success d-block mt-1 rdv-display';
+              wrapper.appendChild(dateDisplay);
+            }
+            dateDisplay.innerHTML = '📅 ' + data.date_rdv_formatted;
+          } else if (dateDisplay) {
+            dateDisplay.remove();
+          }
+          
+          // Flash visuel
+          wrapper.style.transition = 'background 0.3s';
+          wrapper.style.background = '#cce5ff';
+          setTimeout(() => { wrapper.style.background = ''; }, 1000);
+        });
+      }
+    });
+    
+    // Handler pour les changements de relances - MISE À JOUR EN TEMPS RÉEL
+    socket.on('incident_relances_changed', (data) => {
+      if (data && data.id) {
+        console.log('📧 Mise à jour relances incident:', data.id, data);
+        
+        // Mettre à jour toutes les checkboxes de relances pour cet incident
+        document.querySelectorAll(`.relances-wrapper[data-incident-id="${data.id}"]`).forEach(wrapper => {
+          ['relance_mail', 'relance_1', 'relance_2', 'relance_cloture'].forEach(field => {
+            const checkbox = wrapper.querySelector(`[data-field="${field}"]`);
+            if (checkbox) {
+              checkbox.checked = data[field];
+            }
+          });
+          
+          // Flash visuel
+          wrapper.style.transition = 'background 0.3s';
+          wrapper.style.background = '#cce5ff';
+          setTimeout(() => { wrapper.style.background = ''; }, 1000);
+        });
       }
     });
     
@@ -785,6 +848,142 @@
     });
 
     // Le responsive du grid est maintenant géré par CSS media queries (voir style en haut du fichier)
+    
+    // === GESTION DES RELANCES ===
+    document.body.addEventListener('change', function(e) {
+      if (e.target.classList.contains('relance-check')) {
+        const wrapper = e.target.closest('.relances-wrapper');
+        if (!wrapper) return;
+        
+        const incidentId = wrapper.dataset.incidentId;
+        const checkboxes = wrapper.querySelectorAll('.relance-check');
+        
+        // Collecter toutes les valeurs
+        const data = {};
+        checkboxes.forEach(cb => {
+          data[cb.dataset.field] = cb.checked;
+        });
+        
+        // Envoyer au serveur
+        fetch(`/api/incident/${incidentId}/relances`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            console.log('✅ Relances mises à jour:', result);
+            // Flash visuel pour confirmer
+            wrapper.style.transition = 'background 0.3s';
+            wrapper.style.background = '#d4edda';
+            setTimeout(() => {
+              wrapper.style.background = '';
+            }, 500);
+          } else {
+            console.error('❌ Erreur relances:', result.error);
+            // Annuler le changement
+            e.target.checked = !e.target.checked;
+          }
+        })
+        .catch(err => {
+          console.error('❌ Erreur réseau relances:', err);
+          e.target.checked = !e.target.checked;
+        });
+      }
+    });
+    
+    // === GESTION DES RDV ===
+    console.log('✅ Script RDV chargé');
+    document.body.addEventListener('click', function(e) {
+      // Log tous les clics pour debug
+      if (e.target.closest('.rdv-save-btn') || e.target.classList.contains('rdv-save-btn')) {
+        const btn = e.target.closest('.rdv-save-btn') || e.target;
+        console.log('🔘 Clic sur bouton RDV détecté', btn);
+        const incidentId = btn.dataset.incidentId;
+        const wrapper = btn.closest('.rdv-wrapper');
+        const input = wrapper.querySelector('.rdv-input');
+        const dateValue = input.value;
+        
+        console.log('📅 RDV save cliqué - Incident:', incidentId, 'Date:', dateValue);
+        
+        // Désactiver le bouton pendant la sauvegarde
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        
+        fetch(`/api/incident/${incidentId}/rdv`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ date_rdv: dateValue })
+        })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            console.log('✅ RDV sauvegardé:', result);
+            
+            // Mettre à jour l'affichage de la date
+            let dateDisplay = wrapper.querySelector('.rdv-display');
+            
+            if (result.date_rdv_formatted) {
+              if (!dateDisplay) {
+                dateDisplay = document.createElement('small');
+                dateDisplay.className = 'text-success d-block mt-1 rdv-display';
+                wrapper.appendChild(dateDisplay);
+              }
+              dateDisplay.innerHTML = '📅 ' + result.date_rdv_formatted;
+            } else if (dateDisplay) {
+              dateDisplay.remove();
+            }
+            
+            // Flash visuel de succès
+            btn.textContent = '✓';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            wrapper.style.transition = 'background 0.3s';
+            wrapper.style.background = '#d4edda';
+            
+            setTimeout(() => {
+              wrapper.style.background = '';
+              btn.classList.remove('btn-outline-success');
+              btn.classList.add('btn-success');
+            }, 1000);
+            
+            // Recharger la carte pour s'assurer que tout est synchro
+            if (typeof reloadIncidentCard === 'function') {
+              setTimeout(() => reloadIncidentCard(incidentId), 500);
+            }
+          } else {
+            console.error('❌ Erreur RDV:', result.error);
+            btn.textContent = '✗';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-danger');
+            setTimeout(() => {
+              btn.textContent = '✓';
+              btn.classList.remove('btn-danger');
+              btn.classList.add('btn-success');
+            }, 2000);
+          }
+        })
+        .catch(err => {
+          console.error('❌ Erreur réseau RDV:', err);
+          btn.textContent = '✗';
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-danger');
+          setTimeout(() => {
+            btn.textContent = '✓';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+          }, 2000);
+        })
+        .finally(() => {
+          btn.disabled = false;
+        });
+      }
+    });
   </script>
 
   <!-- Système de notifications -->
@@ -807,41 +1006,59 @@
 
       // Intégration avec Socket.IO
       socket.on('notification', function(data) {
+          console.log('📬 Notification reçue:', data);
+          
           // Filtrer les notifications selon le rôle et l'utilisateur
-          const currentUser = '{{ session.user }}';
-          const currentRole = '{{ session.role }}';
+          // {{ user }} contient le prénom du technicien (ex: "Hugo"), pas le username (ex: "hthoreau")
+          const currentUser = '{{ user }}'.toLowerCase();
+          const currentRole = '{{ role }}';
+          const changedBy = (data.changed_by || '').toLowerCase();
+          
+          console.log('👤 User:', currentUser, 'Role:', currentRole, 'Technicien:', data.technicien, 'ChangedBy:', changedBy);
 
-          // Les admins reçoivent toutes les notifications
-          // Les techniciens ne reçoivent que leurs notifications
-          if (currentRole === 'admin' || data.technicien === currentUser) {
-              // Router vers la bonne méthode selon le type
-              switch(data.type) {
-                  case 'new_assignment':
-                  case 'reassignment_new':
-                      window.notificationSystem.notifyNewAssignment(data);
-                      break;
+          // Les admins reçoivent TOUTES les notifications
+          // Les techniciens ne reçoivent que leurs notifications SAUF s'ils sont l'auteur du changement
+          const technicien = (data.technicien || '').toLowerCase();
+          const isOwnAction = (changedBy === currentUser);  // Le technicien a fait lui-même l'action
+          
+          if (currentRole === 'admin') {
+              // Admin reçoit tout
+          } else if (technicien === currentUser && isOwnAction) {
+              // Technicien ignore ses propres actions
+              console.log('🔕 Notification ignorée (propre action)');
+              return;
+          } else if (technicien !== currentUser) {
+              // Ce n'est pas pour ce technicien
+              return;
+          }
+          
+          // Router vers la bonne méthode selon le type
+          switch(data.type) {
+              case 'new_assignment':
+              case 'reassignment_new':
+                  window.notificationSystem.notifyNewAssignment(data);
+                  break;
 
-                  case 'status_change':
-                      window.notificationSystem.notifyStatusChange(data);
-                      break;
+              case 'status_change':
+                  window.notificationSystem.notifyStatusChange(data);
+                  break;
 
-                  case 'urgent_update':
-                      window.notificationSystem.notifyUrgentUpdate(data);
-                      break;
+              case 'urgent_update':
+                  window.notificationSystem.notifyUrgentUpdate(data);
+                  break;
 
-                  case 'reassignment_removed':
-                      window.notificationSystem.addNotification({
-                          type: 'info',
-                          priority: 'info',
-                          title: '📤 Ticket réaffecté',
-                          message: `${data.numero} a été réaffecté à ${data.to_technicien}`,
-                          incident_id: data.incident_id
-                      });
-                      break;
+              case 'reassignment_removed':
+                  window.notificationSystem.addNotification({
+                      type: 'info',
+                      priority: 'info',
+                      title: '📤 Ticket réaffecté',
+                      message: `${data.numero} a été réaffecté à ${data.to_technicien}`,
+                      incident_id: data.incident_id
+                  });
+                  break;
 
-                  default:
-                      console.warn('Type de notification inconnu:', data.type);
-              }
+              default:
+                  console.warn('Type de notification inconnu:', data.type);
           }
       });
 

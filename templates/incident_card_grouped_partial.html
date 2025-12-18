@@ -15,6 +15,7 @@
                 data-numero="{{ i.numero }}"
                 title="Copier le numéro"
                 style="padding: 2px 8px; font-size: 0.8rem;">📋</button>
+        {% if session.role == 'admin' %}
         <a href="{{ url_for('historique', id=i.id) }}"
            class="btn btn-sm btn-outline-info"
            title="Voir historique">🕒</a>
@@ -25,6 +26,7 @@
                 data-incident-id="{{ i.id }}"
                 data-numero="{{ i.numero }}"
                 title="Supprimer">🗑️</button>
+        {% endif %}
       </div>
     </div>
     
@@ -59,7 +61,7 @@
       <span class="badge bg-purple">Validé</span>
     {% endif %}
 
-    <!-- Note Dispatch (Admin seulement en édition) -->
+    <!-- Note Dispatch (visible par tous si contenu, éditable par admin seulement) -->
     {% set note_dispatch_content = i.note_dispatch.strip() if i.note_dispatch else '' %}
     {% if note_dispatch_content or session.role == 'admin' %}
     <div class="note-wrapper" data-incident-id="{{ i.id }}" data-note-type="dispatch">
@@ -70,11 +72,16 @@
             Dispatch
             <span class="note-role-badge">Admin</span>
           </span>
+          {% if session.role == 'admin' %}
           <button class="note-edit-btn" title="Modifier">✏️</button>
+          {% else %}
+          <span class="text-muted small">🔒 Lecture seule</span>
+          {% endif %}
         </div>
         <div class="note-view-content">{% if note_dispatch_content %}{{ note_dispatch_content | e }}{% else %}<span class="note-empty">Pas de note dispatch</span>{% endif %}</div>
       </div>
-      <!-- Edit Mode (hidden by default) -->
+      {% if session.role == 'admin' %}
+      <!-- Edit Mode (hidden by default, admin only) -->
       <div class="note-edit-mode note-dispatch-edit" style="display: none;">
         <div class="note-edit-header">
           <span class="note-edit-label">Dispatch</span>
@@ -86,6 +93,7 @@
           <button class="note-cancel-btn">Annuler</button>
         </div>
       </div>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -117,6 +125,52 @@
       </div>
     </div>
 
+    {# Système de relances - affiché si le statut actuel a has_relances #}
+    {% if statut_info and statut_info.has_relances %}
+    <div class="relances-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+      <small class="fw-bold d-block mb-1">📧 Relances :</small>
+      <div class="d-flex flex-wrap gap-2">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input relance-check" type="checkbox" id="relance_mail_g_{{ i.id }}" 
+                 data-field="relance_mail" {% if i.relance_mail %}checked{% endif %}>
+          <label class="form-check-label small" for="relance_mail_g_{{ i.id }}">Mail</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input relance-check" type="checkbox" id="relance_1_g_{{ i.id }}"
+                 data-field="relance_1" {% if i.relance_1 %}checked{% endif %}>
+          <label class="form-check-label small" for="relance_1_g_{{ i.id }}">R1</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input relance-check" type="checkbox" id="relance_2_g_{{ i.id }}"
+                 data-field="relance_2" {% if i.relance_2 %}checked{% endif %}>
+          <label class="form-check-label small" for="relance_2_g_{{ i.id }}">R2</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input relance-check" type="checkbox" id="relance_cloture_g_{{ i.id }}"
+                 data-field="relance_cloture" {% if i.relance_cloture %}checked{% endif %}>
+          <label class="form-check-label small" for="relance_cloture_g_{{ i.id }}">Clôture</label>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Système de RDV - affiché si le statut actuel a has_rdv #}
+    {% if statut_info and statut_info.has_rdv %}
+    <div class="rdv-wrapper mt-2 p-2 border rounded bg-light" data-incident-id="{{ i.id }}">
+      <small class="fw-bold d-block mb-1">📅 Rendez-vous :</small>
+      <div class="d-flex gap-1 align-items-center">
+        <input type="datetime-local" class="form-control form-control-sm rdv-input" 
+               data-incident-id="{{ i.id }}"
+               value="{{ i.date_rdv.strftime('%Y-%m-%dT%H:%M') if i.date_rdv else '' }}"
+               style="flex: 1;">
+        <button type="button" class="btn btn-sm btn-success rdv-save-btn" data-incident-id="{{ i.id }}" title="Valider le RDV">✓</button>
+      </div>
+      {% if i.date_rdv %}
+      <small class="text-success d-block mt-1 rdv-display">📅 {{ i.date_rdv.strftime('%d/%m/%Y à %H:%M') }}</small>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div class="mt-2">
       <label class="form-label small mb-1">Changer statut:</label>
       <select class="form-select form-select-sm status-selector-col" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
@@ -128,6 +182,7 @@
       </select>
     </div>
     
+    {% if session.role == 'admin' %}
     <div class="mt-2">
       <label class="form-label small mb-1">Changer technicien:</label>
       <select class="form-select form-select-sm tech-selector-col" data-incident-id="{{ i.id }}">
@@ -138,6 +193,7 @@
         {% endfor %}
       </select>
     </div>
+    {% endif %}
   </div>
 </div>
 

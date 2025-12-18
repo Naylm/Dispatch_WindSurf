@@ -469,15 +469,20 @@ class NotificationSystem {
      * Scroll vers un incident spécifique
      */
     scrollToIncident(incidentId) {
-        const card = document.querySelector(`.incident-card-col[data-id="${incidentId}"], .small-card[data-id="${incidentId}"]`);
+        // Chercher la carte par data-incident-id (utilisé dans tous les templates)
+        const card = document.querySelector(`[data-incident-id="${incidentId}"]`);
         if (card) {
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             // Animation de mise en évidence
             card.style.animation = 'highlightPulse 1s ease';
+            card.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.8)';
             setTimeout(() => {
                 card.style.animation = '';
-            }, 1000);
+                card.style.boxShadow = '';
+            }, 2000);
+        } else {
+            console.warn('Carte incident non trouvée pour ID:', incidentId);
         }
     }
 

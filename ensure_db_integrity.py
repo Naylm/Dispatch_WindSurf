@@ -224,6 +224,27 @@ def ensure_database_integrity():
             if migration_count > 0:
                 print(f"   - {migration_count} incidents migres vers technicien_id")
 
+        # Migration: ajouter colonnes pour système de relances
+        for col_name in ['relance_mail', 'relance_1', 'relance_2', 'relance_cloture']:
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='incidents' AND column_name='{col_name}'
+            """)
+            if not cursor.fetchone():
+                cursor.execute(f"ALTER TABLE incidents ADD COLUMN {col_name} BOOLEAN DEFAULT FALSE")
+                print(f"   - Colonne {col_name} ajoutee a la table incidents")
+        
+        # Migration: ajouter colonne date_rdv pour système de rendez-vous
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='date_rdv'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN date_rdv TIMESTAMP")
+            print("   - Colonne date_rdv ajoutee a la table incidents")
+
     # ========== TABLE: historique ==========
     cursor.execute("""
         SELECT EXISTS (
@@ -400,6 +421,26 @@ def ensure_database_integrity():
             cursor.execute("UPDATE statuts SET category='suspendu' WHERE nom='Suspendu'")
             cursor.execute("UPDATE statuts SET category='traite' WHERE nom='Traité'")
             cursor.execute("UPDATE statuts SET category='en_cours' WHERE category IS NULL OR category=''")
+        
+        # Migration: ajouter colonne 'has_relances' pour système de compteur de relances
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='statuts' AND column_name='has_relances'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE statuts ADD COLUMN has_relances BOOLEAN DEFAULT FALSE")
+            print("   - Colonne has_relances ajoutee a la table statuts")
+        
+        # Migration: ajouter colonne 'has_rdv' pour système de rendez-vous
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='statuts' AND column_name='has_rdv'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE statuts ADD COLUMN has_rdv BOOLEAN DEFAULT FALSE")
+            print("   - Colonne has_rdv ajoutee a la table statuts")
     
     # ========== TABLES WIKI V2 ==========
     

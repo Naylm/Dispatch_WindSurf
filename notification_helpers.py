@@ -4,6 +4,10 @@ Gère l'émission des notifications WebSocket vers les techniciens.
 """
 
 from datetime import datetime
+import logging
+import sys
+
+logger = logging.getLogger(__name__)
 
 
 def emit_new_assignment_notification(socketio, incident_data, technicien):
@@ -27,14 +31,13 @@ def emit_new_assignment_notification(socketio, incident_data, technicien):
         "timestamp": datetime.now().isoformat()
     }
 
-    # Émettre vers tout le monde (le JS filtrera côté client)
+    # Émettre vers tout le monde (le JS filtrera côté client selon le rôle)
+    logger.info(f"🔔 Émission notification new_assignment: {notification}")
+    print(f"🔔 NOTIFICATION new_assignment pour {technicien}: {notification['numero']}", flush=True)
     socketio.emit("notification", notification)
 
-    # Émettre aussi vers la room spécifique du technicien (si les rooms sont configurées)
-    socketio.emit("notification", notification, room=technicien.lower())
 
-
-def emit_status_change_notification(socketio, incident_id, numero, old_status, new_status, technicien):
+def emit_status_change_notification(socketio, incident_id, numero, old_status, new_status, technicien, changed_by=None):
     """
     Émet une notification pour un changement de statut.
 
@@ -45,6 +48,7 @@ def emit_status_change_notification(socketio, incident_id, numero, old_status, n
         old_status: Ancien statut
         new_status: Nouveau statut
         technicien: Nom du technicien concerné
+        changed_by: Qui a fait le changement (pour filtrage côté client)
     """
     notification = {
         "type": "status_change",
@@ -53,11 +57,13 @@ def emit_status_change_notification(socketio, incident_id, numero, old_status, n
         "old_status": old_status,
         "new_status": new_status,
         "technicien": technicien,
+        "changed_by": changed_by or technicien,  # Qui a fait le changement
         "timestamp": datetime.now().isoformat()
     }
 
+    logger.info(f"🔔 Émission notification status_change: {notification}")
+    print(f"🔔 NOTIFICATION status_change pour {technicien} (par {changed_by}): {numero} ({old_status} -> {new_status})", flush=True)
     socketio.emit("notification", notification)
-    socketio.emit("notification", notification, room=technicien.lower())
 
 
 def emit_urgent_update_notification(socketio, incident_id, numero, message, technicien):
@@ -81,7 +87,6 @@ def emit_urgent_update_notification(socketio, incident_id, numero, message, tech
     }
 
     socketio.emit("notification", notification)
-    socketio.emit("notification", notification, room=technicien.lower())
 
 
 def emit_reassignment_notification(socketio, incident_data, old_technicien, new_technicien):
@@ -118,9 +123,9 @@ def emit_reassignment_notification(socketio, incident_data, old_technicien, new_
         "timestamp": datetime.now().isoformat()
     }
 
-    socketio.emit("notification", notification_new, room=new_technicien.lower())
-    socketio.emit("notification", notification_old, room=old_technicien.lower())
-    socketio.emit("notification", notification_new)  # Pour les admins
+    # Émettre les deux notifications vers tout le monde (le JS filtrera)
+    socketio.emit("notification", notification_new)
+    socketio.emit("notification", notification_old)
 
 
 def is_urgent(urgence):

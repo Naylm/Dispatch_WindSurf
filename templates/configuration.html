@@ -222,6 +222,24 @@
                   • <strong>Traité</strong> : Traité
                 </small>
               </div>
+              
+              <!-- Options de fonctionnalités -->
+              <div class="border rounded p-2 mb-2 bg-light">
+                <small class="fw-bold d-block mb-2">📋 Fonctionnalités du statut :</small>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="has_relances" id="addHasRelances" value="1">
+                  <label class="form-check-label" for="addHasRelances">
+                    📧 Compteur de relances <small class="text-muted">(Mail, Relance 1, Relance 2, Clôture)</small>
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="has_rdv" id="addHasRdv" value="1">
+                  <label class="form-check-label" for="addHasRdv">
+                    📅 Date de rendez-vous
+                  </label>
+                </div>
+              </div>
+              
               <button type="submit" class="btn btn-success w-100">Ajouter</button>
             </div>
           </form>
@@ -229,9 +247,9 @@
           <ul class="list-group">
             {% for statut in statuts %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
-              <div class="d-flex align-items-center">
-                <span class="badge me-2 status-badge" data-bg-color="{{ statut.couleur }}">{{ statut.nom }}</span>
-                <small class="badge bg-secondary">
+              <div class="d-flex align-items-center flex-wrap gap-1">
+                <span class="badge me-1 status-badge" data-bg-color="{{ statut.couleur }}">{{ statut.nom }}</span>
+                <small class="badge bg-secondary me-1">
                   {% if statut.category == 'en_cours' %}🔄 En cours
                   {% elif statut.category == 'suspendu' %}⏸️ Suspendu
                   {% elif statut.category == 'transfere' %}➡️ Transféré
@@ -239,6 +257,8 @@
                   {% else %}Non catégorisé
                   {% endif %}
                 </small>
+                {% if statut.has_relances %}<span class="badge bg-info" title="Compteur de relances activé">📧</span>{% endif %}
+                {% if statut.has_rdv %}<span class="badge bg-warning text-dark" title="RDV activé">📅</span>{% endif %}
               </div>
               <div class="btn-group btn-group-sm" role="group">
                 <button type="button" class="btn btn-outline-primary" 
@@ -248,6 +268,8 @@
                         data-nom="{{ statut.nom }}"
                         data-couleur="{{ statut.couleur }}"
                         data-category="{{ statut.category or '' }}"
+                        data-has-relances="{{ 'true' if statut.has_relances else 'false' }}"
+                        data-has-rdv="{{ 'true' if statut.has_rdv else 'false' }}"
                         title="Modifier le statut">
                   ✏️
                 </button>
@@ -416,6 +438,23 @@
                 </small>
               </div>
             </div>
+            
+            <!-- Options de fonctionnalités -->
+            <div class="mb-3 border rounded p-3 bg-light">
+              <label class="form-label fw-bold">📋 Fonctionnalités du statut</label>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="has_relances" id="editHasRelances" value="1">
+                <label class="form-check-label" for="editHasRelances">
+                  📧 Compteur de relances <small class="text-muted">(Mail, Relance 1, Relance 2, Clôture)</small>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="has_rdv" id="editHasRdv" value="1">
+                <label class="form-check-label" for="editHasRdv">
+                  📅 Date de rendez-vous
+                </label>
+              </div>
+            </div>
           </form>
         </div>
         <div class="modal-footer">
@@ -492,6 +531,8 @@
       const nom = button.getAttribute('data-nom');
       const couleur = button.getAttribute('data-couleur');
       const category = button.getAttribute('data-category');
+      const hasRelances = button.getAttribute('data-has-relances') === 'true';
+      const hasRdv = button.getAttribute('data-has-rdv') === 'true';
       
       // Remplir le formulaire
       document.getElementById('editStatutId').value = id;
@@ -499,6 +540,8 @@
       document.getElementById('editStatutCouleur').value = couleur;
       document.getElementById('editStatutCouleurText').value = couleur;
       document.getElementById('editStatutCategory').value = category;
+      document.getElementById('editHasRelances').checked = hasRelances;
+      document.getElementById('editHasRdv').checked = hasRdv;
     });
     
     // Synchroniser les sélecteurs de couleur avec les champs texte

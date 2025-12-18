@@ -19,6 +19,7 @@
   </nav>
 
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="mb-3">
       <label class="form-label">Localisation précise <small class="text-muted">(ex: HD-3E-AW_08)</small></label>
       <input type="text" name="localisation" class="form-control" value="{{ current_localisation }}" placeholder="Bâtiment-Étage-Bureau...">
