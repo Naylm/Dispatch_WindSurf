@@ -1283,6 +1283,39 @@ def wiki_review_routes(app):
                              articles=[dict(a) for a in articles_to_review],
                              user=session["user"])
 
+    @app.route("/wiki/article/<int:id>/mark_reviewed", methods=["POST"])
+    def wiki_mark_reviewed(id):
+        """Marquer un article comme révisé (retire le statut modification demandée)"""
+        if "user" not in session:
+            return jsonify({"error": "Non authentifié"}), 401
+
+        db = get_db()
+
+        try:
+            # Supprimer tous les feedbacks "outdated" pour cet article
+            db.execute("""
+                DELETE FROM wiki_feedback
+                WHERE article_id=%s AND feedback_type='outdated'
+            """, (id,))
+
+            # Mettre à jour la date de dernière révision
+            db.execute("""
+                UPDATE wiki_articles
+                SET last_reviewed_at = NOW(),
+                    updated_at = NOW()
+                WHERE id=%s
+            """, (id,))
+
+            db.commit()
+            db.close()
+
+            return jsonify({"success": True, "message": "Article marqué comme révisé"})
+
+        except Exception as e:
+            db.rollback()
+            db.close()
+            return jsonify({"error": str(e)}), 500
+
 def register_wiki_routes(app):
     """Enregistrer toutes les routes Wiki V2"""
     wiki_home(app)

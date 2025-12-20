@@ -310,7 +310,7 @@ def home():
 
     if session.get("user_type") == "technicien":
         tech = db.execute(
-            "SELECT id, prenom, nom FROM techniciens WHERE username=?",
+            "SELECT id, prenom, nom FROM techniciens WHERE username=%s",
             (session["user"],)
         ).fetchone()
         if tech:
@@ -334,14 +334,14 @@ def home():
         # Utiliser technicien_id au lieu de collaborateur (avec fallback sur collaborateur pour compatibilité)
         if current_tech_id:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE technicien_id=? AND archived=0 "
+                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 "
                 "ORDER BY id ASC",
                 (current_tech_id,),
             ).fetchall()
         else:
             # Fallback pour les utilisateurs non-techniciens ou anciens systèmes
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
+                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 "
                 "ORDER BY id ASC",
                 (session["user"],),
             ).fetchall()
@@ -391,7 +391,7 @@ def home_content_api():
     current_tech_id = None
     if session.get("user_type") == "technicien":
         tech = db.execute(
-            "SELECT id FROM techniciens WHERE username=?",
+            "SELECT id FROM techniciens WHERE username=%s",
             (session["user"],)
         ).fetchone()
         if tech:
@@ -413,14 +413,14 @@ def home_content_api():
         # Utiliser technicien_id au lieu de collaborateur
         if current_tech_id:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE technicien_id=? AND archived=0 "
+                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 "
                 "ORDER BY id ASC",
                 (current_tech_id,),
             ).fetchall()
         else:
             # Fallback pour compatibilité
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE collaborateur=? AND archived=0 "
+                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 "
                 "ORDER BY id ASC",
                 (session["user"],),
             ).fetchall()
@@ -468,7 +468,7 @@ def api_incident(id):
     db = get_db()
     
     # Récupérer l'incident
-    incident = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    incident = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
     
     if not incident:
         return "", 404
@@ -477,7 +477,7 @@ def api_incident(id):
     if session.get("user_type") == "technicien":
         current_tech_id = None
         tech = db.execute(
-            "SELECT id FROM techniciens WHERE username=?",
+            "SELECT id FROM techniciens WHERE username=%s",
             (session["user"],)
         ).fetchone()
         if tech:
@@ -909,31 +909,26 @@ def add_technicien():
     username = request.form.get("username", "").strip()
     email = request.form.get("email", "").strip()
     dect_number = request.form.get("dect_number", "").strip()
-    password = request.form.get("password", "").strip()
     role = request.form.get("role", "technicien")
 
-    # Validation des champs obligatoires
-    if not all([nom, prenom, username, email, password]):
+    # Validation des champs obligatoires (pas de password dans le formulaire)
+    if not all([nom, prenom, username, email]):
         flash("Tous les champs sont obligatoires", "error")
         return redirect(url_for("techniciens"))
 
-    if len(password) < 8:
-        flash("Le mot de passe doit contenir au moins 8 caractères", "error")
-        return redirect(url_for("techniciens"))
-
-    # Hash du mot de passe
-    hashed_password = generate_password_hash(password)
+    # Mot de passe par défaut : 0000 (sera forcé à changer à la première connexion)
+    hashed_password = generate_password_hash("0000")
 
     db = get_db()
     try:
         # Vérifier l'unicité du username
-        existing = db.execute("SELECT id FROM techniciens WHERE username=?", (username,)).fetchone()
+        existing = db.execute("SELECT id FROM techniciens WHERE username=%s", (username,)).fetchone()
         if existing:
             flash("Ce nom d'utilisateur existe déjà", "error")
             return redirect(url_for("techniciens"))
 
         # Vérifier l'unicité de l'email
-        existing = db.execute("SELECT id FROM techniciens WHERE email=?", (email,)).fetchone()
+        existing = db.execute("SELECT id FROM techniciens WHERE email=%s", (email,)).fetchone()
         if existing:
             flash("Cet email est déjà utilisé", "error")
             return redirect(url_for("techniciens"))
@@ -942,14 +937,14 @@ def add_technicien():
         max_ordre_result = db.execute("SELECT COALESCE(MAX(ordre), 0) as max_ordre FROM techniciens").fetchone()
         new_ordre = (max_ordre_result['max_ordre'] if max_ordre_result else 0) + 1
 
-        # Insérer le nouveau technicien avec tous les champs
+        # Insérer le nouveau technicien avec force_password_reset=1 pour forcer le changement à la première connexion
         db.execute("""
-            INSERT INTO techniciens (nom, prenom, username, email, dect_number, password, role, actif, ordre)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+            INSERT INTO techniciens (nom, prenom, username, email, dect_number, password, role, actif, ordre, force_password_reset)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 1, %s, 1)
         """, (nom, prenom, username, email, dect_number, hashed_password, role, new_ordre))
         db.commit()
 
-        flash(f"Technicien {prenom} {nom} ajouté avec succès!", "success")
+        flash(f"Technicien {prenom} {nom} ajouté avec succès! Mot de passe par défaut: 0000", "success")
     except Exception as e:
         db.rollback()
         flash(f"Erreur lors de l'ajout : {str(e)}", "error")
@@ -985,13 +980,13 @@ def edit_technicien(id):
     db = get_db()
     try:
         # Vérifier l'unicité du username (sauf pour l'utilisateur actuel)
-        existing = db.execute("SELECT id FROM techniciens WHERE username=? AND id!=?", (username, id)).fetchone()
+        existing = db.execute("SELECT id FROM techniciens WHERE username=%s AND id!=%s", (username, id)).fetchone()
         if existing:
             flash("Ce nom d'utilisateur existe déjà", "error")
             return redirect(url_for("techniciens"))
 
         # Vérifier l'unicité de l'email (sauf pour l'utilisateur actuel)
-        existing = db.execute("SELECT id FROM techniciens WHERE email=? AND id!=?", (email, id)).fetchone()
+        existing = db.execute("SELECT id FROM techniciens WHERE email=%s AND id!=%s", (email, id)).fetchone()
         if existing:
             flash("Cet email est déjà utilisé", "error")
             return redirect(url_for("techniciens"))
@@ -1002,14 +997,14 @@ def edit_technicien(id):
             hashed_password = generate_password_hash(new_pass)
             db.execute("""
                 UPDATE techniciens
-                SET nom=?, prenom=?, username=?, email=?, dect_number=?, role=?, password=?
-                WHERE id=?
+                SET nom=%s, prenom=%s, username=%s, email=%s, dect_number=%s, role=%s, password=%s
+                WHERE id=%s
             """, (nom, prenom, username, email, dect_number, role, hashed_password, id))
         else:
             db.execute("""
                 UPDATE techniciens
-                SET nom=?, prenom=?, username=?, email=?, dect_number=?, role=?
-                WHERE id=?
+                SET nom=%s, prenom=%s, username=%s, email=%s, dect_number=%s, role=%s
+                WHERE id=%s
             """, (nom, prenom, username, email, dect_number, role, id))
 
         db.commit()
@@ -1029,15 +1024,15 @@ def technicien_incidents(id):
         return "", 403
 
     db = get_db()
-    tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (id,)).fetchone()
+    tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (id,)).fetchone()
     if not tech:
         return jsonify({"error": "Not found"}), 404
 
     incidents = db.execute(
-        "SELECT * FROM incidents WHERE technicien_id=?", (id,)
+        "SELECT * FROM incidents WHERE technicien_id=%s", (id,)
     ).fetchall()
     autres_techs = db.execute(
-        "SELECT id, prenom FROM techniciens WHERE id != ?", (id,)
+        "SELECT id, prenom FROM techniciens WHERE id != %s", (id,)
     ).fetchall()
 
     return jsonify(
@@ -1055,7 +1050,7 @@ def transfer_and_delete_technicien(id):
         return "", 403
 
     db = get_db()
-    tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (id,)).fetchone()
+    tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (id,)).fetchone()
     if not tech:
         return jsonify({"status": "error", "message": "Tech introuvable"}), 404
 
@@ -1065,11 +1060,11 @@ def transfer_and_delete_technicien(id):
             incident_id = int(key.split("_")[1])
             nouveau_collab = value
             db.execute(
-                "UPDATE incidents SET collaborateur=? WHERE id=?", (nouveau_collab, incident_id)
+                "UPDATE incidents SET collaborateur=%s WHERE id=%s", (nouveau_collab, incident_id)
             )
 
     # Puis supprimer le technicien
-    db.execute("DELETE FROM techniciens WHERE id=?", (id,))
+    db.execute("DELETE FROM techniciens WHERE id=%s", (id,))
     db.commit()
     return jsonify({"status": "ok"})
 
@@ -1080,7 +1075,7 @@ def delete_technicien(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM techniciens WHERE id=?", (id,))
+    db.execute("DELETE FROM techniciens WHERE id=%s", (id,))
     db.commit()
     return redirect(url_for("techniciens"))
 
@@ -1093,12 +1088,12 @@ def toggle_technicien(id):
 
     db = get_db()
     # Récupérer l'état actuel
-    technicien = db.execute("SELECT actif FROM techniciens WHERE id=?", (id,)).fetchone()
+    technicien = db.execute("SELECT actif FROM techniciens WHERE id=%s", (id,)).fetchone()
     
     if technicien:
         # Inverser l'état (1 devient 0, 0 devient 1)
         new_state = 0 if technicien['actif'] == 1 else 1
-        db.execute("UPDATE techniciens SET actif=? WHERE id=?", (new_state, id))
+        db.execute("UPDATE techniciens SET actif=%s WHERE id=%s", (new_state, id))
         db.commit()
         flash(f"Technicien {'activé' if new_state == 1 else 'désactivé'} avec succès!", "success")
     
@@ -1119,7 +1114,7 @@ def update_techniciens_order():
     try:
         # Mettre à jour l'ordre pour chaque technicien
         for index, tech_id in enumerate(data["order"], start=1):
-            db.execute("UPDATE techniciens SET ordre=? WHERE id=?", (index, tech_id))
+            db.execute("UPDATE techniciens SET ordre=%s WHERE id=%s", (index, tech_id))
         db.commit()
         return jsonify({"success": True, "message": "Ordre mis à jour avec succès"})
     except Exception as e:
@@ -1144,7 +1139,7 @@ def assign_incident():
         db = get_db()
 
         # Récupérer les données de l'incident AVANT modification
-        incident = db.execute("SELECT * FROM incidents WHERE id=?", (incident_id,)).fetchone()
+        incident = db.execute("SELECT * FROM incidents WHERE id=%s", (incident_id,)).fetchone()
         if not incident:
             return jsonify({"status": "error", "message": "Incident introuvable"}), 404
 
@@ -1152,7 +1147,7 @@ def assign_incident():
 
         # PostgreSQL gère automatiquement les transactions, pas besoin de BEGIN explicite
         db.execute(
-            "UPDATE incidents SET collaborateur=? WHERE id=?", (new_collab, incident_id)
+            "UPDATE incidents SET collaborateur=%s WHERE id=%s", (new_collab, incident_id)
         )
         db.commit()
 
@@ -1393,7 +1388,7 @@ def add_sujet():
 
     nom = request.form["nom"].strip()
     db = get_db()
-    db.execute("INSERT INTO sujets (nom) VALUES (?)", (nom,))
+    db.execute("INSERT INTO sujets (nom) VALUES (%s)", (nom,))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1408,7 +1403,7 @@ def edit_sujet():
     nom = request.form["nom"].strip()
 
     db = get_db()
-    db.execute("UPDATE sujets SET nom=? WHERE id=?", (nom, id))
+    db.execute("UPDATE sujets SET nom=%s WHERE id=%s", (nom, id))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1420,7 +1415,7 @@ def delete_sujet(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM sujets WHERE id=?", (id,))
+    db.execute("DELETE FROM sujets WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1435,7 +1430,7 @@ def add_priorite():
     couleur = request.form["couleur"].strip()
     niveau = request.form["niveau"].strip()
     db = get_db()
-    db.execute("INSERT INTO priorites (nom, couleur, niveau) VALUES (?, ?, ?)", (nom, couleur, niveau))
+    db.execute("INSERT INTO priorites (nom, couleur, niveau) VALUES (%s, %s, %s)", (nom, couleur, niveau))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1452,7 +1447,7 @@ def edit_priorite():
     niveau = request.form["niveau"].strip()
 
     db = get_db()
-    db.execute("UPDATE priorites SET nom=?, couleur=?, niveau=? WHERE id=?", (nom, couleur, niveau, id))
+    db.execute("UPDATE priorites SET nom=%s, couleur=%s, niveau=%s WHERE id=%s", (nom, couleur, niveau, id))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1464,7 +1459,7 @@ def delete_priorite(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM priorites WHERE id=?", (id,))
+    db.execute("DELETE FROM priorites WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1478,7 +1473,7 @@ def add_site():
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     db = get_db()
-    db.execute("INSERT INTO sites (nom, couleur) VALUES (?, ?)", (nom, couleur))
+    db.execute("INSERT INTO sites (nom, couleur) VALUES (%s, %s)", (nom, couleur))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1494,7 +1489,7 @@ def edit_site():
     couleur = request.form["couleur"].strip()
 
     db = get_db()
-    db.execute("UPDATE sites SET nom=?, couleur=? WHERE id=?", (nom, couleur, id))
+    db.execute("UPDATE sites SET nom=%s, couleur=%s WHERE id=%s", (nom, couleur, id))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1506,7 +1501,7 @@ def delete_site(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM sites WHERE id=?", (id,))
+    db.execute("DELETE FROM sites WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1525,7 +1520,7 @@ def add_statut():
 
     db = get_db()
     db.execute(
-        "INSERT INTO statuts (nom, couleur, category, has_relances, has_rdv) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO statuts (nom, couleur, category, has_relances, has_rdv) VALUES (%s, %s, %s, %s, %s)",
         (nom, couleur, category, has_relances, has_rdv)
     )
     db.commit()
@@ -1547,7 +1542,7 @@ def edit_statut():
 
     db = get_db()
     db.execute(
-        "UPDATE statuts SET nom=?, couleur=?, category=?, has_relances=?, has_rdv=? WHERE id=?",
+        "UPDATE statuts SET nom=%s, couleur=%s, category=%s, has_relances=%s, has_rdv=%s WHERE id=%s",
         (nom, couleur, category, has_relances, has_rdv, id)
     )
     db.commit()
@@ -1561,7 +1556,7 @@ def delete_statut(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM statuts WHERE id=?", (id,))
+    db.execute("DELETE FROM statuts WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()  # Invalider le cache
     return redirect(url_for("configuration"))
@@ -1612,9 +1607,9 @@ def login():
         p = request.form["password"].strip()
         db = get_db()
 
-        # 1) Essayer dans users
+        # 1) Essayer dans users (insensible à la casse)
         user = db.execute(
-            "SELECT * FROM users WHERE username=%s", (u,)
+            "SELECT * FROM users WHERE LOWER(username)=LOWER(%s)", (u,)
         ).fetchone()
         if user:
             app.logger.debug(f"Tentative de connexion pour l'utilisateur: {u}")
@@ -1630,11 +1625,12 @@ def login():
                 password_valid = (user["password"] == p)
             
             if password_valid:
-                session["user"] = u
+                # Utiliser le username exact de la base de données (pas celui saisi)
+                session["user"] = user["username"]
                 session["role"] = user["role"]
                 session["user_type"] = "user"  # Pour savoir quelle table
                 session.permanent = True
-                app.logger.info(f"Connexion réussie: {u} (role: {user['role']})")
+                app.logger.info(f"Connexion réussie: {user['username']} (role: {user['role']})")
 
                 # Vérifier si réinitialisation forcée requise ou si mot de passe en clair
                 try:
@@ -1646,13 +1642,13 @@ def login():
                 if not is_password_hashed:
                     force_reset = 1
                     # Mettre à jour le flag dans la base
-                    db.execute("UPDATE users SET force_password_reset=1 WHERE username=%s", (u,))
+                    db.execute("UPDATE users SET force_password_reset=1 WHERE username=%s", (user["username"],))
                     db.commit()
 
                 db.close()
                 if force_reset == 1:
                     session["force_password_reset"] = True
-                    app.logger.info(f"Réinitialisation forcée requise pour {u}")
+                    app.logger.info(f"Réinitialisation forcée requise pour {user['username']}")
                     return redirect(url_for("change_password_forced"))
 
                 return redirect(url_for("home"))
@@ -1662,11 +1658,11 @@ def login():
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
-        # 2) Sinon, essayer dans techniciens (recherche par username OU email)
+        # 2) Sinon, essayer dans techniciens (recherche par username, insensible à la casse)
         tech = db.execute("""
             SELECT * FROM techniciens
-            WHERE (username=%s OR email=%s OR prenom=%s) AND actif=1
-        """, (u, u, u)).fetchone()
+            WHERE LOWER(username)=LOWER(%s) AND actif=1
+        """, (u,)).fetchone()
 
         if tech and tech["password"]:
             app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
@@ -1682,14 +1678,13 @@ def login():
                 password_valid = (tech["password"] == p)
             
             if password_valid:
-                # Utiliser le username au lieu de prenom pour la session
-                username = tech.get("username") or tech["prenom"]
-                session["user"] = username
+                # Utiliser le username exact de la base de données
+                session["user"] = tech["username"]
                 session["role"] = tech["role"] or "technicien"
                 session["user_type"] = "technicien"  # Pour savoir quelle table
-                session["user_display_name"] = f"{tech.get('prenom', '')} {tech.get('nom', '')}".strip() or username
+                session["user_display_name"] = f"{tech['prenom']} {tech['nom']}".strip()
                 session.permanent = True
-                app.logger.info(f"Connexion technicien réussie: {username}")
+                app.logger.info(f"Connexion technicien réussie: {tech['username']}")
 
                 # Vérifier si réinitialisation forcée requise ou si mot de passe en clair
                 try:
@@ -1701,17 +1696,13 @@ def login():
                 if not is_password_hashed:
                     force_reset = 1
                     # Mettre à jour le flag dans la base
-                    tech_id = tech.get("id")
-                    if tech_id:
-                        db.execute("UPDATE techniciens SET force_password_reset=1 WHERE id=%s", (tech_id,))
-                    else:
-                        db.execute("UPDATE techniciens SET force_password_reset=1 WHERE (username=%s OR prenom=%s)", (username, username))
+                    db.execute("UPDATE techniciens SET force_password_reset=1 WHERE id=%s", (tech["id"],))
                     db.commit()
 
                 db.close()
                 if force_reset == 1:
                     session["force_password_reset"] = True
-                    app.logger.info(f"Réinitialisation forcée requise pour technicien {username}")
+                    app.logger.info(f"Réinitialisation forcée requise pour technicien {tech['username']}")
                     return redirect(url_for("change_password_forced"))
 
                 return redirect(url_for("home"))
@@ -1872,7 +1863,7 @@ def add_incident():
         localisation = request.form.get("localisation", "")
 
         # Récupérer le prénom du technicien pour collaborateur (rétrocompatibilité) et notification
-        tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (technicien_id,)).fetchone()
+        tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (technicien_id,)).fetchone()
         collab_prenom = tech['prenom'] if tech else "Non affecté"
 
         sql = """
@@ -1880,7 +1871,7 @@ def add_incident():
             numero, site, sujet, urgence,
             collaborateur, technicien_id, etat, note_dispatch,
             valide, date_affectation, archived, localisation
-          ) VALUES (?, ?, ?, ?, ?, ?, 'Affecté', ?, 0, ?, 0, ?)
+          ) VALUES (%s, %s, %s, %s, %s, %s, 'Affecté', %s, 0, %s, 0, %s)
           RETURNING id
         """
         result = db.execute(sql, (numero, site, sujet, urgence, collab_prenom, technicien_id, note_dispatch, date_aff, localisation))
@@ -1919,7 +1910,7 @@ def delete_incident(id):
         return jsonify({"error": "Non autorisé"}), 403
 
     db = get_db()
-    incident = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    incident = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
     if not incident:
         return jsonify({"error": "Incident introuvable"}), 404
 
@@ -1928,7 +1919,7 @@ def delete_incident(id):
       INSERT INTO historique (
         incident_id, champ, ancienne_valeur,
         nouvelle_valeur, modifie_par, date_modification
-      ) VALUES (?, ?, ?, ?, ?, ?)
+      ) VALUES (%s, %s, %s, %s, %s, %s)
     """
     db.execute(
         hist_sql,
@@ -1944,7 +1935,7 @@ def delete_incident(id):
     
     # Suppression de l'incident
     try:
-        db.execute("DELETE FROM incidents WHERE id=?", (id,))
+        db.execute("DELETE FROM incidents WHERE id=%s", (id,))
         db.commit()
         
         # Emit avec plus de détails pour la mise à jour temps réel
@@ -1984,7 +1975,7 @@ def edit_incident(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    incident = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    incident = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
     if not incident:
         flash("Incident introuvable", "danger")
         return redirect(url_for("home"))
@@ -2002,15 +1993,15 @@ def edit_incident(id):
         localisation = request.form.get("localisation", "").strip()
 
         # Récupérer le prénom du technicien pour collaborateur (rétrocompatibilité)
-        tech = db.execute("SELECT prenom FROM techniciens WHERE id=?", (technicien_id,)).fetchone()
+        tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (technicien_id,)).fetchone()
         collaborateur = tech['prenom'] if tech else "Non affecté"
 
         # Mise à jour de l'incident avec protection transactionnelle
         try:
             db.execute("BEGIN")
             db.execute(
-                """UPDATE incidents SET numero=?, site=?, sujet=?, urgence=?,
-                   collaborateur=?, technicien_id=?, etat=?, notes=?, note_dispatch=?, date_affectation=?, localisation=? WHERE id=?""",
+                """UPDATE incidents SET numero=%s, site=%s, sujet=%s, urgence=%s,
+                   collaborateur=%s, technicien_id=%s, etat=%s, notes=%s, note_dispatch=%s, date_affectation=%s, localisation=%s WHERE id=%s""",
                 (numero, site, sujet, urgence, collaborateur, technicien_id, etat, notes, note_dispatch, date_aff, localisation, id)
             )
         except Exception:
@@ -2023,7 +2014,7 @@ def edit_incident(id):
           INSERT INTO historique (
             incident_id, champ, ancienne_valeur,
             nouvelle_valeur, modifie_par, date_modification
-          ) VALUES (?, ?, ?, ?, ?, ?)
+          ) VALUES (%s, %s, %s, %s, %s, %s)
         """
         db.execute(
             hist_sql,
@@ -2063,11 +2054,11 @@ def edit_note(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
     # Comparaison exacte (sensible à la casse) pour sécurité
     # Vérifier les permissions (technicien propriétaire ou admin)
     if session["role"] != "admin":
-        tech = db.execute("SELECT id FROM techniciens WHERE username=? OR prenom=?",
+        tech = db.execute("SELECT id FROM techniciens WHERE username=%s OR prenom=%s",
                          (session["user"], session["user"])).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
             return redirect(url_for("home"))
@@ -2085,7 +2076,7 @@ def edit_note(id):
               INSERT INTO historique (
                 incident_id, champ, ancienne_valeur,
                 nouvelle_valeur, modifie_par, date_modification
-              ) VALUES (?, ?, ?, ?, ?, ?)
+              ) VALUES (%s, %s, %s, %s, %s, %s)
             """
             db.execute(
                 hist_sql,
@@ -2105,7 +2096,7 @@ def edit_note(id):
               INSERT INTO historique (
                 incident_id, champ, ancienne_valeur,
                 nouvelle_valeur, modifie_par, date_modification
-              ) VALUES (?, ?, ?, ?, ?, ?)
+              ) VALUES (%s, %s, %s, %s, %s, %s)
             """
             db.execute(
                 hist_sql,
@@ -2120,7 +2111,7 @@ def edit_note(id):
             )
         
         if changes_made:
-            db.execute("UPDATE incidents SET notes=?, localisation=? WHERE id=?", (note, localisation, id))
+            db.execute("UPDATE incidents SET notes=%s, localisation=%s WHERE id=%s", (note, localisation, id))
             db.commit()
             socketio.emit("incident_update", {"action": "note"})
 
@@ -2137,7 +2128,7 @@ def edit_note_inline(id):
         return jsonify({"error": "Non authentifié"}), 403
 
     db = get_db()
-    inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
 
     if not inc:
         return jsonify({"error": "Incident introuvable"}), 404
@@ -2146,7 +2137,7 @@ def edit_note_inline(id):
     # Utiliser technicien_id pour éviter les problèmes de username != prenom
     if session["role"] != "admin":
         # Récupérer l'ID du technicien connecté
-        tech = db.execute("SELECT id FROM techniciens WHERE username=? OR prenom=?",
+        tech = db.execute("SELECT id FROM techniciens WHERE username=%s OR prenom=%s",
                          (session["user"], session["user"])).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
             return jsonify({"error": "Permission refusée"}), 403
@@ -2160,7 +2151,7 @@ def edit_note_inline(id):
           INSERT INTO historique (
             incident_id, champ, ancienne_valeur,
             nouvelle_valeur, modifie_par, date_modification
-          ) VALUES (?, ?, ?, ?, ?, ?)
+          ) VALUES (%s, %s, %s, %s, %s, %s)
         """
         db.execute(
             hist_sql,
@@ -2175,7 +2166,7 @@ def edit_note_inline(id):
         )
 
         # Mettre à jour la note
-        db.execute("UPDATE incidents SET notes=? WHERE id=?", (new_note, id))
+        db.execute("UPDATE incidents SET notes=%s WHERE id=%s", (new_note, id))
         db.commit()
         socketio.emit("incident_update", {"action": "note_edit"})
 
@@ -2191,7 +2182,7 @@ def edit_note_dispatch(id):
         return jsonify({"error": "Permission refusée - Admin uniquement"}), 403
 
     db = get_db()
-    inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
 
     if not inc:
         return jsonify({"error": "Incident introuvable"}), 404
@@ -2206,7 +2197,7 @@ def edit_note_dispatch(id):
           INSERT INTO historique (
             incident_id, champ, ancienne_valeur,
             nouvelle_valeur, modifie_par, date_modification
-          ) VALUES (?, ?, ?, ?, ?, ?)
+          ) VALUES (%s, %s, %s, %s, %s, %s)
         """
         db.execute(
             hist_sql,
@@ -2221,7 +2212,7 @@ def edit_note_dispatch(id):
         )
 
         # Mettre à jour la note dispatch
-        db.execute("UPDATE incidents SET note_dispatch=? WHERE id=?", (new_note_dispatch, id))
+        db.execute("UPDATE incidents SET note_dispatch=%s WHERE id=%s", (new_note_dispatch, id))
         db.commit()
         socketio.emit("incident_update", {"action": "note_dispatch_edit"})
 
@@ -2378,16 +2369,16 @@ def update_etat(id):
     db = get_db()
     try:
         # PostgreSQL gère automatiquement les transactions, pas besoin de BEGIN explicite
-        inc = db.execute("SELECT * FROM incidents WHERE id=?", (id,)).fetchone()
+        inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
         new = request.form["etat"]
 
         if inc["etat"] != new:
-            db.execute("UPDATE incidents SET etat=? WHERE id=?", (new, id))
+            db.execute("UPDATE incidents SET etat=%s WHERE id=%s", (new, id))
             hist_sql = """
               INSERT INTO historique (
                 incident_id, champ, ancienne_valeur,
                 nouvelle_valeur, modifie_par, date_modification
-              ) VALUES (?, ?, ?, ?, ?, ?)
+              ) VALUES (%s, %s, %s, %s, %s, %s)
             """
             db.execute(
                 hist_sql,
@@ -2406,7 +2397,7 @@ def update_etat(id):
             changed_by = session["user"]  # Par défaut le username
             if session.get("user_type") == "technicien":
                 tech_info = db.execute(
-                    "SELECT prenom FROM techniciens WHERE username=?",
+                    "SELECT prenom FROM techniciens WHERE username=%s",
                     (session["user"],)
                 ).fetchone()
                 if tech_info:
@@ -2441,7 +2432,7 @@ def update_etat(id):
 
         # TOUJOURS émettre l'événement incident_etat_changed pour les mises à jour en temps réel
         # Récupérer les infos du statut (couleur)
-        statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=?", (new,)).fetchone()
+        statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=%s", (new,)).fetchone()
         statut_couleur = statut_info["couleur"] if statut_info else "#6c757d"
         statut_text_color = get_contrast_color(statut_couleur)
 
@@ -2494,7 +2485,7 @@ def valider(id):
 
     val = 1 if request.form.get("valide") == "on" else 0
     db = get_db()
-    db.execute("UPDATE incidents SET valide=? WHERE id=?", (val, id))
+    db.execute("UPDATE incidents SET valide=%s WHERE id=%s", (val, id))
     db.commit()
     socketio.emit("incident_update", {"action": "valide"})
     return redirect(url_for("home"))
@@ -2507,7 +2498,7 @@ def delete(id):
         return redirect(url_for("login"))
 
     db = get_db()
-    db.execute("DELETE FROM incidents WHERE id=?", (id,))
+    db.execute("DELETE FROM incidents WHERE id=%s", (id,))
     db.commit()
     socketio.emit("incident_update", {"action": "delete"})
     return redirect(url_for("home"))
@@ -2522,7 +2513,7 @@ def historique(id):
         return redirect(url_for("login"))
 
     logs = get_db().execute(
-        "SELECT * FROM historique WHERE incident_id=? ORDER BY date_modification DESC", (id,)
+        "SELECT * FROM historique WHERE incident_id=%s ORDER BY date_modification DESC", (id,)
     ).fetchall()
     return render_template("historique.html", logs=logs, id=id)
 
@@ -2542,7 +2533,7 @@ def details():
 
     db = get_db()
     # On commence par filtrer date + site + sujet
-    query = "SELECT * FROM incidents WHERE date_affectation=? AND site=? AND sujet=? AND archived=0"
+    query = "SELECT * FROM incidents WHERE date_affectation=%s AND site=%s AND sujet=%s AND archived=0"
     params = [date, site, sujet]
 
     # On ajoute ensuite le filtre sur l'état
@@ -2751,10 +2742,10 @@ def calculate_stats_kpis(db, start_date=None, end_date=None, tech_ids=None, site
     params = []
     
     if start_date:
-        where_clauses.append("date_affectation >= ?")
+        where_clauses.append("date_affectation >= %s")
         params.append(start_date)
     if end_date:
-        where_clauses.append("date_affectation <= ?")
+        where_clauses.append("date_affectation <= %s")
         params.append(end_date)
     if tech_ids:
         placeholders = ",".join("?" * len(tech_ids))
@@ -2822,10 +2813,10 @@ def calculate_stats_charts(db, start_date=None, end_date=None, tech_ids=None, si
     params = []
     
     if start_date:
-        where_clauses.append("date_affectation >= ?")
+        where_clauses.append("date_affectation >= %s")
         params.append(start_date)
     if end_date:
-        where_clauses.append("date_affectation <= ?")
+        where_clauses.append("date_affectation <= %s")
         params.append(end_date)
     if tech_ids:
         placeholders = ",".join("?" * len(tech_ids))
@@ -2909,10 +2900,10 @@ def calculate_stats_tables(db, start_date=None, end_date=None, tech_ids=None, si
     params = []
     
     if start_date:
-        where_clauses.append("date_affectation >= ?")
+        where_clauses.append("date_affectation >= %s")
         params.append(start_date)
     if end_date:
-        where_clauses.append("date_affectation <= ?")
+        where_clauses.append("date_affectation <= %s")
         params.append(end_date)
     if tech_ids:
         placeholders = ",".join("?" * len(tech_ids))
@@ -3199,10 +3190,10 @@ def export_stats_excel():
             where_clauses = ["archived=0"]
             params = []
             if start_date:
-                where_clauses.append("date_affectation >= ?")
+                where_clauses.append("date_affectation >= %s")
                 params.append(start_date)
             if end_date:
-                where_clauses.append("date_affectation <= ?")
+                where_clauses.append("date_affectation <= %s")
                 params.append(end_date)
             where_sql = " AND ".join(where_clauses)
             incidents_df = pd.read_sql_query(
@@ -3302,10 +3293,10 @@ def export_stats_csv():
         where_clauses = ["archived=0"]
         params = []
         if start_date:
-            where_clauses.append("date_affectation >= ?")
+            where_clauses.append("date_affectation >= %s")
             params.append(start_date)
         if end_date:
-            where_clauses.append("date_affectation <= ?")
+            where_clauses.append("date_affectation <= %s")
             params.append(end_date)
         where_sql = " AND ".join(where_clauses)
         

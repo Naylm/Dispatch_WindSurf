@@ -1299,10 +1299,57 @@
   <!-- ========================= -->
   <!-- VUE TECHNICIEN (PETITES CARTES) -->
   <!-- ========================= -->
+
+  <!-- BARRE DE RECHERCHE & FILTRES TECHNICIEN -->
+  <div class="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-light rounded border" style="background-color: #f8f9fa !important;">
+    <input
+      id="searchInputTech"
+      type="text"
+      class="form-control form-control-sm"
+      style="width: 220px;"
+      placeholder="🔍 Rechercher..."
+    />
+
+    <select id="filterSiteTech" class="form-select form-select-sm" style="width: 160px;">
+      <option value="">📍 Site</option>
+      {% for s in sites %}
+        <option value="{{ s.nom|lower }}">{{ s.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="filterUrgenceTech" class="form-select form-select-sm" style="width: 140px;">
+      <option value="">⚡ Priorité</option>
+      {% for p in priorites %}
+        <option value="{{ p.nom|lower }}">{{ p.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="sortByTech" class="form-select form-select-sm" style="width: 180px;">
+      <option value="">🔄 Trier par</option>
+      <option value="site-asc">Site A-Z</option>
+      <option value="site-desc">Site Z-A</option>
+      <option value="urgence-asc">Priorité ↑</option>
+      <option value="urgence-desc">Priorité ↓</option>
+      <option value="date-asc">Date affectation ↑</option>
+      <option value="date-desc">Date affectation ↓</option>
+    </select>
+
+    <button id="clearFiltersTechBtn" class="btn btn-outline-secondary btn-sm" style="white-space: nowrap;">
+      ✕ Réinitialiser
+    </button>
+  </div>
+
   <div id="userView">
     {% for i in incidents %}
       {% set priorite_info_header = priorites|selectattr("nom", "equalto", i.urgence)|first %}
-      <div class="card small-card shadow-sm" data-incident-id="{{ i.id }}">
+      <div class="card small-card shadow-sm" data-incident-id="{{ i.id }}"
+           data-numero="{{ i.numero|lower }}"
+           data-site="{{ i.site|lower }}"
+           data-localisation="{{ i.localisation|lower if i.localisation else '' }}"
+           data-sujet="{{ i.sujet|lower }}"
+           data-urgence="{{ i.urgence|lower }}"
+           data-etat="{{ i.etat|lower }}"
+           data-date-affectation="{{ i.date_affectation }}">
         <div class="card-header text-center fw-bold text-white d-flex align-items-center justify-content-center gap-2 priority-header" 
              data-bg-color="{% if priorite_info_header %}{{ priorite_info_header.couleur }}{% else %}#6c757d{% endif %}">
           <span>{{ i.numero }}</span>
@@ -1865,5 +1912,166 @@
     });
 
     console.log('✅ Event listeners attached successfully');
+  });
+
+  // ===== FILTRAGE ET TRI POUR VUE TECHNICIEN =====
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInputTech = document.getElementById('searchInputTech');
+    const filterSiteTech = document.getElementById('filterSiteTech');
+    const filterUrgenceTech = document.getElementById('filterUrgenceTech');
+    const sortByTech = document.getElementById('sortByTech');
+    const clearFiltersTechBtn = document.getElementById('clearFiltersTechBtn');
+
+    // Vérifier si on est en mode technicien
+    if (!searchInputTech) return; // Pas en mode technicien
+
+    // Fonction de correspondance des filtres
+    function matchesFiltersTech(card) {
+      const searchText = searchInputTech.value.trim().toLowerCase();
+      const selectedSite = filterSiteTech.value;
+      const selectedUrgence = filterUrgenceTech.value;
+
+      const numero = (card.dataset.numero || '');
+      const site = (card.dataset.site || '');
+      const localisation = (card.dataset.localisation || '');
+      const sujet = (card.dataset.sujet || '');
+      const urgence = (card.dataset.urgence || '');
+
+      // DEBUG: Log des valeurs pour la première carte
+      const cardIndex = Array.from(document.querySelectorAll('#userView .small-card')).indexOf(card);
+      if (cardIndex === 0) {
+        console.log('DEBUG Filtre - Première carte:', {
+          selectedSite, selectedUrgence, searchText,
+          cardData: { numero, site, localisation, sujet, urgence }
+        });
+      }
+
+      // Recherche textuelle (insensible à la casse)
+      if (searchText !== '') {
+        const matchesSearch = numero.toLowerCase().includes(searchText) ||
+                             site.toLowerCase().includes(searchText) ||
+                             localisation.toLowerCase().includes(searchText) ||
+                             sujet.toLowerCase().includes(searchText);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtre par site (comparaison exacte, les valeurs sont déjà en lowercase)
+      if (selectedSite !== '' && site !== selectedSite) {
+        console.log(`Carte ${numero}: site="${site}" !== selectedSite="${selectedSite}" -> MASQUER`);
+        return false;
+      }
+
+      // Filtre par priorité (comparaison exacte, les valeurs sont déjà en lowercase)
+      if (selectedUrgence !== '' && urgence !== selectedUrgence) {
+        console.log(`Carte ${numero}: urgence="${urgence}" !== selectedUrgence="${selectedUrgence}" -> MASQUER`);
+        return false;
+      }
+
+      return true;
+    }
+
+    // Fonction pour appliquer les filtres
+    function applyFiltersTech() {
+      const cards = document.querySelectorAll('#userView .small-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        if (matchesFiltersTech(card)) {
+          // Afficher la carte
+          card.style.removeProperty('visibility');
+          card.style.removeProperty('position');
+          card.style.removeProperty('height');
+          card.style.removeProperty('width');
+          card.style.removeProperty('overflow');
+          visibleCount++;
+        } else {
+          // Masquer complètement (ne prend pas de place dans la grille)
+          card.style.visibility = 'hidden';
+          card.style.position = 'absolute';
+          card.style.height = '0';
+          card.style.width = '0';
+          card.style.overflow = 'hidden';
+        }
+      });
+
+      console.log(`Filtres technicien: ${visibleCount}/${cards.length} cartes visibles`);
+    }
+
+    // Fonction pour appliquer le tri
+    function applySortingTech() {
+      const sortValue = sortByTech.value;
+      if (!sortValue) return;
+
+      const [criteria, order] = sortValue.split('-');
+      const priorityOrder = { 'basse': 1, 'moyenne': 2, 'haute': 3, 'critique': 4 };
+      const userView = document.getElementById('userView');
+      const cards = Array.from(userView.querySelectorAll('.small-card'));
+
+      cards.sort((a, b) => {
+        let valA, valB;
+
+        switch(criteria) {
+          case 'site':
+            valA = (a.dataset.site || '').toLowerCase();
+            valB = (b.dataset.site || '').toLowerCase();
+            break;
+          case 'urgence':
+            valA = priorityOrder[(a.dataset.urgence || '').toLowerCase()] || 0;
+            valB = priorityOrder[(b.dataset.urgence || '').toLowerCase()] || 0;
+            break;
+          case 'date':
+            valA = a.dataset.dateAffectation || '';
+            valB = b.dataset.dateAffectation || '';
+            break;
+          default:
+            return 0;
+        }
+
+        if (order === 'asc') {
+          return valA > valB ? 1 : valA < valB ? -1 : 0;
+        } else {
+          return valA < valB ? 1 : valA > valB ? -1 : 0;
+        }
+      });
+
+      // Réorganiser les cartes dans le DOM
+      cards.forEach(card => userView.appendChild(card));
+    }
+
+    // Fonction pour réinitialiser les filtres
+    function clearFiltersTech() {
+      console.log('Réinitialisation des filtres...');
+      searchInputTech.value = '';
+      filterSiteTech.value = '';
+      filterUrgenceTech.value = '';
+      sortByTech.value = '';
+      console.log('Valeurs après reset:', {
+        search: searchInputTech.value,
+        site: filterSiteTech.value,
+        urgence: filterUrgenceTech.value
+      });
+      applyFiltersTech();
+    }
+
+    // Event listeners
+    searchInputTech.addEventListener('input', applyFiltersTech);
+    filterSiteTech.addEventListener('change', function() {
+      console.log('Filtre site changé:', filterSiteTech.value);
+      console.log('Options disponibles:', Array.from(filterSiteTech.options).map(o => ({text: o.text, value: o.value})));
+      applyFiltersTech();
+    });
+    filterUrgenceTech.addEventListener('change', function() {
+      console.log('Filtre priorité changé:', filterUrgenceTech.value);
+      applyFiltersTech();
+    });
+    sortByTech.addEventListener('change', () => {
+      applySortingTech();
+      applyFiltersTech(); // Réappliquer les filtres après le tri
+    });
+    clearFiltersTechBtn.addEventListener('click', clearFiltersTech);
+
+    console.log('✅ Filtres et tri technicien initialisés');
+    console.log('Sites disponibles:', Array.from(filterSiteTech.options).map(o => ({text: o.text, value: o.value})));
+    console.log('Priorités disponibles:', Array.from(filterUrgenceTech.options).map(o => ({text: o.text, value: o.value})));
   });
 </script>

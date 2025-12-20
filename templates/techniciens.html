@@ -91,22 +91,19 @@
 
         <div class="row g-3 mt-2">
           <div class="col-md-6">
-            <label for="password" class="form-label">Mot de passe *</label>
-            <input type="password"
-                   class="form-control"
-                   id="password"
-                   name="password"
-                   required
-                   minlength="8">
-            <small class="text-muted">Minimum 8 caractères</small>
-          </div>
-
-          <div class="col-md-6">
             <label for="role" class="form-label">Rôle</label>
             <select name="role" id="role" class="form-select">
               <option value="technicien">Technicien</option>
               <option value="admin">Administrateur</option>
             </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Mot de passe initial</label>
+            <div class="alert alert-info mb-0 py-2">
+              <small><strong>Mot de passe par défaut : 0000</strong><br>
+              Le technicien devra le changer à la première connexion.</small>
+            </div>
           </div>
         </div>
 
@@ -416,8 +413,15 @@
               document.querySelectorAll('#modalText select').forEach(sel => {
                 dataForm.append(sel.name, sel.value);
               });
+
+              // Ajouter le token CSRF
+              const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
               fetch('/technicien/transfer_delete/' + id, {
                 method: "POST",
+                headers: {
+                  'X-CSRFToken': csrfToken
+                },
                 body: dataForm
               })
               .then(resp => resp.json())
@@ -427,6 +431,10 @@
                 } else {
                   alert("Erreur : " + result.message);
                 }
+              })
+              .catch(error => {
+                console.error('Erreur:', error);
+                alert("Erreur lors de la réattribution");
               });
             };
           } else {
