@@ -1,0 +1,393 @@
+/* ============================================
+   TRANSITIONS & FOCUS STATES
+   Micro-interactions globales
+   ============================================ */
+
+/* ===== GLOBAL TRANSITIONS ===== */
+* {
+  /* Transition de base pour tous les éléments interactifs */
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Désactiver transitions sur les éléments non-interactifs pour perf */
+body,
+html,
+p,
+span:not(.badge):not(.btn),
+div:not(.card):not(.modal):not(.dropdown-menu):not(.toast),
+h1, h2, h3, h4, h5, h6 {
+  transition: none !important;
+}
+
+/* ===== FOCUS STATES (Accessibilité) ===== */
+
+/* Focus visible universel - remplace outline par défaut */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* Focus pour boutons primaires */
+.btn-primary:focus-visible,
+.btn-info:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+/* Focus pour boutons danger */
+.btn-danger:focus-visible,
+.btn-outline-danger:focus-visible {
+  box-shadow: var(--shadow-focus-danger);
+}
+
+/* Focus pour boutons success */
+.btn-success:focus-visible,
+.btn-outline-success:focus-visible {
+  box-shadow: var(--shadow-focus-success);
+}
+
+/* Focus pour inputs et selects */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* Focus pour cards cliquables */
+.card:focus-visible,
+.list-group-item:focus-visible {
+  box-shadow: var(--shadow-focus);
+  transform: translateY(-1px);
+}
+
+/* Focus pour links */
+a:focus-visible {
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+/* ===== HOVER STATES ===== */
+
+/* Boutons - effet lift subtil */
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+  transition-duration: var(--duration-fast);
+}
+
+/* Cards - effet hover subtle */
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  transition: box-shadow var(--duration-base) var(--ease-out);
+}
+
+.card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-out),
+              box-shadow var(--duration-base) var(--ease-out);
+}
+
+/* List items interactifs */
+.list-group-item:hover {
+  background-color: var(--color-bg-base);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+/* Links avec underline animée */
+a:not(.btn):not(.navbar-brand) {
+  position: relative;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+a:not(.btn):not(.navbar-brand):hover {
+  color: var(--color-primary-hover);
+}
+
+a:not(.btn):not(.navbar-brand)::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: currentColor;
+  transition: width var(--duration-base) var(--ease-out);
+}
+
+a:not(.btn):not(.navbar-brand):hover::after {
+  width: 100%;
+}
+
+/* Badges hover */
+.badge:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+  transition: filter var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+/* ===== DISABLED STATES ===== */
+
+.btn:disabled,
+.btn.disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+/* ===== LOADING STATES ===== */
+
+.btn.loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: spinner var(--duration-slower) linear infinite;
+}
+
+@keyframes spinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Spinner global pour zones de chargement */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: spinner var(--duration-slower) linear infinite;
+}
+
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+/* ===== MODALS & OVERLAYS ===== */
+
+.modal {
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.modal.fade .modal-dialog {
+  transition: transform var(--duration-slow) var(--ease-out);
+  transform: scale(0.9) translateY(-50px);
+}
+
+.modal.show .modal-dialog {
+  transform: scale(1) translateY(0);
+}
+
+.modal-backdrop {
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+/* ===== DROPDOWNS ===== */
+
+.dropdown-menu {
+  transform-origin: top;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+  opacity: 0;
+  transform: scaleY(0.8);
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.dropdown-item {
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.dropdown-item:hover {
+  background-color: var(--color-bg-base);
+  color: var(--color-primary);
+}
+
+/* ===== TOASTS & ALERTS ===== */
+
+.toast,
+.alert {
+  animation: slideInFromRight var(--duration-slow) var(--ease-out);
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.alert-dismissible {
+  transition: opacity var(--duration-base) var(--ease-out),
+              transform var(--duration-base) var(--ease-out);
+}
+
+.alert-dismissible.fade:not(.show) {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+/* ===== TABLE ROWS ===== */
+
+tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+tbody tr:hover {
+  background-color: var(--color-bg-base);
+}
+
+/* ===== FORM ELEMENTS ===== */
+
+.form-control,
+.form-select {
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.form-control:hover:not(:disabled):not(:focus),
+.form-select:hover:not(:disabled):not(:focus) {
+  border-color: var(--color-border-strong);
+}
+
+/* ===== UTILITY ANIMATIONS ===== */
+
+/* Fade in */
+.fade-in {
+  animation: fadeIn var(--duration-base) var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide up */
+.slide-up {
+  animation: slideUp var(--duration-slow) var(--ease-out);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale in (pour modals, dropdowns) */
+.scale-in {
+  animation: scaleIn var(--duration-base) var(--ease-out);
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pulse (pour feedback actions) */
+.pulse {
+  animation: pulse var(--duration-slower) var(--ease-in-out);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* ===== SUCCESS/ERROR FEEDBACK ===== */
+
+.feedback-success {
+  animation: successPulse var(--duration-slow) var(--ease-out);
+}
+
+@keyframes successPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-success-light);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+  }
+}
+
+.feedback-error {
+  animation: errorShake var(--duration-slow) var(--ease-out);
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
