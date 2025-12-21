@@ -3119,7 +3119,7 @@ def api_stats_data():
         }
         
         # Mettre en cache (TTL de 2 minutes)
-        app_cache.set(cache_key, result, ttl_seconds=120)
+        app_cache.set(cache_key, result)
         
         return jsonify(result)
     except Exception as e:
@@ -3151,7 +3151,7 @@ def api_stats_kpis():
     try:
         kpis = calculate_stats_kpis(db, start_date, end_date)
         # Mettre en cache (TTL de 1 minute)
-        app_cache.set(cache_key, kpis, ttl_seconds=60)
+        app_cache.set(cache_key, kpis)
         return jsonify({"kpis": kpis})
     except Exception as e:
         app.logger.error(f"Erreur api_stats_kpis: {e}")
