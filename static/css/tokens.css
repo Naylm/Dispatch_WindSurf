@@ -116,19 +116,54 @@
 
 /* ===== DARK MODE TOKENS ===== */
 body.dark {
-  --color-bg-base: #1a1a1a;
-  --color-bg-elevated: #2e2e2e;
-  --color-text-primary: #f0f0f0;
-  --color-text-secondary: #b8b8b8;
-  --color-text-muted: #888888;
-  --color-border: #444444;
-  --color-border-strong: #666666;
+  /* Backgrounds - Plus de contraste */
+  --color-bg-base: #0d1117;
+  --color-bg-elevated: #161b22;
+  --color-bg-overlay: rgba(0, 0, 0, 0.7);
 
-  /* Shadows plus prononcées en dark mode */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+  /* Text - Meilleur contraste */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #9198a1;
+  --color-text-muted: #6e7681;
+  --color-text-tertiary: #484f58;
+
+  /* Borders - Plus visibles */
+  --color-border: #30363d;
+  --color-border-strong: #484f58;
+
+  /* Primary colors - Ajustés pour dark mode */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-active: #1d4ed8;
+  --color-primary-light: rgba(59, 130, 246, 0.15);
+
+  /* Semantic colors - Versions dark mode */
+  --color-success: #22c55e;
+  --color-success-hover: #16a34a;
+  --color-success-light: rgba(34, 197, 94, 0.15);
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-light: rgba(245, 158, 11, 0.15);
+
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-danger-light: rgba(239, 68, 68, 0.15);
+
+  --color-info: #06b6d4;
+  --color-info-hover: #0891b2;
+  --color-info-light: rgba(6, 182, 212, 0.15);
+
+  /* Shadows - Légères mais visibles */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.7);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.8);
+
+  /* Focus rings adaptés */
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  --shadow-focus-danger: 0 0 0 3px rgba(239, 68, 68, 0.3);
+  --shadow-focus-success: 0 0 0 3px rgba(34, 197, 94, 0.3);
 }
 
 /* ===== REDUCED MOTION ===== */

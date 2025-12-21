@@ -719,3 +719,183 @@
 .accordion-collapse {
   transition: height var(--duration-slow) var(--ease-out);
 }
+
+/* ========================================================================
+   DARK MODE OVERRIDES - LAYOUTS
+   ======================================================================== */
+
+/* Tables en dark mode */
+body.dark .table {
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+body.dark .table thead th {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border-strong);
+}
+
+body.dark .table tbody tr {
+  background-color: var(--color-bg-elevated);
+}
+
+body.dark .table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark .table tbody td {
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+body.dark .table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+body.dark .table-bordered {
+  border-color: var(--color-border);
+}
+
+body.dark .table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Modals en dark mode */
+body.dark .modal-content {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+body.dark .modal-header {
+  border-bottom-color: var(--color-border);
+}
+
+body.dark .modal-footer {
+  border-top-color: var(--color-border);
+}
+
+body.dark .modal-title {
+  color: var(--color-text-primary);
+}
+
+body.dark .btn-close {
+  filter: invert(1);
+}
+
+/* Dropdowns en dark mode */
+body.dark .dropdown-menu {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-lg);
+}
+
+body.dark .dropdown-item {
+  color: var(--color-text-primary);
+}
+
+body.dark .dropdown-item:hover,
+body.dark .dropdown-item:focus {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+body.dark .dropdown-item.active {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+body.dark .dropdown-divider {
+  border-top-color: var(--color-border);
+}
+
+/* Breadcrumb en dark mode */
+body.dark .breadcrumb {
+  background-color: transparent;
+}
+
+body.dark .breadcrumb-item,
+body.dark .breadcrumb-item a {
+  color: var(--color-text-secondary);
+}
+
+body.dark .breadcrumb-item.active {
+  color: var(--color-text-primary);
+}
+
+body.dark .breadcrumb-item + .breadcrumb-item::before {
+  color: var(--color-text-muted);
+}
+
+/* Pagination en dark mode */
+body.dark .page-link {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+body.dark .page-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+body.dark .page-item.active .page-link {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+body.dark .page-item.disabled .page-link {
+  background-color: var(--color-bg-base);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Tabs en dark mode */
+body.dark .nav-tabs {
+  border-bottom-color: var(--color-border);
+}
+
+body.dark .nav-tabs .nav-link {
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+
+body.dark .nav-tabs .nav-link:hover {
+  border-color: var(--color-border) var(--color-border) var(--color-border);
+  color: var(--color-text-primary);
+}
+
+body.dark .nav-tabs .nav-link.active {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border) var(--color-border) transparent;
+  color: var(--color-text-primary);
+}
+
+body.dark .tab-content {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+/* Accordions en dark mode */
+body.dark .accordion-item {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+body.dark .accordion-button {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+body.dark .accordion-button:not(.collapsed) {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+body.dark .accordion-body {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
