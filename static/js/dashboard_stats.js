@@ -213,14 +213,14 @@ function updateKPIs(kpis) {
         },
         {
             label: 'Taux de Résolution',
-            value: (kpis.taux_resolution || 0).toFixed(1) + '%',
+            value: Number(kpis.taux_resolution || 0).toFixed(1) + '%',
             variation: variations.taux_resolution,
             icon: '✅',
             class: 'success'
         },
         {
             label: 'Temps Moyen',
-            value: (kpis.temps_moyen_jours || 0).toFixed(1) + ' jours',
+            value: Number(kpis.temps_moyen_jours || 0).toFixed(1) + ' jours',
             variation: null,
             icon: '⏱️',
             class: 'info'
