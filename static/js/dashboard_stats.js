@@ -165,17 +165,33 @@ function applyFilters() {
     if (filters.priority_ids) filters.priority_ids.forEach(id => params.append('priority_ids[]', id));
     
     fetch(`/api/stats/data?${params.toString()}`)
-        .then(response => response.json())
+        .then(response => {
+            if (response.status === 401) {
+                // Session expirée, rediriger vers login
+                alert('Session expirée. Vous allez être redirigé vers la page de connexion.');
+                window.location.href = '/';
+                return Promise.reject('Unauthorized');
+            }
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
         .then(data => {
-            updateKPIs(data.kpis);
-            updateCharts(data.charts);
-            updateTables(data.tables);
-            hideLoading();
+            if (data && data.kpis) {
+                updateKPIs(data.kpis);
+                updateCharts(data.charts);
+                updateTables(data.tables);
+                hideLoading();
+            } else if (data && data.error) {
+                throw new Error(data.error);
+            }
         })
         .catch(error => {
             console.error('Erreur lors du chargement des données:', error);
             hideLoading();
-            alert('Erreur lors du chargement des données. Veuillez réessayer.');
+            const message = error.error || error.message || 'Erreur lors du chargement des données. Veuillez réessayer.';
+            alert(message);
         });
 }
 
