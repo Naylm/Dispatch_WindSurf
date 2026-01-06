@@ -318,6 +318,20 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE incidents ADD COLUMN date_rdv TIMESTAMP")
             print("   - Colonne date_rdv ajoutee a la table incidents")
 
+        # Migration: ajouter colonnes pour relance planifiee
+        for col_name, col_def in [
+            ('relance_planifiee_at', 'TIMESTAMP'),
+            ('relance_done_at', 'TIMESTAMP')
+        ]:
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='incidents' AND column_name='{col_name}'
+            """)
+            if not cursor.fetchone():
+                cursor.execute(f"ALTER TABLE incidents ADD COLUMN {col_name} {col_def}")
+                print(f"   - Colonne {col_name} ajoutee a la table incidents")
+
     # ========== TABLE: historique ==========
     cursor.execute("""
         SELECT EXISTS (

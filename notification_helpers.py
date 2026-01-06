@@ -89,6 +89,32 @@ def emit_urgent_update_notification(socketio, incident_id, numero, message, tech
     socketio.emit("notification", notification)
 
 
+def emit_relance_due_notification(socketio, incident_id, numero, technicien, urgence, planned_at):
+    """
+    Émet une notification pour une relance arrivée à échéance.
+
+    Args:
+        socketio: Instance SocketIO
+        incident_id: ID de l'incident
+        numero: Numéro du ticket
+        technicien: Nom du technicien concerné
+        urgence: Niveau d'urgence
+        planned_at: Datetime prévue pour la relance
+    """
+    planned_str = planned_at.isoformat() if planned_at else None
+    notification = {
+        "type": "relance_due",
+        "incident_id": incident_id,
+        "numero": numero,
+        "technicien": technicien,
+        "urgence": urgence,
+        "planned_at": planned_str,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    socketio.emit("notification", notification)
+
+
 def emit_reassignment_notification(socketio, incident_data, old_technicien, new_technicien):
     """
     Émet une notification pour une réaffectation de ticket.

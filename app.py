@@ -25,6 +25,7 @@ from notification_helpers import (
     emit_new_assignment_notification,
     emit_status_change_notification,
     emit_urgent_update_notification,
+    emit_relance_due_notification,
     emit_reassignment_notification,
     is_urgent
 )
@@ -188,12 +189,23 @@ def get_reference_data():
     sites_rows = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
     statuts_rows = db.execute("SELECT * FROM statuts ORDER BY nom").fetchall()
     sujets_rows = db.execute("SELECT * FROM sujets ORDER BY nom").fetchall()
+
+    priorites = [dict(row) for row in priorites_rows]
+    sites = [dict(row) for row in sites_rows]
+    statuts = [dict(row) for row in statuts_rows]
+    sujets = [dict(row) for row in sujets_rows]
+
+    statuts_by_category = {}
+    for statut in statuts:
+        category = statut.get("category") or "inconnu"
+        statuts_by_category.setdefault(category, []).append(statut.get("nom"))
     
     data = {
-        'priorites': [dict(row) for row in priorites_rows],
-        'sites': [dict(row) for row in sites_rows],
-        'statuts': [dict(row) for row in statuts_rows],
-        'sujets': [dict(row) for row in sujets_rows]
+        'priorites': priorites,
+        'sites': sites,
+        'statuts': statuts,
+        'sujets': sujets,
+        'statuts_by_category': statuts_by_category
     }
 
     # Mettre en cache
@@ -207,6 +219,135 @@ def invalidate_reference_cache():
     À appeler lors de modifications (add, edit, delete) sur ces tables
     """
     app_cache.clear("reference_data")
+
+
+# ---------- RELANCES PLANIFIÉES ----------
+# Délai par urgence (en heures) pour planifier une relance automatique.
+# Ajuster selon les besoins métier.
+RELANCE_DELAYS_HOURS = {
+    "Critique": 2,
+    "Haute": 4,
+    "Moyenne": 8,
+    "Basse": 24
+}
+RELANCE_DEFAULT_DELAY_HOURS = 24
+RELANCE_CHECK_INTERVAL_SECONDS = 30
+_last_relance_check_at = None
+
+
+def _format_relance_dt(dt_value):
+    return dt_value.strftime("%d-%m-%Y %H:%M") if dt_value else ""
+
+
+def _log_historique(db, incident_id, champ, ancienne_valeur, nouvelle_valeur, modifie_par):
+    db.execute(
+        """
+        INSERT INTO historique (
+            incident_id, champ, ancienne_valeur,
+            nouvelle_valeur, modifie_par, date_modification
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (
+            incident_id,
+            champ,
+            ancienne_valeur,
+            nouvelle_valeur,
+            modifie_par,
+            datetime.now().strftime("%d-%m-%Y %H:%M"),
+        ),
+    )
+
+
+def update_relance_schedule(db, incident_id, new_etat=None, new_urgence=None, changed_by="system"):
+    """Planifie/annule la relance selon le statut et l'urgence."""
+    inc = db.execute(
+        "SELECT id, numero, etat, urgence, relance_planifiee_at, relance_done_at, collaborateur "
+        "FROM incidents WHERE id=%s",
+        (incident_id,),
+    ).fetchone()
+    if not inc:
+        return
+
+    etat = new_etat or inc["etat"]
+    urgence = new_urgence or inc["urgence"]
+
+    statut_info = db.execute(
+        "SELECT has_relances FROM statuts WHERE nom=%s",
+        (etat,),
+    ).fetchone()
+
+    if not statut_info or not statut_info.get("has_relances"):
+        if inc.get("relance_planifiee_at"):
+            old_value = _format_relance_dt(inc.get("relance_planifiee_at"))
+            db.execute(
+                "UPDATE incidents SET relance_planifiee_at=NULL, relance_done_at=NULL WHERE id=%s",
+                (incident_id,),
+            )
+            _log_historique(db, incident_id, "relance_planifiee", old_value, "Annulée", changed_by)
+        return
+
+    delay_hours = RELANCE_DELAYS_HOURS.get(urgence, RELANCE_DEFAULT_DELAY_HOURS)
+    planned_at = datetime.now() + timedelta(hours=delay_hours)
+    old_value = _format_relance_dt(inc.get("relance_planifiee_at"))
+    new_value = _format_relance_dt(planned_at)
+
+    db.execute(
+        "UPDATE incidents SET relance_planifiee_at=%s, relance_done_at=NULL WHERE id=%s",
+        (planned_at, incident_id),
+    )
+
+    if old_value != new_value:
+        _log_historique(db, incident_id, "relance_planifiee", old_value, new_value, changed_by)
+
+
+def process_due_relances():
+    """Déclenche les relances arrivées à échéance (notification uniquement)."""
+    global _last_relance_check_at
+    now = datetime.now()
+    if _last_relance_check_at and (now - _last_relance_check_at).total_seconds() < RELANCE_CHECK_INTERVAL_SECONDS:
+        return
+    _last_relance_check_at = now
+
+    db = get_db()
+    due_incidents = db.execute(
+        """
+        SELECT id, numero, collaborateur, urgence, relance_planifiee_at
+        FROM incidents
+        WHERE archived=0
+          AND relance_planifiee_at IS NOT NULL
+          AND relance_done_at IS NULL
+          AND relance_planifiee_at <= %s
+        """,
+        (now,),
+    ).fetchall()
+
+    if not due_incidents:
+        return
+
+    for inc in due_incidents:
+        db.execute(
+            "UPDATE incidents SET relance_done_at=%s WHERE id=%s",
+            (now, inc["id"]),
+        )
+        _log_historique(
+            db,
+            inc["id"],
+            "relance_effectuee",
+            _format_relance_dt(inc.get("relance_planifiee_at")),
+            "Déclenchée",
+            "system",
+        )
+        emit_relance_due_notification(
+            socketio,
+            inc["id"],
+            inc["numero"],
+            inc["collaborateur"],
+            inc["urgence"],
+            inc.get("relance_planifiee_at"),
+        )
+        socketio.emit("incident_update", {"action": "relance_due", "id": inc["id"]})
+
+    db.commit()
 
 
 @app.teardown_appcontext
@@ -302,6 +443,8 @@ def home():
     if "user" not in session:
         return redirect(url_for("login"))
 
+    process_due_relances()
+
     db = get_db()
 
     # Récupérer les informations du technicien connecté pour l'affichage
@@ -322,6 +465,7 @@ def home():
     priorites = ref_data['priorites']
     sites = ref_data['sites']
     statuts = ref_data['statuts']
+    statuts_by_category = ref_data['statuts_by_category']
 
     if session["role"] == "admin":
         # Ordre d'affichage strictement basé sur l'ordre d'insertion
@@ -377,6 +521,7 @@ def home():
         sites=sites,
         statuts=statuts,
         stats_by_category=stats_by_category,
+        statuts_by_category=statuts_by_category,
     )
 
 
@@ -384,6 +529,8 @@ def home():
 def home_content_api():
     if "user" not in session:
         return "", 403
+
+    process_due_relances()
 
     db = get_db()
 
@@ -402,6 +549,7 @@ def home_content_api():
     priorites = ref_data['priorites']
     sites = ref_data['sites']
     statuts = ref_data['statuts']
+    statuts_by_category = ref_data['statuts_by_category']
 
     if session["role"] == "admin":
         # Ordre strictement par id (ordre d'entrée)
@@ -456,6 +604,7 @@ def home_content_api():
         sites=sites,
         statuts=statuts,
         stats_by_category=stats_by_category,
+        statuts_by_category=statuts_by_category,
     )
 
 
@@ -1374,11 +1523,24 @@ def configuration():
     sites = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
     statuts = db.execute("SELECT * FROM statuts ORDER BY nom").fetchall()
 
+    unknown_statuts = db.execute("""
+        SELECT etat, COUNT(*) as count
+        FROM incidents
+        WHERE archived=0 AND etat NOT IN (SELECT nom FROM statuts)
+        GROUP BY etat
+        ORDER BY count DESC
+    """).fetchall()
+    statuts_without_category = db.execute(
+        "SELECT nom FROM statuts WHERE category IS NULL OR category = ''"
+    ).fetchall()
+
     return render_template("configuration.html",
                          sujets=sujets,
                          priorites=priorites,
                          sites=sites,
-                         statuts=statuts)
+                         statuts=statuts,
+                         unknown_statuts=unknown_statuts,
+                         statuts_without_category=statuts_without_category)
 
 
 @app.route("/configuration/sujet/add", methods=["POST"])
@@ -1876,6 +2038,7 @@ def add_incident():
         """
         result = db.execute(sql, (numero, site, sujet, urgence, collab_prenom, technicien_id, note_dispatch, date_aff, localisation))
         incident_id = result.fetchone()["id"]
+        update_relance_schedule(db, incident_id, new_etat="Affecté", new_urgence=urgence, changed_by=session["user"])
         db.commit()
 
         # Préparer les données pour la notification
@@ -1996,6 +2159,9 @@ def edit_incident(id):
         tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (technicien_id,)).fetchone()
         collaborateur = tech['prenom'] if tech else "Non affecté"
 
+        etat_changed = incident["etat"] != etat
+        urgence_changed = incident["urgence"] != urgence
+
         # Mise à jour de l'incident avec protection transactionnelle
         try:
             db.execute("BEGIN")
@@ -2004,6 +2170,8 @@ def edit_incident(id):
                    collaborateur=%s, technicien_id=%s, etat=%s, notes=%s, note_dispatch=%s, date_affectation=%s, localisation=%s WHERE id=%s""",
                 (numero, site, sujet, urgence, collaborateur, technicien_id, etat, notes, note_dispatch, date_aff, localisation, id)
             )
+            if etat_changed or urgence_changed:
+                update_relance_schedule(db, id, new_etat=etat, new_urgence=urgence, changed_by=session["user"])
         except Exception:
             db.rollback()
             flash("Conflit de modification, veuillez réessayer", "warning")
@@ -2033,9 +2201,11 @@ def edit_incident(id):
         return redirect(url_for("home"))
 
     techniciens = db.execute("SELECT * FROM techniciens").fetchall()
-    sujets = db.execute("SELECT * FROM sujets ORDER BY nom").fetchall()
-    priorites = db.execute("SELECT * FROM priorites ORDER BY niveau").fetchall()
-    sites = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
+    ref_data = get_reference_data()
+    sujets = ref_data['sujets']
+    priorites = ref_data['priorites']
+    sites = ref_data['sites']
+    statuts = ref_data['statuts']
     
     return render_template(
         "edit_incident.html", 
@@ -2043,7 +2213,8 @@ def edit_incident(id):
         techniciens=techniciens,
         sujets=sujets,
         priorites=priorites,
-        sites=sites
+        sites=sites,
+        statuts=statuts
     )
 
 
@@ -2425,6 +2596,8 @@ def update_etat(id):
                     inc["collaborateur"]
                 )
 
+            update_relance_schedule(db, id, new_etat=new, new_urgence=inc["urgence"], changed_by=session["user"])
+
         db.commit()
 
         # Si c'est une requête AJAX, retourner JSON
@@ -2532,15 +2705,25 @@ def details():
     ttype = request.args.get("type")
 
     db = get_db()
+    ref_data = get_reference_data()
+    statuts = ref_data['statuts']
+
     # On commence par filtrer date + site + sujet
-    query = "SELECT * FROM incidents WHERE date_affectation=%s AND site=%s AND sujet=%s AND archived=0"
+    query = """
+        SELECT i.*
+        FROM incidents i
+        JOIN statuts s ON i.etat = s.nom
+        WHERE i.date_affectation=%s AND i.site=%s AND i.sujet=%s AND i.archived=0
+    """
     params = [date, site, sujet]
 
-    # On ajoute ensuite le filtre sur l'état
+    # On ajoute ensuite le filtre sur la catégorie de statut
     if ttype == "traite":
-        query += " AND etat='Traité'"
+        query += " AND s.category = 'traite'"
+    elif ttype == "transfere":
+        query += " AND s.category = 'transfere'"
     else:
-        query += " AND etat IN ('Affecté','En cours de préparation','Suspendu')"
+        query += " AND s.category IN ('en_cours', 'suspendu')"
 
     incs = db.execute(query, params).fetchall()
     return render_template("details.html",
@@ -2548,7 +2731,8 @@ def details():
                            date=date,
                            site=site,
                            sujet=sujet,
-                           type=ttype)
+                           type=ttype,
+                           statuts=statuts)
 
 
 
@@ -2778,8 +2962,10 @@ def calculate_stats_kpis(db, start_date=None, end_date=None, tech_ids=None, site
     
     # Temps moyen de traitement (en jours)
     temps_moyen = db.execute(
-        f"""SELECT AVG(EXTRACT(EPOCH FROM (NOW() - date_affectation)) / 86400) as avg_days 
-            FROM incidents WHERE {where_sql} AND etat != 'Traité'""",
+        f"""SELECT AVG(EXTRACT(EPOCH FROM (NOW() - i.date_affectation)) / 86400) as avg_days
+            FROM incidents i
+            JOIN statuts s ON i.etat = s.nom
+            WHERE {where_sql} AND s.category != 'traite'""",
         params
     ).fetchone()['avg_days'] or 0
     
@@ -3036,7 +3222,8 @@ def api_stats_data():
         "site_ids": sorted(site_ids) if site_ids else None,
         "status_ids": sorted(status_ids) if status_ids else None,
         "priority_ids": sorted(priority_ids) if priority_ids else None,
-        "page": page
+        "page": page,
+        "per_page": per_page
     }
     cache_key = f"stats_data_{hashlib.md5(json.dumps(cache_key_data, sort_keys=True).encode()).hexdigest()}"
     
@@ -3198,7 +3385,7 @@ def export_stats_excel():
             where_sql = " AND ".join(where_clauses)
             incidents_df = pd.read_sql_query(
                 f"SELECT * FROM incidents WHERE {where_sql}",
-                db.conn.conn if hasattr(db, 'conn') else db.conn,
+                db.conn if hasattr(db, 'conn') else db,
                 params=params
             )
             incidents_df.to_excel(writer, sheet_name='Données brutes', index=False)

@@ -102,12 +102,11 @@
         <div class="mb-3">
           <label for="etat" class="form-label">État</label>
           <select class="form-select" id="etat" name="etat" required>
-            <option value="Affecté" {% if incident.etat == 'Affecté' %}selected{% endif %}>Affecté</option>
-            <option value="En cours de préparation" {% if incident.etat == 'En cours de préparation' %}selected{% endif %}>En cours de préparation</option>
-            <option value="Traité" {% if incident.etat == 'Traité' %}selected{% endif %}>Traité</option>
-            <option value="Suspendu" {% if incident.etat == 'Suspendu' %}selected{% endif %}>Suspendu</option>
-            <option value="En réservation" {% if incident.etat == 'En réservation' %}selected{% endif %}>En réservation</option>
-            <option value="Transféré" {% if incident.etat == 'Transféré' %}selected{% endif %}>Transféré</option>
+            {% for st in statuts %}
+              <option value="{{ st.nom }}" {% if incident.etat == st.nom %}selected{% endif %}>
+                {{ st.nom }}
+              </option>
+            {% endfor %}
           </select>
         </div>
 

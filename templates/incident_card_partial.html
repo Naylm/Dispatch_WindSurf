@@ -56,6 +56,9 @@
   {% else %}
     <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
   {% endif %}
+  {% if i.relance_planifiee_at and not i.relance_done_at %}
+    <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+  {% endif %}
   {% if i.valide %}
     <span class="badge bg-purple">Validé</span>
   {% endif %}

@@ -1073,6 +1073,25 @@
                       incident_id: data.incident_id
                   });
                   break;
+              
+              case 'relance_due': {
+                  const urgentLevels = ['critique', 'haute', 'immediate', 'immédiate'];
+                  const priority = urgentLevels.includes((data.urgence || '').toLowerCase()) ? 'urgent' : 'info';
+                  const plannedAt = data.planned_at ? new Date(data.planned_at).toLocaleString('fr-FR') : null;
+                  window.notificationSystem.addNotification({
+                      type: 'relance_due',
+                      priority: priority,
+                      title: '⏰ Relance à effectuer',
+                      message: `${data.numero} - Relance planifiée`,
+                      details: plannedAt ? `Prévue le ${plannedAt}` : '',
+                      incident_id: data.incident_id,
+                      action: {
+                          label: 'Voir',
+                          onClick: () => window.notificationSystem.scrollToIncident(data.incident_id)
+                      }
+                  });
+                  break;
+              }
 
               default:
                   console.warn('Type de notification inconnu:', data.type);

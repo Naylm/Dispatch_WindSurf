@@ -1,6 +1,9 @@
 {# templates/home_content.html - VERSION AMÉLIORÉE v2.4 - FILTRES + COMPTEURS #}
 
 {% if role == 'admin' %}
+  {% set en_cours_statuts = statuts_by_category.get('en_cours', []) %}
+  {% set suspendu_statuts = statuts_by_category.get('suspendu', []) %}
+  {% set transfere_statuts = statuts_by_category.get('transfere', []) %}
 
   <!-- ========================= -->
   <!-- COMPTEURS EN TEMPS RÉEL -->
@@ -12,15 +15,15 @@
     </div>
     <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
       <small class="text-muted mb-0" style="font-size: 0.75rem;">En cours</small>
-      <strong class="text-warning mb-0" style="font-size: 1.1rem;" id="enCoursCount">{{ stats_by_category.en_cours if stats_by_category else incidents|selectattr("etat", "in", ["Affecté", "En cours de préparation", "En intervention"])|list|length }}</strong>
+      <strong class="text-warning mb-0" style="font-size: 1.1rem;" id="enCoursCount">{{ stats_by_category.en_cours if stats_by_category else incidents|selectattr("etat", "in", en_cours_statuts)|list|length }}</strong>
     </div>
     <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
       <small class="text-muted mb-0" style="font-size: 0.75rem;">Suspendus</small>
-      <strong class="text-danger mb-0" style="font-size: 1.1rem;" id="suspendusCount">{{ stats_by_category.suspendu if stats_by_category else incidents|selectattr("etat", "in", ["Suspendu", "Intervention programmée"])|list|length }}</strong>
+      <strong class="text-danger mb-0" style="font-size: 1.1rem;" id="suspendusCount">{{ stats_by_category.suspendu if stats_by_category else incidents|selectattr("etat", "in", suspendu_statuts)|list|length }}</strong>
     </div>
     <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
       <small class="text-muted mb-0" style="font-size: 0.75rem;">Transférés</small>
-      <strong class="text-info mb-0" style="font-size: 1.1rem;" id="transferesCount">{{ stats_by_category.transfere if stats_by_category else incidents|selectattr("etat", "in", ["Transféré", "En réservation"])|list|length }}</strong>
+      <strong class="text-info mb-0" style="font-size: 1.1rem;" id="transferesCount">{{ stats_by_category.transfere if stats_by_category else incidents|selectattr("etat", "in", transfere_statuts)|list|length }}</strong>
     </div>
   </div>
 
@@ -162,6 +165,9 @@
                     {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
                     {% if statut_info %}
                       <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                      {% if i.relance_planifiee_at and not i.relance_done_at %}
+                        <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+                      {% endif %}
                     {% else %}
                       <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
                     {% endif %}
@@ -343,6 +349,9 @@
                       {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
                       {% if statut_info %}
                         <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                        {% if i.relance_planifiee_at and not i.relance_done_at %}
+                          <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+                        {% endif %}
                       {% else %}
                         <span class="badge bg-secondary">{{ i.etat }}</span>
                       {% endif %}
@@ -435,6 +444,9 @@
                 {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
                 {% if statut_info %}
                   <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                  {% if i.relance_planifiee_at and not i.relance_done_at %}
+                    <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+                  {% endif %}
                 {% else %}
                   <span class="badge bg-secondary">{{ i.etat }}</span>
                 {% endif %}
@@ -528,6 +540,9 @@
                           {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
                           {% if statut_info %}
                             <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+                            {% if i.relance_planifiee_at and not i.relance_done_at %}
+                              <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+                            {% endif %}
                           {% else %}
                             <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
                           {% endif %}
@@ -1385,6 +1400,9 @@
             {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
             {% if statut_info %}
               <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+              {% if i.relance_planifiee_at and not i.relance_done_at %}
+                <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+              {% endif %}
             {% else %}
               <span class="badge bg-secondary">{{ i.etat }}</span>
             {% endif %}

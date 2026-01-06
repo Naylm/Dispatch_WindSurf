@@ -52,14 +52,17 @@
     <br><small>{{ i.date_affectation|format_date }}</small><br>
     
     {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
-    {% if statut_info %}
-      <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
-    {% else %}
-      <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
-    {% endif %}
-    {% if i.valide %}
-      <span class="badge bg-purple">Validé</span>
-    {% endif %}
+  {% if statut_info %}
+    <span class="badge mt-1 status-badge" data-bg-color="{{ statut_info.couleur }}" data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+  {% else %}
+    <span class="badge bg-secondary mt-1">{{ i.etat }}</span>
+  {% endif %}
+  {% if i.relance_planifiee_at and not i.relance_done_at %}
+    <span class="badge bg-info text-dark ms-1" title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance planifiée</span>
+  {% endif %}
+  {% if i.valide %}
+    <span class="badge bg-purple">Validé</span>
+  {% endif %}
 
     <!-- Note Dispatch (visible par tous si contenu, éditable par admin seulement) -->
     {% set note_dispatch_content = i.note_dispatch.strip() if i.note_dispatch else '' %}

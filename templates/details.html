@@ -52,14 +52,11 @@
           <td>{{ inc.numero }}</td>
           <td>{{ inc.sujet }}</td>
           <td>
-            {% if inc.etat == 'Traité' %}
-              <span class="badge bg-success">{{ inc.etat }}</span>
-            {% elif inc.etat == 'Affecté' %}
-              <span class="badge bg-primary">{{ inc.etat }}</span>
-            {% elif inc.etat == 'En cours de préparation' %}
-              <span class="badge bg-warning text-dark">{{ inc.etat }}</span>
-            {% elif inc.etat == 'Suspendu' %}
-              <span class="badge bg-danger">{{ inc.etat }}</span>
+            {% set statut_info = statuts|selectattr("nom", "equalto", inc.etat)|first %}
+            {% if statut_info %}
+              <span class="badge" style="background-color: {{ statut_info.couleur }}; color: {{ statut_info.couleur|contrast_color }};">
+                {{ inc.etat }}
+              </span>
             {% else %}
               <span class="badge bg-secondary">{{ inc.etat }}</span>
             {% endif %}
