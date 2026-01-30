@@ -24,6 +24,17 @@
             border-radius: var(--border-radius);
             margin-bottom: 2rem;
         }
+
+        body.dark .article-header {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.28), rgba(15, 23, 42, 0.95));
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        body.dark .article-header .text-muted {
+            color: var(--text-secondary) !important;
+        }
         
         .breadcrumb-custom {
             background: var(--bg-card);

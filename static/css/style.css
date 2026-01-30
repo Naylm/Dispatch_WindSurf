@@ -8,16 +8,16 @@
    STYLES GÉNÉRAUX
    ------------------------------ */
 body {
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-base, #f8f9fa);
   font-family: 'Segoe UI', sans-serif;
-  color: #212529;
+  color: var(--color-text-primary, #212529);
 }
 
 .navbar,
 .card,
 .table {
-  background-color: #fff;
-  color: #212529;
+  background-color: var(--color-bg-elevated, #fff);
+  color: var(--color-text-primary, #212529);
 }
 
 .navbar {
@@ -86,32 +86,34 @@ body {
    STYLES POUR LE MODE SOMBRE
    ------------------------------ */
 body.dark {
-  background-color: #2e2e2e;
-  color: #f0f0f0;
+  background-color: var(--color-bg-base, #2e2e2e);
+  color: var(--color-text-primary, #f0f0f0);
 }
 body.dark .navbar,
 body.dark .card,
 body.dark .table {
-  background-color: #3a3a3a !important;
-  color: #f0f0f0 !important;
+  background-color: var(--color-bg-elevated, #3a3a3a) !important;
+  color: var(--color-text-primary, #f0f0f0) !important;
+  border-color: var(--color-border, #3f3f3f) !important;
 }
 body.dark .table th,
 body.dark .table td {
-  color: #f0f0f0;
+  color: var(--color-text-primary, #f0f0f0);
 }
 body.dark .btn-outline-secondary {
-  border-color: #f0f0f0;
-  color: #f0f0f0;
+  border-color: var(--color-border-strong, #b3b3b3);
+  color: var(--color-text-secondary, #f0f0f0);
 }
 body.dark .btn-outline-danger {
   color: #f8d7da;
 }
 body.dark .list-group-item {
-  background-color: #444 !important;
-  color: #f0f0f0 !important;
+  background-color: var(--color-bg-elevated, #444) !important;
+  color: var(--color-text-primary, #f0f0f0) !important;
+  border-color: var(--color-border, #3f3f3f) !important;
 }
 body.dark a {
-  color: #87cefa;
+  color: var(--color-primary, #87cefa);
 }
 body.dark .badge-Affecté {
   background-color: #0d6efd !important;

@@ -18,7 +18,7 @@
   <link href="{{ url_for('static', filename='css/style.css') }}?v=7.0" rel="stylesheet" />
   <style>
     body {
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-base, #f8f9fa);
     }
     .annuaire-container {
       max-width: 1200px;
@@ -26,16 +26,16 @@
       padding: 2rem;
     }
     .technicien-card {
-      background: white;
+      background: var(--color-bg-elevated, white);
       border-radius: 12px;
       padding: 1.5rem;
       margin-bottom: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.1));
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .technicien-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15));
     }
     .technicien-header {
       display: flex;
@@ -43,7 +43,7 @@
       gap: 1rem;
       margin-bottom: 1rem;
       padding-bottom: 1rem;
-      border-bottom: 2px solid #e9ecef;
+      border-bottom: 2px solid var(--color-border, #e9ecef);
     }
     .technicien-avatar {
       width: 60px;
@@ -63,12 +63,12 @@
     }
     .technicien-name h4 {
       margin: 0;
-      color: #212529;
+      color: var(--color-text-primary, #212529);
       font-size: 1.25rem;
     }
     .technicien-name p {
       margin: 0.25rem 0 0 0;
-      color: #6c757d;
+      color: var(--color-text-secondary, #6c757d);
       font-size: 0.9rem;
     }
     .technicien-info {
@@ -81,7 +81,7 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem;
-      background: #f8f9fa;
+      background: var(--color-bg-base, #f8f9fa);
       border-radius: 8px;
     }
     .info-item .icon {
@@ -91,37 +91,37 @@
     }
     .info-item .label {
       font-weight: 600;
-      color: #495057;
+      color: var(--color-text-secondary, #495057);
       min-width: 80px;
     }
     .info-item .value {
-      color: #212529;
+      color: var(--color-text-primary, #212529);
       flex: 1;
     }
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
-      color: #6c757d;
+      color: var(--color-text-secondary, #6c757d);
     }
     .empty-state-icon {
       font-size: 4rem;
       margin-bottom: 1rem;
     }
     .page-header {
-      background: white;
+      background: var(--color-bg-elevated, white);
       border-radius: 12px;
       padding: 2rem;
       margin-bottom: 2rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.1));
     }
     .page-header h1 {
       margin: 0;
-      color: #212529;
+      color: var(--color-text-primary, #212529);
       font-size: 2rem;
     }
     .page-header p {
       margin: 0.5rem 0 0 0;
-      color: #6c757d;
+      color: var(--color-text-secondary, #6c757d);
     }
     @media (max-width: 768px) {
       .annuaire-container {
