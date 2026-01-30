@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 import pytz
 from db_config import get_db
+from notification_helpers import emit_wiki_update_requested_notification
 
 # Timezone Paris
 TZ_PARIS = pytz.timezone("Europe/Paris")
@@ -469,10 +470,10 @@ def wiki_articles_routes(app):
                 flash("Maximum 10 tags autorisés.", "error")
                 return redirect(request.referrer or url_for("wiki"))
         
-        # Récupérer le statut (par défaut: draft)
-        status = request.form.get("status", "draft")
-        if status not in ['draft', 'published', 'archived']:
-            status = 'draft'
+        # Récupérer le statut (par défaut: published)
+        status = request.form.get("status", "published")
+        if status not in ['draft', 'published', 'archived', 'obsolete']:
+            status = 'published'
         
         owner = request.form.get("owner", session["user"])
         summary = request.form.get("summary", "").strip()
@@ -696,9 +697,9 @@ def wiki_articles_routes(app):
                 return redirect(request.referrer or url_for("wiki"))
         
         # Récupérer les métadonnées
-        status = request.form.get("status", article.get('status', 'draft'))
-        if status not in ['draft', 'published', 'archived']:
-            status = article.get('status', 'draft')
+        status = request.form.get("status", article.get('status', 'published'))
+        if status not in ['draft', 'published', 'archived', 'obsolete']:
+            status = article.get('status', 'published')
         
         owner = request.form.get("owner", article.get('owner', session["user"]))
         summary = (request.form.get("summary") or article.get('summary') or '').strip()
@@ -1126,7 +1127,7 @@ def wiki_search_routes(app):
                              user=session["user"])
 
 # ========== FEEDBACK ==========
-def wiki_feedback_routes(app):
+def wiki_feedback_routes(app, socketio=None):
     @app.route("/wiki/article/<int:id>/mark_updated", methods=["POST"])
     def mark_article_updated(id):
         """Marquer l'article comme mis à jour et supprimer les demandes de mise à jour"""
@@ -1136,14 +1137,33 @@ def wiki_feedback_routes(app):
         db = get_db()
         try:
             # Vérifier que l'article existe
-            article = db.execute("SELECT id FROM wiki_articles WHERE id = ?", (id,)).fetchone()
+            article = db.execute("""
+                SELECT id, owner, created_by
+                FROM wiki_articles
+                WHERE id = ?
+            """, (id,)).fetchone()
             if not article:
                 return jsonify({"success": False, "error": "Article non trouvé"}), 404
+            
+            article_dict = dict(article)
+            owner = (article_dict.get("owner") or "").strip().lower()
+            created_by = (article_dict.get("created_by") or "").strip().lower()
+            current_user = (session.get("user") or "").strip().lower()
+
+            if session.get("role") == "admin" and current_user not in {owner, created_by}:
+                return jsonify({"success": False, "error": "Validation réservée aux utilisateurs"}), 403
 
             # Supprimer tous les feedbacks "outdated" et "needs_update" pour cet article
             db.execute("""
                 DELETE FROM wiki_feedback
                 WHERE article_id = ? AND feedback_type IN ('outdated', 'needs_update')
+            """, (id,))
+
+            # Si l'article était obsolète, le repasser en publié
+            db.execute("""
+                UPDATE wiki_articles
+                SET status = CASE WHEN status='obsolete' THEN 'published' ELSE status END
+                WHERE id = ?
             """, (id,))
             db.commit()
 
@@ -1170,7 +1190,11 @@ def wiki_feedback_routes(app):
         db = get_db()
         try:
             # Vérifier que l'article existe
-            article = db.execute("SELECT id FROM wiki_articles WHERE id = %s", (id,)).fetchone()
+            article = db.execute("""
+                SELECT id, title, owner, created_by
+                FROM wiki_articles
+                WHERE id = %s
+            """, (id,)).fetchone()
             if not article:
                 return jsonify({"success": False, "error": "Article non trouvé"}), 404
             
@@ -1180,7 +1204,30 @@ def wiki_feedback_routes(app):
                 VALUES (%s, %s, %s, %s)
             """, (id, session["user"], feedback_type, comment))
             db.commit()
-            
+
+            # Si obsolète, passer l'article en statut "obsolete"
+            if feedback_type == 'outdated':
+                db.execute("""
+                    UPDATE wiki_articles
+                    SET status='obsolete'
+                    WHERE id=%s
+                """, (id,))
+                db.commit()
+
+            # Notifier l'auteur si une mise à jour est demandée
+            if socketio and feedback_type in ['outdated', 'needs_update']:
+                article_dict = dict(article)
+                target_user = (article_dict.get("owner") or article_dict.get("created_by") or "").strip()
+                if target_user and target_user.lower() != session["user"].lower():
+                    emit_wiki_update_requested_notification(
+                        socketio,
+                        article_id=id,
+                        title=article_dict.get("title") or "Article",
+                        requested_by=session["user"],
+                        target_user=target_user,
+                        request_type=feedback_type
+                    )
+
             return jsonify({"success": True, "message": "Feedback enregistré"})
         except Exception as e:
             db.rollback()
@@ -1316,7 +1363,7 @@ def wiki_review_routes(app):
             db.close()
             return jsonify({"error": str(e)}), 500
 
-def register_wiki_routes(app):
+def register_wiki_routes(app, socketio=None):
     """Enregistrer toutes les routes Wiki V2"""
     wiki_home(app)
     wiki_categories_routes(app)
@@ -1325,6 +1372,6 @@ def register_wiki_routes(app):
     wiki_votes_routes(app)
     wiki_upload_routes(app)
     wiki_search_routes(app)
-    wiki_feedback_routes(app)
+    wiki_feedback_routes(app, socketio)
     wiki_admin_routes(app)
     wiki_review_routes(app)

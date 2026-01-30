@@ -29,12 +29,14 @@ Le dossier `examples/` contient des **scripts de démonstration** pour créer de
 | `examples/create_user_melvin.py` | Python | Exemple complet de création utilisateur |
 | `examples/create_melvin_simple.py` | Python | Version simplifiée |
 | `examples/create_melvin.ps1` | PowerShell | Version PowerShell pour Windows |
+| `examples/make_melvin_normal.py` | Python | Passer Melvin en compte normal (role=user) |
 
 ### Utilisation des exemples
 
 ```bash
 # Exécuter un script Python
 docker compose exec app python scripts/examples/create_user_melvin.py
+docker compose exec app python scripts/examples/make_melvin_normal.py
 
 # Exécuter PowerShell (Windows)
 .\scripts\examples\create_melvin.ps1

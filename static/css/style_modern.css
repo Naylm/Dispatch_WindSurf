@@ -43,6 +43,10 @@
   --glass-border: 1px solid rgba(255, 255, 255, 0.5);
 
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Tech columns sizing (admin kanban) */
+  --tech-col-min: 320px;
+  --tech-col-max: 420px;
 }
 
 /* Mode Sombre */
@@ -219,6 +223,8 @@ ul { list-style: none; }
 /* Layout Adjustments for Sidebar */
 body.with-sidebar-permanent {
   padding-left: 270px;
+  --tech-col-min: 300px;
+  --tech-col-max: 400px;
 }
 
 body.with-sidebar-permanent .navbar {
@@ -290,7 +296,7 @@ body.with-sidebar-permanent .navbar {
 /* Tech Grid & Columns - Vue Admin (Revert to original) */
 .tech-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--tech-col-min), 1fr));
   gap: 1.5rem;
   padding-bottom: 2rem;
   max-width: 100%;
@@ -298,8 +304,8 @@ body.with-sidebar-permanent .navbar {
 }
 
 .tech-column {
-  min-width: 370px;
-  max-width: 450px;
+  min-width: var(--tech-col-min);
+  max-width: var(--tech-col-max);
   display: flex;
   flex-direction: column;
   height: calc(100vh - 280px); /* Hauteur fixe pour permettre le scroll */
@@ -309,7 +315,7 @@ body.with-sidebar-permanent .navbar {
 .tech-column .card {
   height: 100%;
   background: var(--bg-card);
-  min-width: 360px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* Permet le scroll vertical si nécessaire */
@@ -827,6 +833,8 @@ body:not(.dark) .incident-note {
 /* Content expanded when sidebar is hidden */
 body.content-expanded {
   padding-left: 0 !important;
+  --tech-col-min: 280px;
+  --tech-col-max: 380px;
 }
 
 body.content-expanded .container {

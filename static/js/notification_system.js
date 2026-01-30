@@ -252,6 +252,25 @@ class NotificationSystem {
     }
 
     /**
+     * Notification pour une demande de mise à jour Wiki
+     */
+    notifyWikiUpdateRequested(data) {
+        const { article_id, title, requested_by, request_type } = data;
+        const reason = request_type === 'outdated' ? 'Signalé obsolète' : 'Mise à jour demandée';
+
+        this.addNotification({
+            type: 'wiki_update_requested',
+            priority: 'info',
+            title: `📝 ${reason}`,
+            message: `${title || 'Article'} — par ${requested_by || 'quelqu\\'un'}`,
+            action: article_id ? {
+                label: "Voir l'article",
+                onClick: () => { window.location.href = `/wiki/article/${article_id}`; }
+            } : null
+        });
+    }
+
+    /**
      * Rendu des notifications dans le panneau
      */
     renderNotifications() {

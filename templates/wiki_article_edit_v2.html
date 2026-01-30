@@ -274,6 +274,18 @@
                            placeholder="exemple: wifi, réseau, configuration">
                     <small class="text-muted">Les tags aident à organiser et rechercher les articles</small>
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Statut</label>
+                    <select class="form-select" name="status">
+                        {% set current_status = article.status if article and article.status else 'published' %}
+                        <option value="published" {% if current_status == 'published' %}selected{% endif %}>✅ Publié</option>
+                        <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>📝 Brouillon</option>
+                        <option value="obsolete" {% if current_status == 'obsolete' %}selected{% endif %}>⛔ Obsolète</option>
+                        <option value="archived" {% if current_status == 'archived' %}selected{% endif %}>📦 Archivé</option>
+                    </select>
+                    <small class="text-muted">Permet d'afficher le bon badge dans la page de l'article.</small>
+                </div>
             </div>
 
             <!-- Upload d'image -->

@@ -41,6 +41,76 @@
             border-radius: var(--border-radius-sm);
             margin-bottom: 2rem;
         }
+
+        /* Badges (Base de connaissances) */
+        .kb-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .kb-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .kb-badge.bg-success,
+        .kb-badge.bg-warning,
+        .kb-badge.bg-secondary,
+        .kb-badge.bg-info,
+        .kb-badge.bg-danger {
+            border-color: transparent;
+        }
+
+        .kb-badge--owner {
+            background: rgba(59, 130, 246, 0.12);
+            color: #2563eb;
+            border-color: rgba(59, 130, 246, 0.35);
+        }
+
+        .kb-badge--update {
+            background: rgba(245, 158, 11, 0.15);
+            color: #92400e;
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
+        body.dark .kb-badge--owner {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        body.dark .kb-badge--update {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .kb-badge-action {
+            border: none;
+            background: transparent;
+            padding: 0 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: inherit;
+        }
+
+        .kb-badge-action:hover {
+            text-decoration: underline;
+        }
+
+        .kb-badge-note {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
         
         .meta-item {
             display: flex;
@@ -308,25 +378,30 @@
         </div>
 
         <!-- Badges statut et fraîcheur -->
-        <div class="mb-3 d-flex gap-2 flex-wrap">
+        <div class="kb-badge-row">
             {% if article.status %}
-            <span class="badge {% if article.status == 'published' %}bg-success{% elif article.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+            <span class="badge kb-badge kb-badge--status {% if article.status == 'published' %}bg-success{% elif article.status == 'draft' %}bg-warning{% elif article.status == 'obsolete' %}bg-danger{% else %}bg-secondary{% endif %}">
                 {% if article.status == 'published' %}✅ Publié
                 {% elif article.status == 'draft' %}📝 Brouillon
+                {% elif article.status == 'obsolete' %}⛔ Obsolète
                 {% else %}📦 Archivé{% endif %}
             </span>
             {% endif %}
             {% if article.updated_at %}
             {% set freshness = article.updated_at|freshness_badge %}
-            <span class="badge {{ freshness.class }}">{{ freshness.text }}</span>
+            <span class="badge kb-badge kb-badge--fresh {{ freshness.class }}">{{ freshness.text }}</span>
             {% endif %}
             {% if article.owner %}
-            <span class="badge bg-info">👤 {{ article.owner }}</span>
+            <span class="badge kb-badge kb-badge--owner">👤 {{ article.owner }}</span>
             {% endif %}
             {% if update_requested %}
-            <span id="updateRequestedBadge" class="badge bg-warning text-dark">
+            <span id="updateRequestedBadge" class="badge kb-badge kb-badge--update">
                 ⚠️ Mise à jour demandée
-                <button onclick="markAsUpdated()" class="btn btn-sm btn-link text-dark p-0 ms-1" title="Marquer comme mis à jour" style="text-decoration: none; font-size: 0.9rem;">✓</button>
+                {% if role != 'admin' or user|lower == (article.owner or '')|lower or user|lower == (article.created_by or '')|lower %}
+                <button onclick="markAsUpdated()" class="kb-badge-action" title="Marquer comme mis à jour">✓ Valider</button>
+                {% else %}
+                <span class="kb-badge-note">Validation utilisateur</span>
+                {% endif %}
             </span>
             {% endif %}
         </div>
@@ -364,14 +439,8 @@
                 </button>
             </div>
             
-            <!-- Boutons feedback -->
+            <!-- Boutons feedback (autres actions) -->
             <div class="d-flex gap-2 flex-wrap justify-content-center">
-                <button class="btn btn-sm btn-outline-success" onclick="submitFeedback('useful')">
-                    ✅ Utile
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="submitFeedback('not_useful')">
-                    ❌ Pas utile
-                </button>
                 <button class="btn btn-sm btn-outline-warning" onclick="submitFeedback('outdated')">
                     ⚠️ Signaler obsolète
                 </button>
@@ -452,6 +521,7 @@
         document.getElementById('articleContent').innerHTML = marked.parse(content || '');
 
         // Système de vote
+        const canValidateUpdate = {{ 'true' if (role != 'admin' or user|lower == (article.owner or '')|lower or user|lower == (article.created_by or '')|lower) else 'false' }};
         function vote(voteType) {
             const csrfToken =
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
@@ -557,6 +627,13 @@
                     if (badge) {
                         badge.remove();
                     }
+                    // Si l'article était obsolète, repasser le badge en publié
+                    const statusBadge = document.querySelector('.kb-badge--status');
+                    if (statusBadge && statusBadge.textContent.includes('Obsolète')) {
+                        statusBadge.classList.remove('bg-danger', 'bg-warning', 'bg-secondary');
+                        statusBadge.classList.add('bg-success');
+                        statusBadge.innerHTML = '✅ Publié';
+                    }
                     alert('✓ Article marqué comme mis à jour !');
                 } else {
                     alert('Erreur : ' + (data.error || 'Erreur inconnue'));
@@ -616,13 +693,25 @@
 
                     // Si c'est un feedback "outdated" ou "needs_update", ajouter un badge
                     if ((feedbackType === 'outdated' || feedbackType === 'needs_update') && !document.getElementById('updateRequestedBadge')) {
-                        const badgeContainer = document.querySelector('.mb-3.d-flex.gap-2.flex-wrap');
+                        const badgeContainer = document.querySelector('.kb-badge-row');
                         if (badgeContainer) {
                             const badge = document.createElement('span');
                             badge.id = 'updateRequestedBadge';
-                            badge.className = 'badge bg-warning text-dark';
-                            badge.textContent = '⚠️ Mise à jour demandée';
+                            badge.className = 'badge kb-badge kb-badge--update';
+                            badge.innerHTML = `⚠️ Mise à jour demandée ${
+                                canValidateUpdate ? '<button onclick="markAsUpdated()" class="kb-badge-action" title="Marquer comme mis à jour">✓ Valider</button>' : '<span class="kb-badge-note">Validation utilisateur</span>'
+                            }`;
                             badgeContainer.appendChild(badge);
+                        }
+                    }
+
+                    // Si obsolète, mettre à jour le badge de statut côté client
+                    if (feedbackType === 'outdated') {
+                        const statusBadge = document.querySelector('.kb-badge--status');
+                        if (statusBadge) {
+                            statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary');
+                            statusBadge.classList.add('bg-danger');
+                            statusBadge.innerHTML = '⛔ Obsolète';
                         }
                     }
                 } else {

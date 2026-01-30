@@ -154,6 +154,32 @@ def emit_reassignment_notification(socketio, incident_data, old_technicien, new_
     socketio.emit("notification", notification_old)
 
 
+def emit_wiki_update_requested_notification(socketio, article_id, title, requested_by, target_user, request_type):
+    """
+    Émet une notification quand une mise à jour est demandée sur un article wiki.
+
+    Args:
+        socketio: Instance SocketIO
+        article_id: ID de l'article
+        title: Titre de l'article
+        requested_by: Utilisateur qui a demandé la MAJ
+        target_user: Auteur / propriétaire ciblé
+        request_type: 'outdated' ou 'needs_update'
+    """
+    notification = {
+        "type": "wiki_update_requested",
+        "article_id": article_id,
+        "title": title,
+        "requested_by": requested_by,
+        "target_user": target_user,
+        "request_type": request_type,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    logger.info(f"🔔 Émission notification wiki_update_requested: {notification}")
+    socketio.emit("notification", notification)
+
+
 def is_urgent(urgence):
     """
     Vérifie si une urgence est considérée comme prioritaire.

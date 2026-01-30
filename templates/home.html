@@ -1028,8 +1028,32 @@
           // Filtrer les notifications selon le rôle et l'utilisateur
           // {{ user }} contient le prénom du technicien (ex: "Hugo"), pas le username (ex: "hthoreau")
           const currentUser = '{{ user }}'.toLowerCase();
+          const currentUsername = '{{ username }}'.toLowerCase();
           const currentRole = '{{ role }}';
           const changedBy = (data.changed_by || '').toLowerCase();
+
+          // Notifications Wiki: uniquement pour l'auteur ciblé (pas de broadcast admin)
+          if (data.type === 'wiki_update_requested') {
+              const targetUser = (data.target_user || '').toLowerCase();
+              if (!targetUser || (targetUser !== currentUsername && targetUser !== currentUser)) {
+                  return;
+              }
+              if (window.notificationSystem?.notifyWikiUpdateRequested) {
+                  window.notificationSystem.notifyWikiUpdateRequested(data);
+              } else if (window.notificationSystem?.addNotification) {
+                  window.notificationSystem.addNotification({
+                      type: 'wiki_update_requested',
+                      priority: 'info',
+                      title: '📝 Mise à jour demandée',
+                      message: `${data.title || 'Article'} — par ${data.requested_by || 'quelqu\\'un'}`,
+                      action: data.article_id ? {
+                          label: "Voir l'article",
+                          onClick: () => { window.location.href = `/wiki/article/${data.article_id}`; }
+                      } : null
+                  });
+              }
+              return;
+          }
           
           console.log('👤 User:', currentUser, 'Role:', currentRole, 'Technicien:', data.technicien, 'ChangedBy:', changedBy);
 

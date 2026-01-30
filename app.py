@@ -515,6 +515,7 @@ def home():
         "home.html",
         incidents=incidents,
         user=user_display_name,
+        username=session["user"],
         role=session["role"],
         techniciens=techniciens,
         priorites=priorites,
@@ -694,15 +695,22 @@ def annuaire():
         ORDER BY ordre ASC, prenom ASC
     """, (1,)).fetchall()
     
-    # Récupérer les admins de la table users (comme Melvin)
-    admins_users = db.execute("""
-        SELECT id, NULL as nom, username as prenom, NULL as dect_number, NULL as email, 1 as actif, role, 0 as ordre
-        FROM users 
-        WHERE role='admin'
+    # Récupérer les comptes "users" (admin + normal) avec leurs infos complètes
+    users_list = db.execute("""
+        SELECT id,
+               COALESCE(nom, NULL) as nom,
+               COALESCE(prenom, username) as prenom,
+               COALESCE(dect_number, NULL) as dect_number,
+               COALESCE(email, NULL) as email,
+               1 as actif,
+               role,
+               0 as ordre
+        FROM users
+        WHERE role IN ('admin', 'user')
     """).fetchall()
     
     # Combiner les deux listes
-    all_people = list(techniciens_list) + list(admins_users)
+    all_people = list(techniciens_list) + list(users_list)
     
     # Trier par ordre puis prénom
     all_people.sort(key=lambda x: (x.get('ordre', 0), x.get('prenom', '')))
@@ -1769,10 +1777,21 @@ def login():
         p = request.form["password"].strip()
         db = get_db()
 
-        # 1) Essayer dans users (insensible à la casse)
-        user = db.execute(
-            "SELECT * FROM users WHERE LOWER(username)=LOWER(%s)", (u,)
-        ).fetchone()
+        # 1) Essayer dans users (username OU nom/prenom, insensible à la casse)
+        user = db.execute("""
+            SELECT * FROM users
+            WHERE LOWER(username)=LOWER(%s)
+               OR LOWER(nom)=LOWER(%s)
+               OR LOWER(prenom)=LOWER(%s)
+            ORDER BY
+              CASE
+                WHEN LOWER(username)=LOWER(%s) THEN 0
+                WHEN LOWER(nom)=LOWER(%s) THEN 1
+                ELSE 2
+              END,
+              id ASC
+            LIMIT 1
+        """, (u, u, u, u, u)).fetchone()
         if user:
             app.logger.debug(f"Tentative de connexion pour l'utilisateur: {u}")
             # Vérifier le mot de passe hashé ou en clair (pour compatibilité)
@@ -1820,11 +1839,14 @@ def login():
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
-        # 2) Sinon, essayer dans techniciens (recherche par username, insensible à la casse)
+        # 2) Sinon, essayer dans techniciens (recherche par username OU prénom, insensible à la casse)
         tech = db.execute("""
             SELECT * FROM techniciens
-            WHERE LOWER(username)=LOWER(%s) AND actif=1
-        """, (u,)).fetchone()
+            WHERE actif=1
+              AND (LOWER(username)=LOWER(%s) OR LOWER(prenom)=LOWER(%s))
+            ORDER BY CASE WHEN LOWER(username)=LOWER(%s) THEN 0 ELSE 1 END, id ASC
+            LIMIT 1
+        """, (u, u, u)).fetchone()
 
         if tech and tech["password"]:
             app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
@@ -2739,7 +2761,7 @@ def details():
 # ========== MODULE WIKI V2.0 - BASE DE CONNAISSANCE PROFESSIONNELLE ==========
 # Anciennes routes Wiki V1 supprimées - Utilisation de Wiki V2 avec catégories, likes, historique
 from wiki_routes_v2 import register_wiki_routes
-register_wiki_routes(app)  # Wiki V2 réactivé avec support PostgreSQL
+register_wiki_routes(app, socketio)  # Wiki V2 réactivé avec support PostgreSQL
 
 # ---------- IMPORT DE BASE DE DONNÉES ----------
 @app.route("/import_database_preview", methods=["POST"])
