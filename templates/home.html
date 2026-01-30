@@ -527,6 +527,9 @@
           if (window.applyDataAttributesStyles) {
             window.applyDataAttributesStyles();
           }
+          if (window.initTechView) {
+            window.initTechView();
+          }
         })
         .catch(error => {
           console.error('❌ Erreur lors du rechargement de la carte:', error);
@@ -678,6 +681,9 @@
 
           // Appliquer les styles des data attributes après le rafraîchissement
           if (window.applyDataAttributesStyles) window.applyDataAttributesStyles();
+
+          // Réinitialiser la vue technicien (ordre/tri/drag) si nécessaire
+          if (window.initTechView) window.initTechView();
 
           // Restaurer la vue sauvegardée après le rafraîchissement
           setTimeout(() => {

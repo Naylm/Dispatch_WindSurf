@@ -293,6 +293,34 @@ body.with-sidebar-permanent .navbar {
   min-height: 0;
 }
 
+/* Vue technicien - ordre manuel (drag) */
+#userView .small-card {
+  cursor: grab !important;
+}
+
+#userView .small-card .card-header,
+#userView .small-card .card-body {
+  cursor: grab !important;
+}
+
+#userView .small-card.dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+  border: 2px dashed rgba(99, 102, 241, 0.5);
+}
+
+#userView .small-card.drag-disabled {
+  cursor: default !important;
+}
+
+#userView .small-card button,
+#userView .small-card select,
+#userView .small-card input,
+#userView .small-card textarea,
+#userView .small-card a {
+  cursor: pointer !important;
+}
+
 /* Tech Grid & Columns - Vue Admin (Revert to original) */
 .tech-grid {
   display: grid;

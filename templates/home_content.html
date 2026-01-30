@@ -1341,10 +1341,14 @@
 
     <select id="sortByTech" class="form-select form-select-sm" style="width: 180px;">
       <option value="">🔄 Trier par</option>
-      <option value="site-asc">Site A-Z</option>
-      <option value="site-desc">Site Z-A</option>
       <option value="urgence-asc">Priorité ↑</option>
       <option value="urgence-desc">Priorité ↓</option>
+      <option value="site-asc">Site A-Z</option>
+      <option value="site-desc">Site Z-A</option>
+      <option value="localisation-asc">Localisation A-Z</option>
+      <option value="localisation-desc">Localisation Z-A</option>
+      <option value="statut-asc">Statut A-Z</option>
+      <option value="statut-desc">Statut Z-A</option>
       <option value="date-asc">Date affectation ↑</option>
       <option value="date-desc">Date affectation ↓</option>
     </select>
@@ -1932,22 +1936,133 @@
     console.log('✅ Event listeners attached successfully');
   });
 
-  // ===== FILTRAGE ET TRI POUR VUE TECHNICIEN =====
-  document.addEventListener('DOMContentLoaded', function() {
-    const searchInputTech = document.getElementById('searchInputTech');
-    const filterSiteTech = document.getElementById('filterSiteTech');
-    const filterUrgenceTech = document.getElementById('filterUrgenceTech');
-    const sortByTech = document.getElementById('sortByTech');
-    const clearFiltersTechBtn = document.getElementById('clearFiltersTechBtn');
+  // ===== FILTRAGE, TRI ET ORDRE PERSO POUR VUE TECHNICIEN =====
+  (function() {
+    const TECH_USERNAME = {{ username|tojson }};
+    const SITE_ORDER_LIST = {{ sites|map(attribute='nom')|list|tojson }};
+    const STATUT_ORDER_LIST = {{ statuts|map(attribute='nom')|list|tojson }};
+    const PRIORITY_LEVELS = {{ priorites|tojson }};
+    const ORDER_STORAGE_KEY = `tech-order:${(TECH_USERNAME || '').toLowerCase()}`;
 
-    // Vérifier si on est en mode technicien
-    if (!searchInputTech) return; // Pas en mode technicien
+    function getUserView() {
+      return document.getElementById('userView');
+    }
 
-    // Fonction de correspondance des filtres
-    function matchesFiltersTech(card) {
-      const searchText = searchInputTech.value.trim().toLowerCase();
-      const selectedSite = filterSiteTech.value;
-      const selectedUrgence = filterUrgenceTech.value;
+    function getCards() {
+      const userView = getUserView();
+      return userView ? Array.from(userView.querySelectorAll('.small-card')) : [];
+    }
+
+    function readStoredOrder() {
+      try {
+        const raw = localStorage.getItem(ORDER_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function writeStoredOrder(order) {
+      try {
+        localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(order));
+      } catch (e) {
+        console.warn('Impossible de sauvegarder l’ordre tech:', e);
+      }
+    }
+
+    function normalizeOrder(order, cards) {
+      const ids = cards.map(card => String(card.dataset.incidentId || ''));
+      const normalized = order.filter(id => ids.includes(id));
+      ids.forEach(id => {
+        if (id && !normalized.includes(id)) normalized.push(id);
+      });
+      return normalized;
+    }
+
+    function applyTechOrder() {
+      const userView = getUserView();
+      if (!userView) return;
+      const cards = getCards();
+      if (!cards.length) return;
+
+      const stored = readStoredOrder();
+      const order = normalizeOrder(stored, cards);
+      const cardMap = new Map(cards.map(card => [String(card.dataset.incidentId || ''), card]));
+
+      order.forEach(id => {
+        const card = cardMap.get(id);
+        if (card) userView.appendChild(card);
+      });
+
+      writeStoredOrder(order);
+    }
+
+    function saveOrderFromDom() {
+      const cards = getCards();
+      const order = cards.map(card => String(card.dataset.incidentId || '')).filter(Boolean);
+      if (order.length) writeStoredOrder(order);
+    }
+
+    function buildOrderMap(list) {
+      const map = {};
+      if (Array.isArray(list)) {
+        list.forEach((name, index) => {
+          if (name) map[String(name).toLowerCase()] = index + 1;
+        });
+      }
+      return map;
+    }
+
+    const siteOrderMap = buildOrderMap(SITE_ORDER_LIST);
+    const statutOrderMap = buildOrderMap(STATUT_ORDER_LIST);
+    const priorityOrderMap = {};
+    if (Array.isArray(PRIORITY_LEVELS)) {
+      PRIORITY_LEVELS.forEach(priority => {
+        const name = (priority?.nom || '').toLowerCase();
+        const level = Number(priority?.niveau);
+        if (name) priorityOrderMap[name] = Number.isFinite(level) ? level : 999;
+      });
+    }
+
+    function tokenizeLocation(value) {
+      const raw = (value || '').toLowerCase().trim();
+      if (!raw) return [];
+      const tokens = raw.match(/[a-z]+|\d+/g) || [];
+      return tokens.map(token => (/^\d+$/.test(token) ? Number(token) : token));
+    }
+
+    function compareTokens(tokensA, tokensB) {
+      const len = Math.max(tokensA.length, tokensB.length);
+      for (let i = 0; i < len; i++) {
+        const a = tokensA[i];
+        const b = tokensB[i];
+        if (a === undefined) return -1;
+        if (b === undefined) return 1;
+        if (typeof a === 'number' && typeof b === 'number') {
+          if (a !== b) return a - b;
+        } else {
+          const aStr = String(a);
+          const bStr = String(b);
+          if (aStr !== bStr) return aStr.localeCompare(bStr);
+        }
+      }
+      return 0;
+    }
+
+    function compareLocations(a, b) {
+      const locA = (a || '').trim();
+      const locB = (b || '').trim();
+      if (!locA && !locB) return 0;
+      if (!locA) return 1;
+      if (!locB) return -1;
+      return compareTokens(tokenizeLocation(locA), tokenizeLocation(locB));
+    }
+
+    function matchesFiltersTech(card, filters) {
+      const searchText = filters.searchText;
+      const selectedSite = filters.selectedSite;
+      const selectedUrgence = filters.selectedUrgence;
 
       const numero = (card.dataset.numero || '');
       const site = (card.dataset.site || '');
@@ -1955,47 +2070,43 @@
       const sujet = (card.dataset.sujet || '');
       const urgence = (card.dataset.urgence || '');
 
-      // DEBUG: Log des valeurs pour la première carte
-      const cardIndex = Array.from(document.querySelectorAll('#userView .small-card')).indexOf(card);
-      if (cardIndex === 0) {
-        console.log('DEBUG Filtre - Première carte:', {
-          selectedSite, selectedUrgence, searchText,
-          cardData: { numero, site, localisation, sujet, urgence }
-        });
-      }
-
-      // Recherche textuelle (insensible à la casse)
       if (searchText !== '') {
-        const matchesSearch = numero.toLowerCase().includes(searchText) ||
-                             site.toLowerCase().includes(searchText) ||
-                             localisation.toLowerCase().includes(searchText) ||
-                             sujet.toLowerCase().includes(searchText);
+        const matchesSearch = numero.includes(searchText) ||
+                             site.includes(searchText) ||
+                             localisation.includes(searchText) ||
+                             sujet.includes(searchText);
         if (!matchesSearch) return false;
       }
 
-      // Filtre par site (comparaison exacte, les valeurs sont déjà en lowercase)
       if (selectedSite !== '' && site !== selectedSite) {
-        console.log(`Carte ${numero}: site="${site}" !== selectedSite="${selectedSite}" -> MASQUER`);
         return false;
       }
 
-      // Filtre par priorité (comparaison exacte, les valeurs sont déjà en lowercase)
       if (selectedUrgence !== '' && urgence !== selectedUrgence) {
-        console.log(`Carte ${numero}: urgence="${urgence}" !== selectedUrgence="${selectedUrgence}" -> MASQUER`);
         return false;
       }
 
       return true;
     }
 
-    // Fonction pour appliquer les filtres
     function applyFiltersTech() {
-      const cards = document.querySelectorAll('#userView .small-card');
+      const searchInputTech = document.getElementById('searchInputTech');
+      const filterSiteTech = document.getElementById('filterSiteTech');
+      const filterUrgenceTech = document.getElementById('filterUrgenceTech');
+      const userView = getUserView();
+      if (!userView || !searchInputTech || !filterSiteTech || !filterUrgenceTech) return;
+
+      const filters = {
+        searchText: searchInputTech.value.trim().toLowerCase(),
+        selectedSite: filterSiteTech.value,
+        selectedUrgence: filterUrgenceTech.value
+      };
+
+      const cards = getCards();
       let visibleCount = 0;
 
       cards.forEach(card => {
-        if (matchesFiltersTech(card)) {
-          // Afficher la carte
+        if (matchesFiltersTech(card, filters)) {
           card.style.removeProperty('visibility');
           card.style.removeProperty('position');
           card.style.removeProperty('height');
@@ -2003,7 +2114,6 @@
           card.style.removeProperty('overflow');
           visibleCount++;
         } else {
-          // Masquer complètement (ne prend pas de place dans la grille)
           card.style.visibility = 'hidden';
           card.style.position = 'absolute';
           card.style.height = '0';
@@ -2015,27 +2125,36 @@
       console.log(`Filtres technicien: ${visibleCount}/${cards.length} cartes visibles`);
     }
 
-    // Fonction pour appliquer le tri
     function applySortingTech() {
+      const sortByTech = document.getElementById('sortByTech');
+      const userView = getUserView();
+      if (!sortByTech || !userView) return;
       const sortValue = sortByTech.value;
       if (!sortValue) return;
 
       const [criteria, order] = sortValue.split('-');
-      const priorityOrder = { 'basse': 1, 'moyenne': 2, 'haute': 3, 'critique': 4 };
-      const userView = document.getElementById('userView');
-      const cards = Array.from(userView.querySelectorAll('.small-card'));
+      const cards = getCards();
 
       cards.sort((a, b) => {
-        let valA, valB;
+        let valA;
+        let valB;
 
-        switch(criteria) {
+        switch (criteria) {
           case 'site':
-            valA = (a.dataset.site || '').toLowerCase();
-            valB = (b.dataset.site || '').toLowerCase();
+            valA = siteOrderMap[(a.dataset.site || '').toLowerCase()] || 999;
+            valB = siteOrderMap[(b.dataset.site || '').toLowerCase()] || 999;
             break;
           case 'urgence':
-            valA = priorityOrder[(a.dataset.urgence || '').toLowerCase()] || 0;
-            valB = priorityOrder[(b.dataset.urgence || '').toLowerCase()] || 0;
+            valA = priorityOrderMap[(a.dataset.urgence || '').toLowerCase()] || 999;
+            valB = priorityOrderMap[(b.dataset.urgence || '').toLowerCase()] || 999;
+            break;
+          case 'statut':
+            valA = statutOrderMap[(a.dataset.etat || '').toLowerCase()] || 999;
+            valB = statutOrderMap[(b.dataset.etat || '').toLowerCase()] || 999;
+            break;
+          case 'localisation':
+            valA = a.dataset.localisation || '';
+            valB = b.dataset.localisation || '';
             break;
           case 'date':
             valA = a.dataset.dateAffectation || '';
@@ -2045,51 +2164,136 @@
             return 0;
         }
 
-        if (order === 'asc') {
-          return valA > valB ? 1 : valA < valB ? -1 : 0;
+        let cmp = 0;
+        if (criteria === 'localisation') {
+          cmp = compareLocations(valA, valB);
+        } else if (typeof valA === 'number' && typeof valB === 'number') {
+          cmp = valA - valB;
         } else {
-          return valA < valB ? 1 : valA > valB ? -1 : 0;
+          cmp = String(valA).localeCompare(String(valB));
         }
+
+        return order === 'asc' ? cmp : -cmp;
       });
 
-      // Réorganiser les cartes dans le DOM
       cards.forEach(card => userView.appendChild(card));
     }
 
-    // Fonction pour réinitialiser les filtres
-    function clearFiltersTech() {
-      console.log('Réinitialisation des filtres...');
-      searchInputTech.value = '';
-      filterSiteTech.value = '';
-      filterUrgenceTech.value = '';
-      sortByTech.value = '';
-      console.log('Valeurs après reset:', {
-        search: searchInputTech.value,
-        site: filterSiteTech.value,
-        urgence: filterUrgenceTech.value
-      });
-      applyFiltersTech();
+    function applyOrderingTech() {
+      const sortByTech = document.getElementById('sortByTech');
+      if (sortByTech && sortByTech.value) {
+        applySortingTech();
+      } else {
+        applyTechOrder();
+      }
     }
 
-    // Event listeners
-    searchInputTech.addEventListener('input', applyFiltersTech);
-    filterSiteTech.addEventListener('change', function() {
-      console.log('Filtre site changé:', filterSiteTech.value);
-      console.log('Options disponibles:', Array.from(filterSiteTech.options).map(o => ({text: o.text, value: o.value})));
-      applyFiltersTech();
-    });
-    filterUrgenceTech.addEventListener('change', function() {
-      console.log('Filtre priorité changé:', filterUrgenceTech.value);
-      applyFiltersTech();
-    });
-    sortByTech.addEventListener('change', () => {
-      applySortingTech();
-      applyFiltersTech(); // Réappliquer les filtres après le tri
-    });
-    clearFiltersTechBtn.addEventListener('click', clearFiltersTech);
+    function toggleDragAvailability() {
+      const sortByTech = document.getElementById('sortByTech');
+      const allowDrag = !sortByTech || !sortByTech.value;
+      getCards().forEach(card => {
+        card.setAttribute('draggable', allowDrag ? 'true' : 'false');
+        card.classList.toggle('drag-disabled', !allowDrag);
+      });
+    }
 
-    console.log('✅ Filtres et tri technicien initialisés');
-    console.log('Sites disponibles:', Array.from(filterSiteTech.options).map(o => ({text: o.text, value: o.value})));
-    console.log('Priorités disponibles:', Array.from(filterUrgenceTech.options).map(o => ({text: o.text, value: o.value})));
-  });
+    function initDrag() {
+      const userView = getUserView();
+      if (!userView || userView.dataset.dragInit === 'true') return;
+      userView.dataset.dragInit = 'true';
+
+      let draggedCard = null;
+
+      userView.addEventListener('dragstart', (event) => {
+        const card = event.target.closest('.small-card');
+        if (!card) return;
+        if (card.getAttribute('draggable') !== 'true') {
+          event.preventDefault();
+          return;
+        }
+        if (event.target.closest('input, textarea, select, button, a')) {
+          event.preventDefault();
+          return;
+        }
+        draggedCard = card;
+        card.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', card.dataset.incidentId || '');
+      });
+
+      userView.addEventListener('dragover', (event) => {
+        if (!draggedCard) return;
+        event.preventDefault();
+        const card = event.target.closest('.small-card');
+        if (!card || card === draggedCard) return;
+
+        const rect = card.getBoundingClientRect();
+        const before = event.clientX < rect.left + rect.width / 2;
+        if (before) {
+          userView.insertBefore(draggedCard, card);
+        } else {
+          userView.insertBefore(draggedCard, card.nextSibling);
+        }
+      });
+
+      userView.addEventListener('drop', (event) => {
+        if (!draggedCard) return;
+        event.preventDefault();
+      });
+
+      userView.addEventListener('dragend', () => {
+        if (draggedCard) draggedCard.classList.remove('dragging');
+        draggedCard = null;
+        saveOrderFromDom();
+      });
+    }
+
+    function initFilters() {
+      const searchInputTech = document.getElementById('searchInputTech');
+      const filterSiteTech = document.getElementById('filterSiteTech');
+      const filterUrgenceTech = document.getElementById('filterUrgenceTech');
+      const sortByTech = document.getElementById('sortByTech');
+      const clearFiltersTechBtn = document.getElementById('clearFiltersTechBtn');
+
+      if (!searchInputTech || searchInputTech.dataset.techInit === 'true') return;
+      searchInputTech.dataset.techInit = 'true';
+
+      searchInputTech.addEventListener('input', applyFiltersTech);
+      filterSiteTech.addEventListener('change', applyFiltersTech);
+      filterUrgenceTech.addEventListener('change', applyFiltersTech);
+      sortByTech.addEventListener('change', () => {
+        applyOrderingTech();
+        applyFiltersTech();
+        toggleDragAvailability();
+      });
+      clearFiltersTechBtn.addEventListener('click', () => {
+        searchInputTech.value = '';
+        filterSiteTech.value = '';
+        filterUrgenceTech.value = '';
+        sortByTech.value = '';
+        applyOrderingTech();
+        applyFiltersTech();
+        toggleDragAvailability();
+      });
+    }
+
+    window.applyTechOrder = applyTechOrder;
+    window.applySortingTech = applySortingTech;
+    window.applyFiltersTech = applyFiltersTech;
+    window.initTechView = function() {
+      const userView = getUserView();
+      if (!userView) return;
+      initFilters();
+      initDrag();
+      applyOrderingTech();
+      applyFiltersTech();
+      toggleDragAvailability();
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', window.initTechView);
+    } else {
+      window.initTechView();
+    }
+  })();
 </script>

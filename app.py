@@ -599,6 +599,7 @@ def home_content_api():
         "home_content.html",
         incidents=incidents,
         user=session["user"],
+        username=session["user"],
         role=session["role"],
         techniciens=techniciens,
         priorites=priorites,

@@ -223,6 +223,7 @@
     </nav>
 
     <div class="container py-4">
+        {% include "_flash_messages.html" %}
         <form method="POST" id="articleForm" action="{{ url_for('create_wiki_article') if not article else url_for('edit_wiki_article', id=article.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Informations de base -->
