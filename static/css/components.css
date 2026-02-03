@@ -5,6 +5,12 @@
 
 /* ===== BUTTONS ===== */
 
+/* Base page colors */
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
 /* Base button improvements */
 .btn {
   border-radius: var(--radius-md);
@@ -13,6 +19,14 @@
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
+}
+
+/* Back button placement (consistent across pages) */
+.btn-back {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: var(--z-fixed);
 }
 
 /* Ripple effect on click */
@@ -642,6 +656,28 @@ body.dark .text-muted {
 /* Navbar en dark mode */
 body.dark .navbar-light {
   background-color: var(--color-bg-elevated) !important;
+}
+
+body.dark .btn-info {
+  color: #fff;
+}
+
+body.dark .btn-info:hover:not(:disabled) {
+  color: #fff;
+}
+
+body.dark .btn-primary,
+body.dark .btn-success,
+body.dark .btn-warning,
+body.dark .btn-danger {
+  color: #fff;
+}
+
+body.dark .btn-primary:hover:not(:disabled),
+body.dark .btn-success:hover:not(:disabled),
+body.dark .btn-warning:hover:not(:disabled),
+body.dark .btn-danger:hover:not(:disabled) {
+  color: #fff;
 }
 
 body.dark .navbar-brand,

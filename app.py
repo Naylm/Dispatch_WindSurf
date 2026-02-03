@@ -447,7 +447,7 @@ def home():
 
     db = get_db()
 
-    # Récupérer les informations du technicien connecté pour l'affichage
+    # Récupérer les informations de l'utilisateur connecté pour l'affichage
     user_display_name = session["user"].capitalize()
     current_tech_id = None
 
@@ -459,6 +459,14 @@ def home():
         if tech:
             current_tech_id = tech['id']
             user_display_name = tech['prenom']  # Utiliser le prénom pour l'affichage
+    else:
+        # Admin/user: afficher le prénom si disponible
+        user_row = db.execute(
+            "SELECT prenom FROM users WHERE username=%s",
+            (session["user"],)
+        ).fetchone()
+        if user_row and user_row.get("prenom"):
+            user_display_name = user_row["prenom"]
 
     # Récupérer les données de référence avec cache (optimisation)
     ref_data = get_reference_data()
@@ -735,8 +743,8 @@ def profil():
         user_data = db.execute("""
             SELECT id, nom, prenom, username, email, dect_number, role, photo_profil, created_at
             FROM techniciens 
-            WHERE (username=%s OR prenom=%s) AND actif=1
-        """, (username, username)).fetchone()
+            WHERE username=%s AND actif=1
+        """, (username,)).fetchone()
     else:
         # Pour les admins de la table users
         user_data = db.execute("""
@@ -784,8 +792,8 @@ def update_profile_info():
             db.execute("""
                 UPDATE techniciens 
                 SET dect_number=%s, email=%s
-                WHERE (username=%s OR prenom=%s)
-            """, (dect_number, email, username, username))
+                WHERE username=%s
+            """, (dect_number, email, username))
         else:
             # Pour les admins de la table users - peuvent modifier nom, prénom, téléphone et email
             if not prenom:
@@ -843,8 +851,8 @@ def update_profile_password():
         if user_type == "technicien":
             user = db.execute("""
                 SELECT id, password FROM techniciens 
-                WHERE (username=%s OR prenom=%s) AND actif=1
-            """, (username, username)).fetchone()
+                WHERE username=%s AND actif=1
+            """, (username,)).fetchone()
         else:
             user = db.execute("SELECT id, password FROM users WHERE username=%s", (username,)).fetchone()
         
@@ -937,8 +945,8 @@ def update_profile_photo():
             # Supprimer l'ancienne photo si elle existe
             old_photo = db.execute("""
                 SELECT photo_profil FROM techniciens 
-                WHERE (username=%s OR prenom=%s)
-            """, (username, username)).fetchone()
+                WHERE username=%s
+            """, (username,)).fetchone()
             
             if old_photo and old_photo.get("photo_profil"):
                 old_path = os.path.join(UPLOAD_FOLDER, old_photo["photo_profil"])
@@ -947,8 +955,8 @@ def update_profile_photo():
             
             db.execute("""
                 UPDATE techniciens SET photo_profil=%s
-                WHERE (username=%s OR prenom=%s)
-            """, (unique_filename, username, username))
+                WHERE username=%s
+            """, (unique_filename, username))
         else:
             # Pour les admins de la table users
             # Supprimer l'ancienne photo si elle existe
@@ -997,8 +1005,8 @@ def delete_profile_photo():
         if user_type == "technicien":
             user = db.execute("""
                 SELECT photo_profil FROM techniciens 
-                WHERE (username=%s OR prenom=%s)
-            """, (username, username)).fetchone()
+                WHERE username=%s
+            """, (username,)).fetchone()
         else:
             user = db.execute("""
                 SELECT photo_profil FROM users 
@@ -1024,8 +1032,8 @@ def delete_profile_photo():
         if user_type == "technicien":
             db.execute("""
                 UPDATE techniciens SET photo_profil=NULL
-                WHERE (username=%s OR prenom=%s)
-            """, (username, username))
+                WHERE username=%s
+            """, (username,))
         else:
             db.execute("""
                 UPDATE users SET photo_profil=NULL
@@ -1755,8 +1763,8 @@ def force_password_reset():
             )
         else:  # technicien
             db.execute(
-                "UPDATE techniciens SET force_password_reset=1 WHERE (username=%s OR prenom=%s)",
-                (username, username)
+                "UPDATE techniciens SET force_password_reset=1 WHERE username=%s",
+                (username,)
             )
 
         db.commit()
@@ -1778,21 +1786,12 @@ def login():
         p = request.form["password"].strip()
         db = get_db()
 
-        # 1) Essayer dans users (username OU nom/prenom, insensible à la casse)
+        # 1) Essayer dans users (username uniquement, insensible a la casse)
         user = db.execute("""
             SELECT * FROM users
             WHERE LOWER(username)=LOWER(%s)
-               OR LOWER(nom)=LOWER(%s)
-               OR LOWER(prenom)=LOWER(%s)
-            ORDER BY
-              CASE
-                WHEN LOWER(username)=LOWER(%s) THEN 0
-                WHEN LOWER(nom)=LOWER(%s) THEN 1
-                ELSE 2
-              END,
-              id ASC
             LIMIT 1
-        """, (u, u, u, u, u)).fetchone()
+        """, (u,)).fetchone()
         if user:
             app.logger.debug(f"Tentative de connexion pour l'utilisateur: {u}")
             # Vérifier le mot de passe hashé ou en clair (pour compatibilité)
@@ -1840,14 +1839,13 @@ def login():
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
-        # 2) Sinon, essayer dans techniciens (recherche par username OU prénom, insensible à la casse)
+        # 2) Sinon, essayer dans techniciens (username uniquement, insensible a la casse)
         tech = db.execute("""
             SELECT * FROM techniciens
             WHERE actif=1
-              AND (LOWER(username)=LOWER(%s) OR LOWER(prenom)=LOWER(%s))
-            ORDER BY CASE WHEN LOWER(username)=LOWER(%s) THEN 0 ELSE 1 END, id ASC
+              AND LOWER(username)=LOWER(%s)
             LIMIT 1
-        """, (u, u, u)).fetchone()
+        """, (u,)).fetchone()
 
         if tech and tech["password"]:
             app.logger.debug(f"Tentative de connexion pour le technicien: {u}")
@@ -1953,8 +1951,8 @@ def change_password_forced():
         if user_type == "user":
             user = db.execute("SELECT * FROM users WHERE username=%s", (username,)).fetchone()
         else:
-            # Pour les techniciens, chercher par username (qui peut être username ou prenom)
-            user = db.execute("SELECT * FROM techniciens WHERE (username=%s OR prenom=%s) AND actif=1", (username, username)).fetchone()
+            # Pour les techniciens, chercher par username uniquement
+            user = db.execute("SELECT * FROM techniciens WHERE username=%s AND actif=1", (username,)).fetchone()
 
         if not user:
             db.close()
@@ -1997,7 +1995,7 @@ def change_password_forced():
                 (hashed_password, username)
             )
         else:
-            # Pour les techniciens, utiliser l'ID si disponible, sinon username/prenom
+            # Pour les techniciens, utiliser l'ID (recupere par username)
             tech_id = user.get("id")
             if tech_id:
                 db.execute(
@@ -2006,8 +2004,8 @@ def change_password_forced():
                 )
             else:
                 db.execute(
-                    "UPDATE techniciens SET password=%s, force_password_reset=0 WHERE (username=%s OR prenom=%s)",
-                    (hashed_password, username, username)
+                    "UPDATE techniciens SET password=%s, force_password_reset=0 WHERE username=%s",
+                    (hashed_password, username)
                 )
 
         db.commit()
@@ -2252,8 +2250,8 @@ def edit_note(id):
     # Comparaison exacte (sensible à la casse) pour sécurité
     # Vérifier les permissions (technicien propriétaire ou admin)
     if session["role"] != "admin":
-        tech = db.execute("SELECT id FROM techniciens WHERE username=%s OR prenom=%s",
-                         (session["user"], session["user"])).fetchone()
+        tech = db.execute("SELECT id FROM techniciens WHERE username=%s",
+                         (session["user"],)).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
             return redirect(url_for("home"))
 
@@ -2331,8 +2329,8 @@ def edit_note_inline(id):
     # Utiliser technicien_id pour éviter les problèmes de username != prenom
     if session["role"] != "admin":
         # Récupérer l'ID du technicien connecté
-        tech = db.execute("SELECT id FROM techniciens WHERE username=%s OR prenom=%s",
-                         (session["user"], session["user"])).fetchone()
+        tech = db.execute("SELECT id FROM techniciens WHERE username=%s",
+                         (session["user"],)).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
             return jsonify({"error": "Permission refusée"}), 403
 

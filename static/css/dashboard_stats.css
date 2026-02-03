@@ -284,6 +284,56 @@ body.dark {
   color: #e0e0e0;
 }
 
+body.dark .kpi-card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .kpi-card.primary {
+  background: linear-gradient(135deg, #1e2a44 0%, #1c253b 100%);
+  border-left-color: #3b82f6;
+}
+
+body.dark .kpi-card.success {
+  background: linear-gradient(135deg, #163524 0%, #173b2a 100%);
+  border-left-color: #22c55e;
+}
+
+body.dark .kpi-card.warning {
+  background: linear-gradient(135deg, #3b2a12 0%, #2f220f 100%);
+  border-left-color: #f59e0b;
+}
+
+body.dark .kpi-card.danger {
+  background: linear-gradient(135deg, #3b1a1e 0%, #2f1417 100%);
+  border-left-color: #ef4444;
+}
+
+body.dark .kpi-card.info {
+  background: linear-gradient(135deg, #12323b 0%, #0f2a31 100%);
+  border-left-color: #06b6d4;
+}
+
+body.dark .kpi-label {
+  color: #aab4c3;
+}
+
+body.dark .kpi-value {
+  color: #e6edf3;
+}
+
+body.dark .kpi-variation.positive {
+  color: #34d399;
+}
+
+body.dark .kpi-variation.negative {
+  color: #f87171;
+}
+
+body.dark .kpi-icon {
+  color: #e6edf3;
+  opacity: 0.15;
+}
+
 body.dark .card {
   background-color: #2d2d2d;
   color: #e0e0e0;
@@ -318,6 +368,17 @@ body.dark .form-select:focus {
   background-color: #2d2d2d;
   color: #e0e0e0;
   border-color: #0d6efd;
+}
+
+body.dark #filterStatus,
+body.dark #filterPriority {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark #filterStatus .form-check-label,
+body.dark #filterPriority .form-check-label {
+  color: #e0e0e0;
 }
 
 /* ===================== */

@@ -728,6 +728,26 @@
 body.dark .table {
   color: var(--color-text-primary);
   border-color: var(--color-border);
+  --bs-table-bg: var(--color-bg-elevated);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+  --bs-table-striped-color: var(--color-text-primary);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.06);
+  --bs-table-hover-color: var(--color-text-primary);
+  --bs-table-border-color: var(--color-border);
+}
+
+body.dark .table > :not(caption) > * > * {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+body.dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+body.dark .table-hover > tbody > tr:hover > * {
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 body.dark .table thead th {

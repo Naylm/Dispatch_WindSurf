@@ -143,6 +143,47 @@
       font-size: 13px;
     }
 
+    /* Dark mode */
+    body.dark {
+      background: #1a1f26;
+      color: #e6edf3;
+    }
+
+    body.dark .login-card {
+      background: #232a33;
+      border-color: #2f3742;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    body.dark .login-title {
+      color: #e6edf3;
+    }
+
+    body.dark .login-subtitle,
+    body.dark .footer {
+      color: #b0b7c3;
+    }
+
+    body.dark .form-label {
+      color: #c7d0db;
+    }
+
+    body.dark .form-control {
+      background-color: #1e2530;
+      border-color: #2f3742;
+      color: #e6edf3;
+    }
+
+    body.dark .form-control::placeholder {
+      color: #8a93a1;
+    }
+
+    body.dark .alert {
+      background-color: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+      color: #fecaca;
+    }
+
     /* ============================================================ */
     /* PROTECTION ANTI-CARET : Empêche le curseur de saisie sur texte */
     /* ============================================================ */
@@ -200,6 +241,7 @@
       }
     }
   </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
 
@@ -221,7 +263,7 @@
 
         <div class="form-group">
           <label class="form-label">Nom d'utilisateur</label>
-          <input type="text" name="username" class="form-control" placeholder="Votre identifiant" required autofocus>
+          <input type="text" name="username" class="form-control" placeholder="Nom d'utilisateur" required autofocus>
         </div>
 
         <div class="form-group">

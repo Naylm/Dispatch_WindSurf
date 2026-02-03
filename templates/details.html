@@ -17,6 +17,7 @@
   <!-- Custom Styles -->
   <!-- Votre CSS perso (si besoin) -->
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="container py-4">
 
@@ -28,7 +29,7 @@
       </span>
       <div class="d-flex align-items-center gap-2">
         <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Thème sombre/clair">🌙</button>
-        <a href="{{ url_for('stats') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+        <a href="{{ url_for('stats') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour</a>
         <a href="#" onclick="location.reload();return false;" class="btn btn-outline-success btn-sm">🔄 Rafraîchir</a>
       </div>
     </div>

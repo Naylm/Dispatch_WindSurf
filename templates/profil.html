@@ -241,6 +241,40 @@
             border-color: var(--color-primary, #667eea);
             box-shadow: 0 0 0 0.2rem var(--color-primary-light, rgba(102, 126, 234, 0.25));
         }
+
+        /* Dark mode overrides */
+        body.dark {
+            background: linear-gradient(135deg, #1a1f26 0%, #0f141a 100%);
+        }
+
+        body.dark .profile-body {
+            background: var(--color-bg-elevated, #232a33);
+            color: var(--color-text-primary, #e6edf3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+
+        body.dark .section-title {
+            color: var(--color-text-primary, #e6edf3);
+            border-bottom-color: var(--color-border, #2f3742);
+        }
+
+        body.dark .profile-avatar {
+            background: var(--color-bg-elevated, #232a33);
+            color: var(--color-primary, #3b82f6);
+            border-color: rgba(255,255,255,0.12);
+        }
+
+        body.dark .avatar-upload-btn {
+            background: var(--color-bg-elevated, #232a33);
+            border-color: var(--color-primary, #3b82f6);
+            color: var(--color-primary, #3b82f6);
+        }
+
+        body.dark .form-section,
+        body.dark .input-group-text {
+            background: var(--color-bg-base, #1a1f26);
+            border-color: var(--color-border, #2f3742);
+        }
         
         /* Responsive */
         @media (max-width: 768px) {
@@ -259,10 +293,11 @@
             }
         }
     </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
     <div class="profile-container">
-        <a href="{{ url_for('home') }}" class="btn-back">
+        <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm btn-back">
             ← Retour à l'accueil
         </a>
         

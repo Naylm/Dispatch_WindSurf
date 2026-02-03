@@ -14,13 +14,14 @@
   <link href="{{ url_for('static', filename='css/polish.css') }}?v=8.0" rel="stylesheet" />
   <!-- Custom Styles -->
     <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
     <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
         <div class="container-fluid">
             <span class="navbar-brand fw-bold">📋 Articles à revoir</span>
             <div class="d-flex gap-2">
-                <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm">← Retour au Wiki</a>
+                <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour au Wiki</a>
             </div>
         </div>
     </nav>

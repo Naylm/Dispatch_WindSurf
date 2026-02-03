@@ -15,13 +15,14 @@
   <!-- Custom Styles -->
   <link href="{{ url_for('static', filename='css/style.css') }}"
         rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="container py-4">
 
 <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
   <div class="container-fluid">
     <span class="navbar-brand fw-bold">Archives</span>
-    <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+    <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour</a>
     <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
   </div>
 </nav>

@@ -48,6 +48,7 @@
             margin-bottom: 2rem;
         }
     </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="container py-4">
     <!-- Navbar -->
@@ -55,7 +56,7 @@
         <div class="container-fluid">
             <span class="navbar-brand fw-bold">📚 Base de connaissances</span>
             <div class="d-flex gap-2">
-                <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm">← Retour au Wiki</a>
+                <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour au Wiki</a>
                 <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm">🏠 Accueil</a>
                 <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
             </div>

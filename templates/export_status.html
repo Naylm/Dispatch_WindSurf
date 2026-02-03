@@ -79,6 +79,26 @@
             transition: all 0.3s;
         }
 
+        /* Dark mode */
+        body.dark .export-container {
+            background: var(--bg-card, #232a33);
+            color: var(--text-main, #e6edf3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        body.dark .status-text {
+            color: var(--text-secondary, #b0b7c3);
+        }
+
+        body.dark .progress-bar {
+            background-color: #2a2f36;
+        }
+
+        body.dark .loader {
+            border-color: #2a2f36;
+            border-top-color: #3498db;
+        }
+
         .btn-primary {
             background-color: #3498db;
             color: white;
@@ -97,6 +117,7 @@
             background-color: #7f8c8d;
         }
     </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
     <div class="export-container">

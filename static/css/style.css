@@ -95,6 +95,10 @@ body.dark .table {
   background-color: var(--color-bg-elevated, #3a3a3a) !important;
   color: var(--color-text-primary, #f0f0f0) !important;
   border-color: var(--color-border, #3f3f3f) !important;
+  --bs-table-bg: var(--color-bg-elevated, #3a3a3a);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.06);
+  --bs-table-border-color: var(--color-border, #3f3f3f);
 }
 body.dark .table th,
 body.dark .table td {
@@ -112,7 +116,7 @@ body.dark .list-group-item {
   color: var(--color-text-primary, #f0f0f0) !important;
   border-color: var(--color-border, #3f3f3f) !important;
 }
-body.dark a {
+body.dark a:not(.btn):not(.btn-back) {
   color: var(--color-primary, #87cefa);
 }
 body.dark .badge-Affecté {

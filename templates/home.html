@@ -328,6 +328,7 @@
       }
     }
   </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="container py-4">
   <!-- Sidebar - Toggleable pour admins et techniciens -->
@@ -384,11 +385,11 @@
   <h2 class="mb-4">Bienvenue {{ user }}</h2>
 
   {% if role == 'admin' %}
-  <div class="mb-3 d-flex gap-2 flex-wrap">
-    <a href="{{ url_for('add_incident') }}" class="btn btn-primary">+ Ajouter un incident</a>
-    <a href="{{ url_for('techniciens') }}" class="btn btn-info">👨‍🔧 Gestion techniciens</a>
-    <a href="{{ url_for('configuration') }}" class="btn btn-success">⚙️ Configuration</a>
-    <a href="{{ url_for('wiki') }}" class="btn btn-info">📚 Base de connaissances</a>
+  <div class="mb-3 d-flex gap-2 flex-wrap admin-actions">
+    <a href="{{ url_for('add_incident') }}" class="btn btn-primary btn-admin">+ Ajouter un incident</a>
+    <a href="{{ url_for('techniciens') }}" class="btn btn-info btn-admin">👨‍🔧 Gestion techniciens</a>
+    <a href="{{ url_for('configuration') }}" class="btn btn-success btn-admin">⚙️ Configuration</a>
+    <a href="{{ url_for('wiki') }}" class="btn btn-info btn-admin">📚 Base de connaissances</a>
   </div>
   {% endif %}
 

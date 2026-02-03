@@ -71,12 +71,13 @@
             margin-bottom: 1rem;
         }
     </style>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
     <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
         <div class="container-fluid">
             <span class="navbar-brand fw-bold">🔍 Résultats de recherche</span>
-            <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm">← Retour au Wiki</a>
+            <a href="{{ url_for('wiki') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour au Wiki</a>
         </div>
     </nav>
 

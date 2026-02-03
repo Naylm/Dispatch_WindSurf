@@ -13,6 +13,7 @@
   <link href="{{ url_for('static', filename='css/polish.css') }}?v=8.0" rel="stylesheet" />
   <!-- Custom Styles -->
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body class="container py-4">
 
@@ -24,7 +25,7 @@
         <a href="{{ url_for('techniciens') }}" class="btn btn-outline-info btn-sm">👨‍🔧 Gestion techniciens</a>
         <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
         <a href="#" onclick="location.reload();return false;" class="btn btn-outline-success btn-sm">🔄</a>
-        <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+        <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour</a>
       </div>
     </div>
   </nav>
