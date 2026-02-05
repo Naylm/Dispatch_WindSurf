@@ -15,8 +15,13 @@ DB_TYPE = os.environ.get("DB_TYPE", "postgresql")
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "postgres")
 POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.environ.get("POSTGRES_DB", "dispatch")
-POSTGRES_USER = os.environ.get("POSTGRES_USER", "dispatch_user")
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "dispatch_pass")
+POSTGRES_USER = os.environ.get("POSTGRES_USER")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+
+if DB_TYPE == "postgresql" and (not POSTGRES_USER or not POSTGRES_PASSWORD):
+    raise RuntimeError(
+        "POSTGRES_USER et POSTGRES_PASSWORD doivent etre definis pour DB_TYPE=postgresql."
+    )
 
 # Configuration du pool de connexions
 # Min connections: 5 (toujours disponibles)

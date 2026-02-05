@@ -74,6 +74,13 @@ app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']  # Accepter les
 # En développement: désactiver pour rechargement automatique
 is_production = os.environ.get("FLASK_ENV", "production") == "production"
 
+
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 if is_production:
     # Production: activer cache pour performances
     app.config["TEMPLATES_AUTO_RELOAD"] = False
@@ -87,10 +94,24 @@ else:
     app.jinja_env.auto_reload = True
     app.jinja_env.cache = {}
 
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = _env_flag("SESSION_COOKIE_SECURE", default=is_production)
+
 # SocketIO optimisé pour synchronisation temps réel
 # Avec 1 worker Gunicorn, Redis n'est pas nécessaire pour le broadcast
 redis_url = os.environ.get("REDIS_URL")
 use_redis = False
+gunicorn_workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "1")))
+socketio_debug = _env_flag("SOCKETIO_DEBUG", default=not is_production)
+
+socketio_allowed_origins_raw = os.environ.get("SOCKETIO_ALLOWED_ORIGINS", "").strip()
+if socketio_allowed_origins_raw:
+    socketio_allowed_origins = [
+        origin.strip() for origin in socketio_allowed_origins_raw.split(",") if origin.strip()
+    ]
+else:
+    socketio_allowed_origins = "*" if not is_production else []
 
 # Tester Redis uniquement si configuré et si plus d'1 worker
 if redis_url:
@@ -99,46 +120,92 @@ if redis_url:
         r = redis_lib.from_url(redis_url, socket_timeout=2, socket_connect_timeout=2)
         r.ping()
         use_redis = True
-        print(f"✅ Redis connecté : {redis_url}")
+        app.logger.info(f"Redis connected: {redis_url}")
     except Exception as e:
-        print(f"⚠️ Redis non disponible ({e}), fonctionnement en mode single-worker")
+        app.logger.warning(f"Redis unavailable ({e}), fallback local mode")
+
+if gunicorn_workers > 1 and not use_redis:
+    raise RuntimeError(
+        "REDIS_URL is required and must be reachable when GUNICORN_WORKERS > 1."
+    )
+
+ADMIN_SOCKET_ROOM = "role:admin"
+
+
+def _socket_user_room(username):
+    return f"user:{(username or '').strip().lower()}"
+
+
+def _socket_tech_room(technician_name):
+    return f"tech:{(technician_name or '').strip().lower()}"
+
 
 socketio = SocketIO(
-    app, 
+    app,
     async_mode="eventlet",
-    cors_allowed_origins="*",
+    cors_allowed_origins=socketio_allowed_origins,
     ping_timeout=60,
     ping_interval=25,
     max_http_buffer_size=1000000,
-    logger=True,  # Activer les logs pour déboguer
-    engineio_logger=True,  # Activer les logs Engine.IO
+    logger=socketio_debug,
+    engineio_logger=socketio_debug,
     allow_upgrades=True,
     transports=['polling', 'websocket'],
-    manage_session=False,  # Ne pas gérer les sessions Flask pour éviter les conflits
-    message_queue=redis_url if use_redis else None  # Redis pour multi-workers
+    manage_session=False,
+    message_queue=redis_url if use_redis else None
 )
 
-# Gestionnaires Socket.IO
+
 @socketio.on('connect')
 def handle_connect(auth):
-    """Gestionnaire de connexion Socket.IO"""
-    # Ne pas vérifier la session Flask pour éviter les erreurs "Invalid session"
-    app.logger.info(f"✅ Client Socket.IO connecté: {request.sid}")
+    """Only allow Socket.IO connection with a valid Flask session."""
+    if "user" not in session:
+        app.logger.warning(f"Socket.IO connection denied (no session): sid={request.sid}")
+        return False
+
+    username = session.get("user")
+    role = session.get("role")
+    joined_rooms = {_socket_user_room(username)}
+
+    if role == "admin":
+        joined_rooms.add(ADMIN_SOCKET_ROOM)
+
+    db = None
+    try:
+        db = get_db_connection()
+        tech_info = db.execute(
+            "SELECT prenom FROM techniciens WHERE username=%s AND actif=1",
+            (username,),
+        ).fetchone()
+        if tech_info and tech_info.get("prenom"):
+            joined_rooms.add(_socket_tech_room(tech_info["prenom"]))
+    except Exception as e:
+        app.logger.warning(f"Could not load technician room on connect: {e}")
+    finally:
+        if db is not None:
+            db.close()
+
+    for room in joined_rooms:
+        join_room(room)
+
+    app.logger.info(
+        f"Socket.IO connected: sid={request.sid} user={username} role={role} rooms={sorted(joined_rooms)}"
+    )
+    return True
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """Gestionnaire de déconnexion Socket.IO"""
-    app.logger.info(f"❌ Client Socket.IO déconnecté: {request.sid}")
+    app.logger.info(f"Socket.IO disconnected: sid={request.sid}")
+
 
 @socketio.on('join')
 def handle_join(data):
-    """Gestionnaire pour rejoindre une room"""
-    room = data.get('room')
-    if room:
-        join_room(room)
-        app.logger.info(f"📦 Client {request.sid} a rejoint la room: {room}")
-    else:
-        app.logger.warning(f"⚠️ Tentative de join sans room de la part de {request.sid}")
+    requested_room = (data or {}).get("room")
+    app.logger.warning(
+        f"Ignored arbitrary join request: sid={request.sid} room={requested_room}"
+    )
+    emit("join_ack", {"status": "ignored", "reason": "server_managed_rooms"})
 
 # Configuration des chemins
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -169,6 +236,119 @@ def get_db():
     return g.db
 
 
+def _is_api_or_ajax_request():
+    return (
+        request.path.startswith("/api/")
+        or request.is_json
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+
+
+def _auth_error_response(status_code, message):
+    if _is_api_or_ajax_request():
+        return jsonify({"error": message}), status_code
+    if status_code == 401:
+        return redirect(url_for("login"))
+    flash(message, "danger")
+    return redirect(url_for("home"))
+
+
+def _get_current_tech_info(db):
+    """Retourne les infos du technicien connecte (id + prenom) si applicable."""
+    if "user" not in session or session.get("user_type") != "technicien":
+        return None
+
+    cached = g.get("_current_tech_info")
+    if cached is not None:
+        return cached
+
+    tech_info = db.execute(
+        "SELECT id, prenom FROM techniciens WHERE username=%s AND actif=1",
+        (session["user"],),
+    ).fetchone()
+    g._current_tech_info = tech_info
+    return tech_info
+
+
+def _can_access_incident(db, incident):
+    """Admin: acces total. Technicien: seulement ses incidents."""
+    if not incident:
+        return False
+
+    if session.get("role") == "admin":
+        return True
+
+    tech_info = _get_current_tech_info(db)
+    if tech_info and incident.get("technicien_id") == tech_info.get("id"):
+        return True
+
+    # Fallback legacy base sur le collaborateur.
+    if session.get("user_type") == "technicien":
+        candidate_names = {session.get("user", "").strip().lower()}
+        if tech_info and tech_info.get("prenom"):
+            candidate_names.add(tech_info["prenom"].strip().lower())
+        collab = (incident.get("collaborateur") or "").strip().lower()
+        return collab in candidate_names
+
+    return False
+
+
+def _event_rooms_for_technicians(technician_names=None):
+    rooms = {ADMIN_SOCKET_ROOM}
+    for name in technician_names or []:
+        if name:
+            rooms.add(_socket_tech_room(name))
+    return rooms
+
+
+def _emit_event_to_rooms(event_name, payload, rooms):
+    for room in rooms:
+        socketio.emit(event_name, payload, room=room)
+
+
+def _emit_incident_event(event_name, incident_id, db=None, technician_names=None, **extra_payload):
+    """
+    Emet un evenement incident cible (admins + techniciens concernes)
+    avec payload normalise.
+    """
+    incident_id = int(incident_id)
+    version = extra_payload.pop("version", None)
+    inferred_tech = None
+
+    if db is not None and (version is None or not technician_names):
+        inc_meta = db.execute(
+            "SELECT collaborateur, version FROM incidents WHERE id=%s",
+            (incident_id,),
+        ).fetchone()
+        if inc_meta:
+            if version is None:
+                version = inc_meta.get("version")
+            inferred_tech = inc_meta.get("collaborateur")
+
+    tech_names = list(technician_names or [])
+    if inferred_tech and inferred_tech not in tech_names:
+        tech_names.append(inferred_tech)
+
+    payload = {"id": incident_id, "incident_id": incident_id}
+    if version is not None:
+        payload["version"] = version
+    payload.update(extra_payload)
+
+    _emit_event_to_rooms(event_name, payload, _event_rooms_for_technicians(tech_names))
+    return payload
+
+
+def _emit_bulk_refresh(reason, technician_names=None, incident_id=None):
+    payload = {"reason": reason}
+    if incident_id is not None:
+        payload["incident_id"] = int(incident_id)
+    _emit_event_to_rooms(
+        "bulk_refresh_required",
+        payload,
+        _event_rooms_for_technicians(technician_names),
+    )
+
+
 def get_reference_data():
     """
     Récupère les données de référence (priorites, sites, statuts, sujets) avec cache
@@ -185,10 +365,18 @@ def get_reference_data():
     # Données pas en cache, les récupérer de la DB
     db = get_db()
     # Convertir les DualAccessRow en dictionnaires pour éviter les problèmes de sérialisation
-    priorites_rows = db.execute("SELECT * FROM priorites ORDER BY nom").fetchall()
-    sites_rows = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
-    statuts_rows = db.execute("SELECT * FROM statuts ORDER BY nom").fetchall()
-    sujets_rows = db.execute("SELECT * FROM sujets ORDER BY nom").fetchall()
+    priorites_rows = db.execute(
+        "SELECT id, nom, couleur, niveau FROM priorites ORDER BY nom"
+    ).fetchall()
+    sites_rows = db.execute(
+        "SELECT id, nom, couleur FROM sites ORDER BY nom"
+    ).fetchall()
+    statuts_rows = db.execute(
+        "SELECT id, nom, couleur, category, has_relances, has_rdv FROM statuts ORDER BY nom"
+    ).fetchall()
+    sujets_rows = db.execute(
+        "SELECT id, nom FROM sujets ORDER BY nom"
+    ).fetchall()
 
     priorites = [dict(row) for row in priorites_rows]
     sites = [dict(row) for row in sites_rows]
@@ -233,6 +421,8 @@ RELANCE_DELAYS_HOURS = {
 RELANCE_DEFAULT_DELAY_HOURS = 24
 RELANCE_CHECK_INTERVAL_SECONDS = 30
 _last_relance_check_at = None
+_relance_check_lock = eventlet.semaphore.Semaphore(1)
+_relance_worker_started = False
 
 
 def _format_relance_dt(dt_value):
@@ -300,54 +490,97 @@ def update_relance_schedule(db, incident_id, new_etat=None, new_urgence=None, ch
         _log_historique(db, incident_id, "relance_planifiee", old_value, new_value, changed_by)
 
 
-def process_due_relances():
-    """Déclenche les relances arrivées à échéance (notification uniquement)."""
+def process_due_relances(force=False):
+    """Declenche les relances arrivees a echeance (notification uniquement)."""
     global _last_relance_check_at
     now = datetime.now()
-    if _last_relance_check_at and (now - _last_relance_check_at).total_seconds() < RELANCE_CHECK_INTERVAL_SECONDS:
+
+    if not _relance_check_lock.acquire(blocking=False):
         return
-    _last_relance_check_at = now
+    try:
+        if (
+            not force
+            and _last_relance_check_at
+            and (now - _last_relance_check_at).total_seconds() < RELANCE_CHECK_INTERVAL_SECONDS
+        ):
+            return
+        _last_relance_check_at = now
 
-    db = get_db()
-    due_incidents = db.execute(
-        """
-        SELECT id, numero, collaborateur, urgence, relance_planifiee_at
-        FROM incidents
-        WHERE archived=0
-          AND relance_planifiee_at IS NOT NULL
-          AND relance_done_at IS NULL
-          AND relance_planifiee_at <= %s
-        """,
-        (now,),
-    ).fetchall()
+        db = get_db_connection()
+        try:
+            due_incidents = db.execute(
+                """
+                WITH due AS (
+                    SELECT id, numero, collaborateur, urgence, relance_planifiee_at
+                    FROM incidents
+                    WHERE archived=0
+                      AND relance_planifiee_at IS NOT NULL
+                      AND relance_done_at IS NULL
+                      AND relance_planifiee_at <= %s
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE incidents i
+                SET relance_done_at=%s
+                FROM due
+                WHERE i.id = due.id
+                RETURNING due.id, due.numero, due.collaborateur, due.urgence, due.relance_planifiee_at, i.version
+                """,
+                (now, now),
+            ).fetchall()
 
-    if not due_incidents:
+            if not due_incidents:
+                return
+
+            for inc in due_incidents:
+                _log_historique(
+                    db,
+                    inc["id"],
+                    "relance_effectuee",
+                    _format_relance_dt(inc.get("relance_planifiee_at")),
+                    "Declenchee",
+                    "system",
+                )
+                emit_relance_due_notification(
+                    socketio,
+                    inc["id"],
+                    inc["numero"],
+                    inc["collaborateur"],
+                    inc["urgence"],
+                    inc.get("relance_planifiee_at"),
+                )
+                _emit_incident_event(
+                    "incident_update",
+                    inc["id"],
+                    technician_names=[inc.get("collaborateur")],
+                    action="relance_due",
+                    version=inc.get("version"),
+                )
+
+            db.commit()
+        finally:
+            db.close()
+    finally:
+        _relance_check_lock.release()
+
+
+def _relance_scheduler_loop():
+    """Boucle periodique pour traiter les relances sans impacter les requetes HTTP."""
+    while True:
+        try:
+            with app.app_context():
+                process_due_relances(force=True)
+        except Exception as e:
+            app.logger.error(f"Erreur worker relances: {e}")
+        socketio.sleep(RELANCE_CHECK_INTERVAL_SECONDS)
+
+
+def _ensure_relance_worker_started():
+    global _relance_worker_started
+    if _relance_worker_started:
         return
-
-    for inc in due_incidents:
-        db.execute(
-            "UPDATE incidents SET relance_done_at=%s WHERE id=%s",
-            (now, inc["id"]),
-        )
-        _log_historique(
-            db,
-            inc["id"],
-            "relance_effectuee",
-            _format_relance_dt(inc.get("relance_planifiee_at")),
-            "Déclenchée",
-            "system",
-        )
-        emit_relance_due_notification(
-            socketio,
-            inc["id"],
-            inc["numero"],
-            inc["collaborateur"],
-            inc["urgence"],
-            inc.get("relance_planifiee_at"),
-        )
-        socketio.emit("incident_update", {"action": "relance_due", "id": inc["id"]})
-
-    db.commit()
+    _relance_worker_started = True
+    socketio.start_background_task(_relance_scheduler_loop)
+    app.logger.info("Worker relances periodiques demarre")
 
 
 @app.teardown_appcontext
@@ -435,6 +668,7 @@ def format_date(d):
 @app.before_request
 def renew_session():
     session.permanent = True
+    _ensure_relance_worker_started()
 
 
 # ---------- ROUTE : Accueil ----------
@@ -442,8 +676,6 @@ def renew_session():
 def home():
     if "user" not in session:
         return redirect(url_for("login"))
-
-    process_due_relances()
 
     db = get_db()
 
@@ -539,8 +771,6 @@ def home_content_api():
     if "user" not in session:
         return "", 403
 
-    process_due_relances()
-
     db = get_db()
 
     # Récupérer les informations du technicien connecté
@@ -632,21 +862,8 @@ def api_incident(id):
     if not incident:
         return "", 404
     
-    # Vérifier les permissions (technicien ne peut voir que ses incidents)
-    if session.get("user_type") == "technicien":
-        current_tech_id = None
-        tech = db.execute(
-            "SELECT id FROM techniciens WHERE username=%s",
-            (session["user"],)
-        ).fetchone()
-        if tech:
-            current_tech_id = tech['id']
-        
-        # Vérifier que l'incident appartient au technicien
-        if current_tech_id and incident.get("technicien_id") != current_tech_id:
-            # Fallback pour compatibilité
-            if incident.get("collaborateur") != session["user"]:
-                return "", 403
+    if not _can_access_incident(db, incident):
+        return "", 403
     
     # Récupérer les données de référence
     ref_data = get_reference_data()
@@ -1225,8 +1442,16 @@ def transfer_and_delete_technicien(id):
         if key.startswith("incident_"):
             incident_id = int(key.split("_")[1])
             nouveau_collab = value
+            new_tech = db.execute(
+                "SELECT id FROM techniciens WHERE prenom=%s AND actif=1",
+                (nouveau_collab,),
+            ).fetchone()
+            if not new_tech:
+                db.rollback()
+                return jsonify({"status": "error", "message": f"Technicien cible invalide: {nouveau_collab}"}), 400
             db.execute(
-                "UPDATE incidents SET collaborateur=%s WHERE id=%s", (nouveau_collab, incident_id)
+                "UPDATE incidents SET collaborateur=%s, technicien_id=%s WHERE id=%s",
+                (nouveau_collab, new_tech["id"], incident_id),
             )
 
     # Puis supprimer le technicien
@@ -1305,33 +1530,57 @@ def assign_incident():
         db = get_db()
 
         # Récupérer les données de l'incident AVANT modification
-        incident = db.execute("SELECT * FROM incidents WHERE id=%s", (incident_id,)).fetchone()
+        incident = db.execute(
+            """
+            SELECT id, numero, site, sujet, urgence, note_dispatch, localisation,
+                   collaborateur, technicien_id
+            FROM incidents
+            WHERE id=%s
+            """,
+            (incident_id,),
+        ).fetchone()
         if not incident:
             return jsonify({"status": "error", "message": "Incident introuvable"}), 404
 
-        old_collab = incident['collaborateur']
+        old_collab = incident["collaborateur"]
+
+        tech_row = db.execute(
+            "SELECT id, prenom FROM techniciens WHERE prenom=%s AND actif=1",
+            (new_collab,),
+        ).fetchone()
+        if not tech_row:
+            return jsonify({"status": "error", "message": "Technicien introuvable"}), 404
 
         # PostgreSQL gère automatiquement les transactions, pas besoin de BEGIN explicite
         db.execute(
-            "UPDATE incidents SET collaborateur=%s WHERE id=%s", (new_collab, incident_id)
+            "UPDATE incidents SET collaborateur=%s, technicien_id=%s WHERE id=%s",
+            (new_collab, tech_row["id"], incident_id),
         )
         db.commit()
 
         # Préparer les données pour la notification
         incident_data = {
-            "id": incident_id,
-            "numero": incident['numero'],
-            "site": incident['site'],
-            "sujet": incident['sujet'],
-            "urgence": incident['urgence'],
-            "note_dispatch": incident.get('note_dispatch', ''),
-            "localisation": incident.get('localisation', '')
+            "id": int(incident_id),
+            "numero": incident["numero"],
+            "site": incident["site"],
+            "sujet": incident["sujet"],
+            "urgence": incident["urgence"],
+            "note_dispatch": incident.get("note_dispatch", ""),
+            "localisation": incident.get("localisation", ""),
         }
 
         # Émettre la notification de réaffectation
         emit_reassignment_notification(socketio, incident_data, old_collab, new_collab)
 
-        socketio.emit("incident_update", {"action": "reassign", "incident_id": incident_id, "new_collab": new_collab})
+        _emit_incident_event(
+            "incident_update",
+            incident_id,
+            db=db,
+            technician_names=[old_collab, new_collab],
+            action="reassign",
+            new_collab=new_collab,
+        )
+        _emit_bulk_refresh("reassign", technician_names=[old_collab, new_collab], incident_id=incident_id)
         return jsonify({"status": "ok"})
     except Exception as e:
         if db is not None:
@@ -2076,8 +2325,15 @@ def add_incident():
         # Émettre la notification de nouveau ticket (utiliser le prénom pour compatibilité)
         emit_new_assignment_notification(socketio, incident_data, collab_prenom)
 
-        # Émettre aussi l'event classique pour le refresh
-        socketio.emit("incident_update", {"action": "add"})
+        # Emettre aussi l'event cible pour le temps reel
+        _emit_incident_event(
+            "incident_update",
+            incident_id,
+            db=db,
+            technician_names=[collab_prenom],
+            action="add",
+        )
+        _emit_bulk_refresh("incident_added", technician_names=[collab_prenom], incident_id=incident_id)
         return redirect(url_for("home"))
 
     current = datetime.now().strftime("%Y-%m-%d")
@@ -2121,14 +2377,16 @@ def delete_incident(id):
     try:
         db.execute("DELETE FROM incidents WHERE id=%s", (id,))
         db.commit()
-        
-        # Emit avec plus de détails pour la mise à jour temps réel
-        socketio.emit("incident_deleted", {
-            "action": "delete",
-            "id": id,
-            "numero": incident['numero'],
-            "collaborateur": incident['collaborateur']
-        })
+        _emit_incident_event(
+            "incident_deleted",
+            id,
+            technician_names=[incident["collaborateur"]],
+            action="delete",
+            numero=incident["numero"],
+            collaborateur=incident["collaborateur"],
+            version=incident.get("version"),
+        )
+        _emit_bulk_refresh("incident_deleted", technician_names=[incident["collaborateur"]], incident_id=id)
         
         # Si c'est une requête AJAX, retourner JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -2217,7 +2475,13 @@ def edit_incident(id):
             ),
         )
         db.commit()
-        socketio.emit("incident_update", {"action": "edit"})
+        _emit_incident_event(
+            "incident_update",
+            id,
+            db=db,
+            technician_names=[collaborateur],
+            action="edit",
+        )
         flash("Incident modifié avec succès", "success")
         return redirect(url_for("home"))
 
@@ -2305,7 +2569,13 @@ def edit_note(id):
         if changes_made:
             db.execute("UPDATE incidents SET notes=%s, localisation=%s WHERE id=%s", (note, localisation, id))
             db.commit()
-            socketio.emit("incident_update", {"action": "note"})
+            _emit_incident_event(
+                "incident_update",
+                id,
+                db=db,
+                technician_names=[inc.get("collaborateur")],
+                action="note",
+            )
 
         return redirect(url_for("home"))
 
@@ -2360,7 +2630,13 @@ def edit_note_inline(id):
         # Mettre à jour la note
         db.execute("UPDATE incidents SET notes=%s WHERE id=%s", (new_note, id))
         db.commit()
-        socketio.emit("incident_update", {"action": "note_edit"})
+        _emit_incident_event(
+            "incident_update",
+            id,
+            db=db,
+            technician_names=[inc.get("collaborateur")],
+            action="note_edit",
+        )
 
         return jsonify({"success": True, "note": new_note})
 
@@ -2406,7 +2682,13 @@ def edit_note_dispatch(id):
         # Mettre à jour la note dispatch
         db.execute("UPDATE incidents SET note_dispatch=%s WHERE id=%s", (new_note_dispatch, id))
         db.commit()
-        socketio.emit("incident_update", {"action": "note_dispatch_edit"})
+        _emit_incident_event(
+            "incident_update",
+            id,
+            db=db,
+            technician_names=[inc.get("collaborateur")],
+            action="note_dispatch_edit",
+        )
 
         return jsonify({"success": True, "note_dispatch": new_note_dispatch})
 
@@ -2415,34 +2697,45 @@ def edit_note_dispatch(id):
 
 # ---------- UPDATE RELANCES ----------
 @app.route("/api/incident/<int:id>/relances", methods=["POST"])
-@csrf.exempt
 def update_relances(id):
-    """Met à jour les checkboxes de relances d'un incident"""
+    """Met a jour les checkboxes de relances d'un incident."""
     if "user" not in session:
-        return jsonify({"error": "Non authentifié"}), 401
+        return jsonify({"error": "Non authentifie"}), 401
 
     db = get_db()
-    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
-    
-    if not inc:
-        return jsonify({"error": "Incident non trouvé"}), 404
+    inc = db.execute(
+        """
+        SELECT id, technicien_id, collaborateur,
+               relance_mail, relance_1, relance_2, relance_cloture, version
+        FROM incidents
+        WHERE id=%s
+        """,
+        (id,),
+    ).fetchone()
 
-    # Récupérer les valeurs depuis le JSON ou form
-    data = request.get_json() if request.is_json else request.form
-    
+    if not inc:
+        return jsonify({"error": "Incident non trouve"}), 404
+
+    if not _can_access_incident(db, inc):
+        return jsonify({"error": "Acces non autorise"}), 403
+
+    data = request.get_json(silent=True) if request.is_json else request.form
+    data = data or {}
+
     relance_mail = data.get("relance_mail") in [True, "true", "1", 1]
     relance_1 = data.get("relance_1") in [True, "true", "1", 1]
     relance_2 = data.get("relance_2") in [True, "true", "1", 1]
     relance_cloture = data.get("relance_cloture") in [True, "true", "1", 1]
 
-    # Mettre à jour
-    db.execute("""
-        UPDATE incidents 
+    db.execute(
+        """
+        UPDATE incidents
         SET relance_mail=%s, relance_1=%s, relance_2=%s, relance_cloture=%s
         WHERE id=%s
-    """, (relance_mail, relance_1, relance_2, relance_cloture, id))
-    
-    # Historique
+        """,
+        (relance_mail, relance_1, relance_2, relance_cloture, id),
+    )
+
     changes = []
     if inc.get("relance_mail") != relance_mail:
         changes.append(("relance_mail", str(inc.get("relance_mail")), str(relance_mail)))
@@ -2452,62 +2745,68 @@ def update_relances(id):
         changes.append(("relance_2", str(inc.get("relance_2")), str(relance_2)))
     if inc.get("relance_cloture") != relance_cloture:
         changes.append(("relance_cloture", str(inc.get("relance_cloture")), str(relance_cloture)))
-    
+
     for champ, ancien, nouveau in changes:
-        db.execute("""
+        db.execute(
+            """
             INSERT INTO historique (incident_id, champ, ancienne_valeur, nouvelle_valeur, modifie_par, date_modification)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id, champ, ancien, nouveau, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")))
-    
+            """,
+            (id, champ, ancien, nouveau, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")),
+        )
+
     db.commit()
-    
-    # Émettre un événement Socket.IO pour synchroniser tous les clients
-    socketio.emit("incident_relances_changed", {
-        "id": id,
-        "relance_mail": relance_mail,
-        "relance_1": relance_1,
-        "relance_2": relance_2,
-        "relance_cloture": relance_cloture
-    })
-    
-    return jsonify({
-        "success": True,
-        "relance_mail": relance_mail,
-        "relance_1": relance_1,
-        "relance_2": relance_2,
-        "relance_cloture": relance_cloture
-    })
+
+    event_payload = _emit_incident_event(
+        "incident_relances_changed",
+        id,
+        db=db,
+        technician_names=[inc.get("collaborateur")],
+        relance_mail=relance_mail,
+        relance_1=relance_1,
+        relance_2=relance_2,
+        relance_cloture=relance_cloture,
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "relance_mail": relance_mail,
+            "relance_1": relance_1,
+            "relance_2": relance_2,
+            "relance_cloture": relance_cloture,
+            "version": event_payload.get("version"),
+        }
+    )
 
 
 # ---------- UPDATE RDV ----------
 @app.route("/api/incident/<int:id>/rdv", methods=["POST"])
-@csrf.exempt
 def update_rdv(id):
-    """Met à jour la date de rendez-vous d'un incident"""
-    print(f"📅 UPDATE_RDV appelé pour incident {id}", flush=True)
-    
+    """Met a jour la date de rendez-vous d'un incident."""
     if "user" not in session:
-        print("❌ Non authentifié", flush=True)
-        return jsonify({"error": "Non authentifié"}), 401
+        return jsonify({"error": "Non authentifie"}), 401
 
     db = get_db()
-    inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
-    
-    if not inc:
-        print(f"❌ Incident {id} non trouvé", flush=True)
-        return jsonify({"error": "Incident non trouvé"}), 404
+    inc = db.execute(
+        """
+        SELECT id, technicien_id, collaborateur, date_rdv, version
+        FROM incidents
+        WHERE id=%s
+        """,
+        (id,),
+    ).fetchone()
 
-    # Récupérer la valeur depuis le JSON ou form (avec silent=True pour éviter erreur 400)
-    try:
-        data = request.get_json(force=True, silent=True) or request.form or {}
-    except Exception as e:
-        print(f"❌ Erreur parsing JSON: {e}", flush=True)
-        data = request.form or {}
-    
-    date_rdv_str = data.get("date_rdv", "").strip() if data else ""
-    print(f"📅 Date reçue: '{date_rdv_str}'", flush=True)
-    
-    # Convertir en datetime ou None
+    if not inc:
+        return jsonify({"error": "Incident non trouve"}), 404
+
+    if not _can_access_incident(db, inc):
+        return jsonify({"error": "Acces non autorise"}), 403
+
+    data = request.get_json(silent=True) if request.is_json else request.form
+    data = data or {}
+    date_rdv_str = (data.get("date_rdv") or "").strip()
+
     date_rdv = None
     if date_rdv_str:
         try:
@@ -2518,154 +2817,162 @@ def update_rdv(id):
             except ValueError:
                 return jsonify({"error": "Format de date invalide"}), 400
 
-    # Mettre à jour
     db.execute("UPDATE incidents SET date_rdv=%s WHERE id=%s", (date_rdv, id))
-    
-    # Historique
+
     old_rdv = inc.get("date_rdv")
-    old_rdv_str = old_rdv.strftime("%d/%m/%Y %H:%M") if old_rdv else "Non défini"
-    new_rdv_str = date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else "Non défini"
-    
+    old_rdv_str = old_rdv.strftime("%d/%m/%Y %H:%M") if old_rdv else "Non defini"
+    new_rdv_str = date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else "Non defini"
+
     if old_rdv_str != new_rdv_str:
-        db.execute("""
+        db.execute(
+            """
             INSERT INTO historique (incident_id, champ, ancienne_valeur, nouvelle_valeur, modifie_par, date_modification)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id, "date_rdv", old_rdv_str, new_rdv_str, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")))
-    
+            """,
+            (id, "date_rdv", old_rdv_str, new_rdv_str, session["user"], datetime.now().strftime("%d-%m-%Y %H:%M")),
+        )
+
     db.commit()
-    print(f"✅ RDV sauvegardé pour incident {id}: {date_rdv}", flush=True)
-    
-    # Émettre un événement Socket.IO pour synchroniser tous les clients
-    socketio.emit("incident_rdv_changed", {
-        "id": id,
-        "date_rdv": date_rdv.isoformat() if date_rdv else None,
-        "date_rdv_formatted": date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
-        "date_rdv_input": date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else ""
-    })
-    print(f"📡 Événement incident_rdv_changed émis", flush=True)
-    
-    return jsonify({
-        "success": True,
-        "date_rdv": date_rdv.isoformat() if date_rdv else None,
-        "date_rdv_formatted": date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
-        "date_rdv_input": date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else ""
-    })
+
+    event_payload = _emit_incident_event(
+        "incident_rdv_changed",
+        id,
+        db=db,
+        technician_names=[inc.get("collaborateur")],
+        date_rdv=date_rdv.isoformat() if date_rdv else None,
+        date_rdv_formatted=date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
+        date_rdv_input=date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else "",
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "date_rdv": date_rdv.isoformat() if date_rdv else None,
+            "date_rdv_formatted": date_rdv.strftime("%d/%m/%Y %H:%M") if date_rdv else None,
+            "date_rdv_input": date_rdv.strftime("%Y-%m-%dT%H:%M") if date_rdv else "",
+            "version": event_payload.get("version"),
+        }
+    )
 
 
 # ---------- UPDATE ETAT ----------
 @app.route("/update_etat/<int:id>", methods=["POST"])
 def update_etat(id):
     if "user" not in session:
-        return redirect(url_for("login"))
+        return _auth_error_response(401, "Non authentifie")
 
     db = get_db()
     try:
-        # PostgreSQL gère automatiquement les transactions, pas besoin de BEGIN explicite
-        inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
-        new = request.form["etat"]
+        inc = db.execute(
+            "SELECT id, numero, etat, urgence, collaborateur, technicien_id, version FROM incidents WHERE id=%s",
+            (id,),
+        ).fetchone()
+        if not inc:
+            return _auth_error_response(404, "Incident non trouve")
 
-        if inc["etat"] != new:
+        if not _can_access_incident(db, inc):
+            return _auth_error_response(403, "Acces non autorise")
+
+        new = request.form.get("etat", "").strip()
+        if not new:
+            if _is_api_or_ajax_request():
+                return jsonify({"status": "error", "message": "Statut manquant"}), 400
+            flash("Statut manquant", "warning")
+            return redirect(url_for("home"))
+
+        old_status = inc["etat"]
+        if old_status != new:
             db.execute("UPDATE incidents SET etat=%s WHERE id=%s", (new, id))
-            hist_sql = """
-              INSERT INTO historique (
-                incident_id, champ, ancienne_valeur,
-                nouvelle_valeur, modifie_par, date_modification
-              ) VALUES (%s, %s, %s, %s, %s, %s)
-            """
             db.execute(
-                hist_sql,
+                """
+                INSERT INTO historique (
+                    incident_id, champ, ancienne_valeur,
+                    nouvelle_valeur, modifie_par, date_modification
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                """,
                 (
                     id,
                     "etat",
-                    inc["etat"],
+                    old_status,
                     new,
                     session["user"],
                     datetime.now().strftime("%d-%m-%Y %H:%M"),
                 ),
             )
 
-            # Notification de changement de statut
-            # Récupérer le prénom de l'utilisateur qui fait le changement
-            changed_by = session["user"]  # Par défaut le username
-            if session.get("user_type") == "technicien":
-                tech_info = db.execute(
-                    "SELECT prenom FROM techniciens WHERE username=%s",
-                    (session["user"],)
-                ).fetchone()
-                if tech_info:
-                    changed_by = tech_info["prenom"]
-            
-            # Toujours émettre la notification (l'admin doit tout recevoir)
-            # Le filtrage côté client exclura le technicien s'il est l'auteur
+            changed_by = session["user"]
+            tech_info = _get_current_tech_info(db)
+            if tech_info and tech_info.get("prenom"):
+                changed_by = tech_info["prenom"]
+
             emit_status_change_notification(
                 socketio,
                 id,
                 inc["numero"],
-                inc["etat"],
+                old_status,
                 new,
                 inc["collaborateur"],
-                changed_by  # Qui a fait le changement
+                changed_by,
             )
 
-            # Si passage à un état critique sur ticket urgent
             if is_urgent(inc["urgence"]) and new in ["Suspendu", "En intervention"]:
                 emit_urgent_update_notification(
                     socketio,
                     id,
                     inc["numero"],
-                    f"Statut changé: {new}",
-                    inc["collaborateur"]
+                    f"Statut change: {new}",
+                    inc["collaborateur"],
                 )
 
-            update_relance_schedule(db, id, new_etat=new, new_urgence=inc["urgence"], changed_by=session["user"])
+            update_relance_schedule(
+                db,
+                id,
+                new_etat=new,
+                new_urgence=inc["urgence"],
+                changed_by=session["user"],
+            )
 
         db.commit()
 
-        # Si c'est une requête AJAX, retourner JSON
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-        # TOUJOURS émettre l'événement incident_etat_changed pour les mises à jour en temps réel
-        # Récupérer les infos du statut (couleur)
         statut_info = db.execute("SELECT couleur FROM statuts WHERE nom=%s", (new,)).fetchone()
         statut_couleur = statut_info["couleur"] if statut_info else "#6c757d"
         statut_text_color = get_contrast_color(statut_couleur)
 
-        # Émettre broadcast pour que les autres clients se rafraîchissent
-        # Depuis une route Flask, socketio.emit() broadcast automatiquement à tous
-        event_data = {
-            "action": "etat",
-            "id": id,
-            "new_etat": new,
-            "numero": inc["numero"],
-            "couleur": statut_couleur,
-            "text_color": statut_text_color
-        }
-        app.logger.info(f"📡 Émission Socket.IO: incident_etat_changed pour incident {id}, nouveau statut: {new}")
-        app.logger.info(f"📡 Données à émettre: {event_data}")
-        try:
-            # Depuis une route Flask, socketio.emit() broadcast automatiquement
-            socketio.emit("incident_etat_changed", event_data)
-            app.logger.info(f"✅ Événement Socket.IO émis avec succès")
-        except Exception as e:
-            app.logger.error(f"❌ Erreur lors de l'émission Socket.IO: {e}")
-            import traceback
-            app.logger.error(f"❌ Traceback: {traceback.format_exc()}")
-        
-        if is_ajax:
-            return jsonify({"status": "ok", "new_etat": new, "couleur": statut_couleur, "text_color": statut_text_color})
-        else:
-            # Requête normale (formulaire), émettre aussi le broadcast classique pour compatibilité
-            socketio.emit("incident_update", {"action": "etat"})
+        event_data = _emit_incident_event(
+            "incident_etat_changed",
+            id,
+            db=db,
+            technician_names=[inc.get("collaborateur")],
+            action="etat",
+            new_etat=new,
+            numero=inc["numero"],
+            couleur=statut_couleur,
+            text_color=statut_text_color,
+        )
+        _emit_incident_event(
+            "incident_update",
+            id,
+            db=db,
+            technician_names=[inc.get("collaborateur")],
+            action="etat",
+        )
+
+        if _is_api_or_ajax_request():
+            return jsonify(
+                {
+                    "status": "ok",
+                    "new_etat": new,
+                    "couleur": statut_couleur,
+                    "text_color": statut_text_color,
+                    "version": event_data.get("version"),
+                }
+            )
 
     except Exception as e:
         db.rollback()
         app.logger.error(f"Erreur update_etat: {e}")
-
-        # Si c'est une requête AJAX, retourner erreur JSON
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        if is_ajax:
+        if _is_api_or_ajax_request():
             return jsonify({"status": "error", "message": str(e)}), 500
-
         flash("Conflit de modification", "warning")
 
     return redirect(url_for("home"))
@@ -2679,9 +2986,22 @@ def valider(id):
 
     val = 1 if request.form.get("valide") == "on" else 0
     db = get_db()
+    inc = db.execute(
+        "SELECT id, collaborateur, version FROM incidents WHERE id=%s",
+        (id,),
+    ).fetchone()
+    if not inc:
+        flash("Incident introuvable", "warning")
+        return redirect(url_for("home"))
     db.execute("UPDATE incidents SET valide=%s WHERE id=%s", (val, id))
     db.commit()
-    socketio.emit("incident_update", {"action": "valide"})
+    _emit_incident_event(
+        "incident_update",
+        id,
+        db=db,
+        technician_names=[inc.get("collaborateur")],
+        action="valide",
+    )
     return redirect(url_for("home"))
 
 
@@ -2692,9 +3012,25 @@ def delete(id):
         return redirect(url_for("login"))
 
     db = get_db()
+    inc = db.execute(
+        "SELECT id, collaborateur, numero, version FROM incidents WHERE id=%s",
+        (id,),
+    ).fetchone()
+    if not inc:
+        flash("Incident introuvable", "warning")
+        return redirect(url_for("home"))
     db.execute("DELETE FROM incidents WHERE id=%s", (id,))
     db.commit()
-    socketio.emit("incident_update", {"action": "delete"})
+    _emit_incident_event(
+        "incident_deleted",
+        id,
+        technician_names=[inc.get("collaborateur")],
+        action="delete",
+        numero=inc.get("numero"),
+        collaborateur=inc.get("collaborateur"),
+        version=inc.get("version"),
+    )
+    _emit_bulk_refresh("incident_deleted", technician_names=[inc.get("collaborateur")], incident_id=id)
     return redirect(url_for("home"))
 
 
@@ -2706,8 +3042,21 @@ def historique(id):
     if "user" not in session:
         return redirect(url_for("login"))
 
-    logs = get_db().execute(
-        "SELECT * FROM historique WHERE incident_id=%s ORDER BY date_modification DESC", (id,)
+    db = get_db()
+    inc = db.execute(
+        "SELECT id, technicien_id, collaborateur FROM incidents WHERE id=%s",
+        (id,),
+    ).fetchone()
+    if not inc:
+        flash("Incident non trouve", "warning")
+        return redirect(url_for("home"))
+
+    if not _can_access_incident(db, inc):
+        return _auth_error_response(403, "Acces non autorise")
+
+    logs = db.execute(
+        "SELECT * FROM historique WHERE incident_id=%s ORDER BY date_modification DESC",
+        (id,),
     ).fetchall()
     return render_template("historique.html", logs=logs, id=id)
 
@@ -2831,14 +3180,20 @@ def import_database_execute():
         # Créer un backup PostgreSQL
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = f"/app/data/backup_postgres_{timestamp}.sql"
+        pg_host = os.environ.get("POSTGRES_HOST", "postgres")
+        pg_user = os.environ.get("POSTGRES_USER")
+        pg_db = os.environ.get("POSTGRES_DB", "dispatch")
+        pg_password = os.environ.get("POSTGRES_PASSWORD")
+        if not pg_user or not pg_password:
+            return jsonify({"error": "Variables POSTGRES_USER et POSTGRES_PASSWORD obligatoires"}), 500
         
         try:
             # Backup avec pg_dump (utiliser les variables d'environnement pour l'auth)
             env = os.environ.copy()
-            env['PGPASSWORD'] = 'dispatch_pass'
+            env['PGPASSWORD'] = pg_password
             subprocess.run([
-                'pg_dump', '-h', 'postgres', '-U', 'dispatch_user', 
-                '-d', 'dispatch', '-f', backup_file
+                'pg_dump', '-h', pg_host, '-U', pg_user,
+                '-d', pg_db, '-f', backup_file
             ], check=True, capture_output=True, env=env)
         except subprocess.CalledProcessError as e:
             return jsonify({"error": f"Erreur lors du backup PostgreSQL: {e.stderr.decode()}"}), 500
@@ -2860,10 +3215,10 @@ def import_database_execute():
             # Restaurer le backup en cas d'échec
             try:
                 env = os.environ.copy()
-                env['PGPASSWORD'] = 'dispatch_pass'
+                env['PGPASSWORD'] = pg_password
                 subprocess.run([
-                    'psql', '-h', 'postgres', '-U', 'dispatch_user', 
-                    '-d', 'dispatch', '-f', backup_file
+                    'psql', '-h', pg_host, '-U', pg_user,
+                    '-d', pg_db, '-f', backup_file
                 ], check=True, capture_output=True, env=env)
             except:
                 pass  # Si la restauration échoue aussi, on ne peut rien faire de plus
@@ -3182,24 +3537,24 @@ def calculate_stats_tables(db, start_date=None, end_date=None, tech_ids=None, si
 
 @app.route("/dashboard/stats")
 def dashboard_stats():
-    """Route principale du dashboard de statistiques"""
+    """Route principale du dashboard de statistiques."""
     if "user" not in session:
-        return redirect(url_for("login"))
-    
+        return "Unauthorized", 401
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
     db = None
     try:
         db = get_db()
-        
-        # Récupérer les données de référence
+
         ref_data = get_reference_data()
         techniciens_rows = db.execute("SELECT id, prenom FROM techniciens WHERE actif=1 ORDER BY prenom").fetchall()
-        # Convertir DualAccessRow en dictionnaires pour éviter les erreurs de sérialisation
         techniciens = [dict(row) for row in techniciens_rows]
         sites = [dict(row) for row in ref_data['sites']]
         statuts = [dict(row) for row in ref_data['statuts']]
         priorites = [dict(row) for row in ref_data['priorites']]
         sujets = [dict(row) for row in ref_data['sujets']]
-        
+
         return render_template(
             "dashboard_stats.html",
             role=session.get("role"),
@@ -3207,7 +3562,7 @@ def dashboard_stats():
             sites=sites,
             statuts=statuts,
             priorites=priorites,
-            sujets=sujets
+            sujets=sujets,
         )
     except Exception as e:
         app.logger.error(f"Erreur dashboard_stats: {e}")
@@ -3219,11 +3574,12 @@ def dashboard_stats():
 
 @app.route("/api/stats/data")
 def api_stats_data():
-    """API pour récupérer les données statistiques filtrées avec cache"""
+    """API pour récupérer les données statistiques filtrées avec cache."""
     if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    
-    # Récupérer les paramètres de filtres
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     tech_ids = request.args.getlist("tech_ids[]", type=int) or None
@@ -3232,10 +3588,10 @@ def api_stats_data():
     priority_ids = request.args.getlist("priority_ids[]", type=int) or None
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 50, type=int)
-    
-    # Créer une clé de cache basée sur les filtres
+
     import hashlib
     import json
+
     cache_key_data = {
         "start_date": start_date,
         "end_date": end_date,
@@ -3244,74 +3600,64 @@ def api_stats_data():
         "status_ids": sorted(status_ids) if status_ids else None,
         "priority_ids": sorted(priority_ids) if priority_ids else None,
         "page": page,
-        "per_page": per_page
+        "per_page": per_page,
     }
-    cache_key = f"stats_data_{hashlib.md5(json.dumps(cache_key_data, sort_keys=True).encode()).hexdigest()}"
-    
-    # Vérifier le cache (TTL de 2 minutes pour les stats)
+    cache_key = f"stats_data_{hashlib.sha256(json.dumps(cache_key_data, sort_keys=True).encode()).hexdigest()}"
+
     cached = app_cache.get(cache_key)
     if cached:
         app.logger.debug(f"Cache hit pour stats: {cache_key}")
         return jsonify(cached)
-    
+
     db = get_db()
-    
+
     try:
-        # Calculer les KPIs
         kpis = calculate_stats_kpis(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
-        
-        # Calculer les variations (comparaison avec période précédente)
+
         if start_date and end_date:
             from datetime import datetime, timedelta
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
             period_days = (end_dt - start_dt).days
-            
+
             prev_start = (start_dt - timedelta(days=period_days + 1)).strftime("%Y-%m-%d")
             prev_end = (start_dt - timedelta(days=1)).strftime("%Y-%m-%d")
-            
             prev_kpis = calculate_stats_kpis(db, prev_start, prev_end, tech_ids, site_ids, status_ids, priority_ids)
-            
+
             variations = {}
-            for key in ['total_incidents', 'taux_resolution', 'en_cours', 'urgents']:
+            for key in ["total_incidents", "taux_resolution", "en_cours", "urgents"]:
                 if key in prev_kpis and prev_kpis[key] > 0:
                     variations[key] = round(((kpis[key] - prev_kpis[key]) / prev_kpis[key]) * 100, 2)
                 else:
                     variations[key] = 0
         else:
-            variations = {'total_incidents': 0, 'taux_resolution': 0, 'en_cours': 0, 'urgents': 0}
-        
-        kpis['variations'] = variations
-        
-        # Calculer les données pour graphiques
+            variations = {"total_incidents": 0, "taux_resolution": 0, "en_cours": 0, "urgents": 0}
+
+        kpis["variations"] = variations
         charts = calculate_stats_charts(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
-        
-        # Calculer les données pour tableaux avec pagination
         tables_data = calculate_stats_tables(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
-        
-        # Pagination pour les tableaux
+
         total_items = {
-            'technicien': len(tables_data['par_technicien']),
-            'site': len(tables_data['par_site']),
-            'sujet': len(tables_data['par_sujet'])
+            "technicien": len(tables_data["par_technicien"]),
+            "site": len(tables_data["par_site"]),
+            "sujet": len(tables_data["par_sujet"]),
         }
-        
-        # Appliquer pagination
+
         start_idx = (page - 1) * per_page
         end_idx = start_idx + per_page
-        
+
         tables = {
-            'par_technicien': tables_data['par_technicien'][start_idx:end_idx],
-            'par_site': tables_data['par_site'][start_idx:end_idx],
-            'par_sujet': tables_data['par_sujet'][start_idx:end_idx],
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total': max(total_items.values()),
-                'total_pages': (max(total_items.values()) + per_page - 1) // per_page
-            }
+            "par_technicien": tables_data["par_technicien"][start_idx:end_idx],
+            "par_site": tables_data["par_site"][start_idx:end_idx],
+            "par_sujet": tables_data["par_sujet"][start_idx:end_idx],
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": max(total_items.values()),
+                "total_pages": (max(total_items.values()) + per_page - 1) // per_page,
+            },
         }
-        
+
         result = {
             "kpis": kpis,
             "charts": charts,
@@ -3322,13 +3668,11 @@ def api_stats_data():
                 "tech_ids": tech_ids or [],
                 "site_ids": site_ids or [],
                 "status_ids": status_ids or [],
-                "priority_ids": priority_ids or []
-            }
+                "priority_ids": priority_ids or [],
+            },
         }
-        
-        # Mettre en cache (TTL de 2 minutes)
+
         app_cache.set(cache_key, result)
-        
         return jsonify(result)
     except Exception as e:
         app.logger.error(f"Erreur api_stats_data: {e}")
@@ -3337,28 +3681,29 @@ def api_stats_data():
 
 @app.route("/api/stats/kpis")
 def api_stats_kpis():
-    """API optimisée pour récupérer uniquement les KPIs avec cache"""
+    """API optimisée pour récupérer uniquement les KPIs avec cache."""
     if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
-    
-    # Cache pour KPIs (TTL plus court : 1 minute car plus fréquemment mis à jour)
+
     import hashlib
     import json
+
     cache_key_data = {"start_date": start_date, "end_date": end_date}
-    cache_key = f"stats_kpis_{hashlib.md5(json.dumps(cache_key_data, sort_keys=True).encode()).hexdigest()}"
-    
+    cache_key = f"stats_kpis_{hashlib.sha256(json.dumps(cache_key_data, sort_keys=True).encode()).hexdigest()}"
+
     cached = app_cache.get(cache_key)
     if cached:
         app.logger.debug(f"Cache hit pour KPIs: {cache_key}")
         return jsonify({"kpis": cached})
-    
+
     db = get_db()
     try:
         kpis = calculate_stats_kpis(db, start_date, end_date)
-        # Mettre en cache (TTL de 1 minute)
         app_cache.set(cache_key, kpis)
         return jsonify({"kpis": kpis})
     except Exception as e:
@@ -3368,33 +3713,30 @@ def api_stats_kpis():
 
 @app.route("/dashboard/stats/export/excel")
 def export_stats_excel():
-    """Export Excel des statistiques"""
+    """Export Excel des statistiques."""
     if "user" not in session:
-        return redirect(url_for("login"))
-    
-    # Récupérer les filtres depuis les paramètres
+        return "Unauthorized", 401
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     tech_ids = request.args.getlist("tech_ids[]", type=int) or None
     site_ids = request.args.getlist("site_ids[]", type=int) or None
     status_ids = request.args.getlist("status_ids[]", type=int) or None
     priority_ids = request.args.getlist("priority_ids[]", type=int) or None
-    
+
     db = get_db()
     try:
-        # Récupérer les données
         kpis = calculate_stats_kpis(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
         charts = calculate_stats_charts(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
         tables = calculate_stats_tables(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
-        
-        # Créer le fichier Excel
+
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Feuille 1 : Résumé KPIs
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
             kpis_df = pd.DataFrame([kpis])
-            kpis_df.to_excel(writer, sheet_name='Résumé', index=False)
-            
-            # Feuille 2 : Données brutes
+            kpis_df.to_excel(writer, sheet_name="Résumé", index=False)
+
             where_clauses = ["archived=0"]
             params = []
             if start_date:
@@ -3406,38 +3748,45 @@ def export_stats_excel():
             where_sql = " AND ".join(where_clauses)
             incidents_df = pd.read_sql_query(
                 f"SELECT * FROM incidents WHERE {where_sql}",
-                db.conn if hasattr(db, 'conn') else db,
-                params=params
+                db.conn if hasattr(db, "conn") else db,
+                params=params,
             )
-            incidents_df.to_excel(writer, sheet_name='Données brutes', index=False)
-            
-            # Feuille 3 : Statistiques détaillées
+            incidents_df.to_excel(writer, sheet_name="Données brutes", index=False)
+
             stats_data = []
-            for row in tables['par_technicien']:
-                stats_data.append({
-                    'Type': 'Technicien',
-                    'Nom': row['collaborateur'],
-                    'Total': row['total'],
-                    'Traités': row['traites'],
-                    'En cours': row['en_cours'],
-                    'Suspendus': row.get('suspendus', 0)
-                })
-            for row in tables['par_site']:
-                stats_data.append({
-                    'Type': 'Site',
-                    'Nom': row['site'],
-                    'Total': row['total'],
-                    'Traités': row['traites'],
-                    'En cours': row['en_cours'],
-                    'Suspendus': 0
-                })
+            for row in tables["par_technicien"]:
+                stats_data.append(
+                    {
+                        "Type": "Technicien",
+                        "Nom": row["collaborateur"],
+                        "Total": row["total"],
+                        "Traités": row["traites"],
+                        "En cours": row["en_cours"],
+                        "Suspendus": row.get("suspendus", 0),
+                    }
+                )
+            for row in tables["par_site"]:
+                stats_data.append(
+                    {
+                        "Type": "Site",
+                        "Nom": row["site"],
+                        "Total": row["total"],
+                        "Traités": row["traites"],
+                        "En cours": row["en_cours"],
+                        "Suspendus": 0,
+                    }
+                )
             stats_df = pd.DataFrame(stats_data)
-            stats_df.to_excel(writer, sheet_name='Statistiques détaillées', index=False)
-        
+            stats_df.to_excel(writer, sheet_name="Statistiques détaillées", index=False)
+
         output.seek(0)
         filename = f"statistiques_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-                        as_attachment=True, download_name=filename)
+        return send_file(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=filename,
+        )
     except Exception as e:
         app.logger.error(f"Erreur export_stats_excel: {e}")
         flash(f"Erreur lors de l'export Excel: {str(e)}", "danger")
@@ -3446,37 +3795,43 @@ def export_stats_excel():
 
 @app.route("/dashboard/stats/export/pdf")
 def export_stats_pdf():
-    """Export PDF des statistiques"""
+    """Export PDF des statistiques."""
     if "user" not in session:
-        return redirect(url_for("login"))
-    
-    # Récupérer les filtres
+        return "Unauthorized", 401
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     tech_ids = request.args.getlist("tech_ids[]", type=int) or None
     site_ids = request.args.getlist("site_ids[]", type=int) or None
     status_ids = request.args.getlist("status_ids[]", type=int) or None
     priority_ids = request.args.getlist("priority_ids[]", type=int) or None
-    
+
     db = get_db()
     try:
         kpis = calculate_stats_kpis(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
         charts = calculate_stats_charts(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
         tables = calculate_stats_tables(db, start_date, end_date, tech_ids, site_ids, status_ids, priority_ids)
-        
-        # Générer le HTML pour le PDF
-        html = render_template("stats_pdf_export.html",
-                             kpis=kpis,
-                             charts=charts,
-                             tables=tables,
-                             start_date=start_date,
-                             end_date=end_date,
-                             generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"))
-        
+
+        html = render_template(
+            "stats_export.html",
+            kpis=kpis,
+            charts=charts,
+            tables=tables,
+            start_date=start_date,
+            end_date=end_date,
+            generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        )
+
         pdf_data = pdfkit.from_string(html, False, configuration=pdf_config)
         filename = f"statistiques_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        return send_file(BytesIO(pdf_data), mimetype='application/pdf',
-                        as_attachment=True, download_name=filename)
+        return send_file(
+            BytesIO(pdf_data),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=filename,
+        )
     except Exception as e:
         app.logger.error(f"Erreur export_stats_pdf: {e}")
         flash(f"Erreur lors de l'export PDF: {str(e)}", "danger")
@@ -3485,17 +3840,19 @@ def export_stats_pdf():
 
 @app.route("/dashboard/stats/export/csv")
 def export_stats_csv():
-    """Export CSV des données brutes"""
+    """Export CSV des données brutes."""
     if "user" not in session:
-        return redirect(url_for("login"))
-    
+        return "Unauthorized", 401
+    if session.get("role") != "admin":
+        return "Forbidden", 403
+
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     tech_ids = request.args.getlist("tech_ids[]", type=int) or None
     site_ids = request.args.getlist("site_ids[]", type=int) or None
     status_ids = request.args.getlist("status_ids[]", type=int) or None
     priority_ids = request.args.getlist("priority_ids[]", type=int) or None
-    
+
     db = get_db()
     try:
         where_clauses = ["archived=0"]
@@ -3507,21 +3864,23 @@ def export_stats_csv():
             where_clauses.append("date_affectation <= %s")
             params.append(end_date)
         where_sql = " AND ".join(where_clauses)
-        
-        # Récupérer les données
+
         rows = db.execute(f"SELECT * FROM incidents WHERE {where_sql}", params).fetchall()
         data = [dict(row) for row in rows]
         df = pd.DataFrame(data)
-        
-        # Créer le CSV avec BOM UTF-8
+
         output = BytesIO()
-        output.write('\ufeff'.encode('utf-8'))  # BOM pour Excel
-        df.to_csv(output, index=False, encoding='utf-8')
+        output.write("\ufeff".encode("utf-8"))
+        df.to_csv(output, index=False, encoding="utf-8")
         output.seek(0)
-        
+
         filename = f"statistiques_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        return send_file(output, mimetype='text/csv; charset=utf-8',
-                        as_attachment=True, download_name=filename)
+        return send_file(
+            output,
+            mimetype="text/csv; charset=utf-8",
+            as_attachment=True,
+            download_name=filename,
+        )
     except Exception as e:
         app.logger.error(f"Erreur export_stats_csv: {e}")
         flash(f"Erreur lors de l'export CSV: {str(e)}", "danger")
@@ -3538,3 +3897,19 @@ if __name__ == "__main__":
         debug=is_development,
         log_output=not is_development
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

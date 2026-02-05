@@ -10,6 +10,7 @@ ENV FLASK_ENV=production
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
     libffi-dev \
     libssl-dev \
     wkhtmltopdf \
@@ -45,6 +46,5 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5000/ || exit 1
 
 # Run the application with Gunicorn and eventlet
-# Workers configuration: use environment variable or default to 4
-# Note: eventlet provides async I/O via greenlets, workers provide parallelism
-CMD gunicorn --worker-class eventlet -w ${GUNICORN_WORKERS:-4} --bind 0.0.0.0:5000 app:app
+# Workers configuration: default 2 workers + async eventlet for realtime I/O
+CMD gunicorn --worker-class eventlet -w ${GUNICORN_WORKERS:-2} --bind 0.0.0.0:5000 --timeout ${GUNICORN_TIMEOUT:-120} --graceful-timeout ${GUNICORN_GRACEFUL_TIMEOUT:-30} --keep-alive ${GUNICORN_KEEPALIVE:-65} app:app

@@ -1,24 +1,48 @@
-"""
-Helpers pour le système de notifications en temps réel.
-Gère l'émission des notifications WebSocket vers les techniciens.
+﻿"""
+Helpers for realtime notifications.
+Notifications are emitted only to authorized Socket.IO rooms.
 """
 
 from datetime import datetime
 import logging
-import sys
 
 logger = logging.getLogger(__name__)
 
+ADMIN_SOCKET_ROOM = "role:admin"
+
+
+def _tech_room(technicien):
+    return f"tech:{(technicien or '').strip().lower()}"
+
+
+def _user_room(username):
+    return f"user:{(username or '').strip().lower()}"
+
+
+def _emit_notification(socketio, payload, technicien=None, target_user=None, include_admin=True):
+    """
+    Emit a notification to policy-managed rooms only.
+
+    - Admin room receives everything unless include_admin=False
+    - Technician room receives technician-targeted events
+    - target_user allows targeting username-based rooms (wiki)
+    """
+    rooms = set()
+    if include_admin:
+        rooms.add(ADMIN_SOCKET_ROOM)
+    if technicien:
+        rooms.add(_tech_room(technicien))
+    if target_user:
+        # Compatibility: target can be username or display name.
+        rooms.add(_user_room(target_user))
+        rooms.add(_tech_room(target_user))
+
+    for room in rooms:
+        socketio.emit("notification", payload, room=room)
+
 
 def emit_new_assignment_notification(socketio, incident_data, technicien):
-    """
-    Émet une notification pour un nouveau ticket assigné à un technicien.
-
-    Args:
-        socketio: Instance SocketIO
-        incident_data: Dict contenant les données de l'incident
-        technicien: Nom du technicien assigné
-    """
+    """Emit a notification for a new assignment."""
     notification = {
         "type": "new_assignment",
         "incident_id": incident_data.get("id"),
@@ -28,28 +52,15 @@ def emit_new_assignment_notification(socketio, incident_data, technicien):
         "urgence": incident_data.get("urgence"),
         "technicien": technicien,
         "note_dispatch": incident_data.get("note_dispatch", ""),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    # Émettre vers tout le monde (le JS filtrera côté client selon le rôle)
-    logger.info(f"🔔 Émission notification new_assignment: {notification}")
-    print(f"🔔 NOTIFICATION new_assignment pour {technicien}: {notification['numero']}", flush=True)
-    socketio.emit("notification", notification)
+    logger.info("Emit notification new_assignment: %s", notification)
+    _emit_notification(socketio, notification, technicien=technicien)
 
 
 def emit_status_change_notification(socketio, incident_id, numero, old_status, new_status, technicien, changed_by=None):
-    """
-    Émet une notification pour un changement de statut.
-
-    Args:
-        socketio: Instance SocketIO
-        incident_id: ID de l'incident
-        numero: Numéro du ticket
-        old_status: Ancien statut
-        new_status: Nouveau statut
-        technicien: Nom du technicien concerné
-        changed_by: Qui a fait le changement (pour filtrage côté client)
-    """
+    """Emit a notification for a status change."""
     notification = {
         "type": "status_change",
         "incident_id": incident_id,
@@ -57,50 +68,30 @@ def emit_status_change_notification(socketio, incident_id, numero, old_status, n
         "old_status": old_status,
         "new_status": new_status,
         "technicien": technicien,
-        "changed_by": changed_by or technicien,  # Qui a fait le changement
-        "timestamp": datetime.now().isoformat()
+        "changed_by": changed_by or technicien,
+        "timestamp": datetime.now().isoformat(),
     }
 
-    logger.info(f"🔔 Émission notification status_change: {notification}")
-    print(f"🔔 NOTIFICATION status_change pour {technicien} (par {changed_by}): {numero} ({old_status} -> {new_status})", flush=True)
-    socketio.emit("notification", notification)
+    logger.info("Emit notification status_change: %s", notification)
+    _emit_notification(socketio, notification, technicien=technicien)
 
 
 def emit_urgent_update_notification(socketio, incident_id, numero, message, technicien):
-    """
-    Émet une notification prioritaire pour un ticket urgent.
-
-    Args:
-        socketio: Instance SocketIO
-        incident_id: ID de l'incident
-        numero: Numéro du ticket
-        message: Message de la notification
-        technicien: Nom du technicien concerné
-    """
+    """Emit a high-priority notification for an urgent ticket."""
     notification = {
         "type": "urgent_update",
         "incident_id": incident_id,
         "numero": numero,
         "message": message,
         "technicien": technicien,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    socketio.emit("notification", notification)
+    _emit_notification(socketio, notification, technicien=technicien)
 
 
 def emit_relance_due_notification(socketio, incident_id, numero, technicien, urgence, planned_at):
-    """
-    Émet une notification pour une relance arrivée à échéance.
-
-    Args:
-        socketio: Instance SocketIO
-        incident_id: ID de l'incident
-        numero: Numéro du ticket
-        technicien: Nom du technicien concerné
-        urgence: Niveau d'urgence
-        planned_at: Datetime prévue pour la relance
-    """
+    """Emit a notification when a scheduled follow-up is due."""
     planned_str = planned_at.isoformat() if planned_at else None
     notification = {
         "type": "relance_due",
@@ -109,23 +100,14 @@ def emit_relance_due_notification(socketio, incident_id, numero, technicien, urg
         "technicien": technicien,
         "urgence": urgence,
         "planned_at": planned_str,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    socketio.emit("notification", notification)
+    _emit_notification(socketio, notification, technicien=technicien)
 
 
 def emit_reassignment_notification(socketio, incident_data, old_technicien, new_technicien):
-    """
-    Émet une notification pour une réaffectation de ticket.
-
-    Args:
-        socketio: Instance SocketIO
-        incident_data: Dict contenant les données de l'incident
-        old_technicien: Ancien technicien
-        new_technicien: Nouveau technicien
-    """
-    # Notification pour le nouveau technicien
+    """Emit notifications for ticket reassignment."""
     notification_new = {
         "type": "reassignment_new",
         "incident_id": incident_data.get("id"),
@@ -136,36 +118,24 @@ def emit_reassignment_notification(socketio, incident_data, old_technicien, new_
         "technicien": new_technicien,
         "from_technicien": old_technicien,
         "note_dispatch": incident_data.get("note_dispatch", ""),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    # Notification pour l'ancien technicien
     notification_old = {
         "type": "reassignment_removed",
         "incident_id": incident_data.get("id"),
         "numero": incident_data.get("numero"),
         "technicien": old_technicien,
         "to_technicien": new_technicien,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    # Émettre les deux notifications vers tout le monde (le JS filtrera)
-    socketio.emit("notification", notification_new)
-    socketio.emit("notification", notification_old)
+    _emit_notification(socketio, notification_new, technicien=new_technicien)
+    _emit_notification(socketio, notification_old, technicien=old_technicien)
 
 
 def emit_wiki_update_requested_notification(socketio, article_id, title, requested_by, target_user, request_type):
-    """
-    Émet une notification quand une mise à jour est demandée sur un article wiki.
-
-    Args:
-        socketio: Instance SocketIO
-        article_id: ID de l'article
-        title: Titre de l'article
-        requested_by: Utilisateur qui a demandé la MAJ
-        target_user: Auteur / propriétaire ciblé
-        request_type: 'outdated' ou 'needs_update'
-    """
+    """Emit a wiki update request to the targeted user only."""
     notification = {
         "type": "wiki_update_requested",
         "article_id": article_id,
@@ -173,47 +143,31 @@ def emit_wiki_update_requested_notification(socketio, article_id, title, request
         "requested_by": requested_by,
         "target_user": target_user,
         "request_type": request_type,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
-    logger.info(f"🔔 Émission notification wiki_update_requested: {notification}")
-    socketio.emit("notification", notification)
+    logger.info("Emit notification wiki_update_requested: %s", notification)
+    _emit_notification(socketio, notification, target_user=target_user, include_admin=False)
 
 
 def is_urgent(urgence):
-    """
-    Vérifie si une urgence est considérée comme prioritaire.
-
-    Args:
-        urgence: Niveau d'urgence (Basse, Moyenne, Haute, Critique, Immédiate)
-
-    Returns:
-        bool: True si urgent
-    """
-    return urgence in ['Critique', 'Immédiate', 'Haute']
+    """Return True if urgency level is considered high priority."""
+    return urgence in ["Critique", "Immédiate", "Haute"]
 
 
 def format_notification_message(incident_data):
-    """
-    Formate un message de notification à partir des données d'incident.
-
-    Args:
-        incident_data: Dict contenant les données de l'incident
-
-    Returns:
-        str: Message formaté
-    """
+    """Format a display message from incident data."""
     parts = [
-        f"📋 {incident_data.get('numero')}",
-        f"🏢 {incident_data.get('site')}",
-        f"💼 {incident_data.get('sujet')}"
+        f"#{incident_data.get('numero')}",
+        f"{incident_data.get('site')}",
+        f"{incident_data.get('sujet')}",
     ]
 
-    if incident_data.get('localisation'):
-        parts.append(f"📍 {incident_data.get('localisation')}")
+    if incident_data.get("localisation"):
+        parts.append(f"{incident_data.get('localisation')}")
 
-    urgence = incident_data.get('urgence')
+    urgence = incident_data.get("urgence")
     if is_urgent(urgence):
-        parts.insert(0, f"🚨 URGENT ({urgence})")
+        parts.insert(0, f"URGENT ({urgence})")
 
-    return " • ".join(parts)
+    return " | ".join(parts)

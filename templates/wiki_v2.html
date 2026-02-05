@@ -35,6 +35,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 1rem;
             transition: var(--transition);
             user-select: none;
         }
@@ -49,6 +50,18 @@
             gap: 1rem;
             font-size: 1.25rem;
             font-weight: 600;
+            min-width: 0;
+            flex: 1 1 320px;
+        }
+
+        .category-main {
+            flex: 1 1 auto;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .category-main > div {
+            min-width: 0;
         }
         
         .category-icon {
@@ -57,10 +70,35 @@
         
         .category-stats {
             display: flex;
-            gap: 1rem;
+            gap: 0.5rem;
             align-items: center;
             font-size: 0.875rem;
             color: var(--text-secondary);
+            flex: 1 1 240px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-left: auto;
+            max-width: 100%;
+        }
+
+        .article-count {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            margin-right: 0.25rem;
+        }
+
+        .category-action-btn {
+            padding: 0.25rem 0.5rem;
+            line-height: 1;
+            flex: 0 0 auto;
+        }
+
+        .collapse-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.5rem;
+            line-height: 1;
         }
         
         .subcategory {
@@ -74,9 +112,32 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 0.75rem;
             transition: var(--transition);
         }
-        
+
+        .subcat-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            cursor: pointer;
+        }
+
+        .subcat-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1 1 220px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .action-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
         .subcat-header:hover {
             background: var(--bg-card);
         }
@@ -155,16 +216,44 @@
             margin-bottom: 2rem;
             box-shadow: var(--shadow);
         }
+
+        @media (max-width: 1200px) {
+            .category-header,
+            .subcat-header {
+                align-items: flex-start;
+            }
+
+            .category-stats,
+            .subcat-actions {
+                width: 100%;
+                justify-content: flex-start;
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .category-header,
+            .subcat-header {
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+
+            .category-stats,
+            .subcat-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
     </style>
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <nav class="navbar wiki-navbar navbar-light bg-light rounded mb-4 shadow-sm">
         <div class="container-fluid">
             <span class="navbar-brand fw-bold">📚 Base de Connaissances V2.0</span>
             <div class="d-flex gap-2">
-                <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour</a>
+                <a href="{{ url_for('home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
                 <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
             </div>
         </div>
@@ -186,7 +275,7 @@
         </div>
 
         <!-- Boutons d'action (tous les utilisateurs) -->
-        <div class="mb-4 d-flex gap-2">
+        <div class="mb-4 action-toolbar">
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCategoryModal">
                 ➕ Nouvelle catégorie
             </button>
@@ -225,7 +314,7 @@
             {% for category in categories %}
             <div class="wiki-category" data-category-id="{{ category.id }}">
                 <div class="category-header" style="border-left: 4px solid {{ category.color }}">
-                    <div class="category-title" onclick="toggleCategory({{ category.id }})" style="flex: 1; cursor: pointer;">
+                    <div class="category-title category-main" onclick="toggleCategory({{ category.id }})">
                         <span class="category-icon">{{ category.icon }}</span>
                         <div>
                             <div>{{ category.name }}</div>
@@ -233,15 +322,15 @@
                         </div>
                     </div>
                     <div class="category-stats">
-                        <span>{{ category.total_articles }} article(s)</span>
-                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editCategory({{ category.id }}, '{{ category.name|replace("'", "\\'")|safe }}', '{{ category.icon }}', '{{ category.description|replace("'", "\\'")|replace("\n", " ")|safe }}', '{{ category.color }}')" title="Modifier">
+                        <span class="article-count">{{ category.total_articles }} article(s)</span>
+                        <button class="btn btn-sm btn-outline-primary category-action-btn" onclick="editCategory({{ category.id }}, '{{ category.name|replace("'", "\\'")|safe }}', '{{ category.icon }}', '{{ category.description|replace("'", "\\'")|replace("\n", " ")|safe }}', '{{ category.color }}')" title="Modifier">
                             ✏️
                         </button>
                         <form method="POST" action="{{ url_for('delete_wiki_category', id=category.id) }}" class="d-inline" onsubmit="return confirm('Supprimer cette catégorie et tout son contenu ?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger me-2" title="Supprimer">🗑️</button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger category-action-btn" title="Supprimer">🗑️</button>
                         </form>
-                        <span class="collapse-icon" onclick="toggleCategory({{ category.id }})" style="cursor: pointer;">▼</span>
+                        <span class="collapse-icon collapse-icon-btn" onclick="toggleCategory({{ category.id }})" style="cursor: pointer;">▼</span>
                     </div>
                 </div>
 
@@ -250,20 +339,20 @@
                     {% for subcat in category.subcategories %}
                     <div class="subcategory">
                         <div class="subcat-header">
-                            <div onclick="toggleSubcategory({{ subcat.id }})" style="flex: 1; cursor: pointer;">
+                            <div class="subcat-main" onclick="toggleSubcategory({{ subcat.id }})">
                                 <span>{{ subcat.icon }}</span>
                                 <strong>{{ subcat.name }}</strong>
                                 <small class="text-muted ms-2">({{ subcat.article_count }} article(s))</small>
                             </div>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button class="btn btn-sm btn-outline-primary" onclick="editSubcategory({{ subcat.id }}, '{{ subcat.name|replace("'", "\\'")|safe }}', '{{ subcat.icon }}', '{{ subcat.description|replace("'", "\\'")|replace("\n", " ")|safe }}')" title="Modifier">
+                            <div class="subcat-actions">
+                                <button class="btn btn-sm btn-outline-primary category-action-btn" onclick="editSubcategory({{ subcat.id }}, '{{ subcat.name|replace("'", "\\'")|safe }}', '{{ subcat.icon }}', '{{ subcat.description|replace("'", "\\'")|replace("\n", " ")|safe }}')" title="Modifier">
                                     ✏️
                                 </button>
                                 <form method="POST" action="{{ url_for('delete_wiki_subcategory', id=subcat.id) }}" class="d-inline" onsubmit="return confirm('Supprimer cette sous-catégorie et tous ses articles ?')">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">🗑️</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger category-action-btn" title="Supprimer">🗑️</button>
                                 </form>
-                                <span class="collapse-icon" onclick="toggleSubcategory({{ subcat.id }})" style="cursor: pointer;">▼</span>
+                                <span class="collapse-icon collapse-icon-btn" onclick="toggleSubcategory({{ subcat.id }})" style="cursor: pointer;">▼</span>
                             </div>
                         </div>
 

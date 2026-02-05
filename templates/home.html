@@ -128,6 +128,16 @@
       }
     }
 
+    .admin-actions {
+      row-gap: 0.5rem;
+    }
+
+    .admin-actions .btn-admin {
+      min-width: 180px;
+      flex: 0 1 auto;
+      white-space: nowrap;
+    }
+
     /* ===== RESPONSIVE: MOBILE (< 768px) ===== */
     @media (max-width: 768px) {
       /* Navbar mobile */
@@ -147,12 +157,12 @@
       }
 
       /* Boutons admin en colonne */
-      .mb-3.d-flex.gap-2 {
+      .admin-actions {
         flex-direction: column !important;
         gap: 0.5rem !important;
       }
 
-      .mb-3.d-flex.gap-2 .btn {
+      .admin-actions .btn {
         width: 100%;
         font-size: 0.9rem;
         padding: 0.6rem 1rem; /* Tactile-friendly */
@@ -335,31 +345,31 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h3>{% if role == 'admin' %}Menu Admin{% else %}Outils rapides{% endif %}</h3>
-      <button class="sidebar-close-btn" id="sidebarClose" style="background: none; border: none; color: inherit; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; position: absolute; right: 1rem; top: 1rem;">×</button>
+      <button class="sidebar-close-btn" id="sidebarClose" style="background: none; border: none; color: inherit; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; position: absolute; right: 1rem; top: 1rem;">&times;</button>
     </div>
     <ul class="sidebar-links">
       {% if role == 'admin' %}
         <!-- Liens de gestion (Admin seulement) -->
-        <li><a href="{{ url_for('add_incident') }}"><span class="icon">➕</span> Ajouter incident</a></li>
-        <li><a href="{{ url_for('techniciens') }}"><span class="icon">👨‍🔧</span> Gestion techniciens</a></li>
-        <li><a href="{{ url_for('configuration') }}"><span class="icon">⚙️</span> Configuration</a></li>
-        <li><a href="{{ url_for('dashboard_stats') }}"><span class="icon">📊</span> Statistiques</a></li>
+        <li><a href="{{ url_for('add_incident') }}"><span class="icon">&#10133;</span> Ajouter incident</a></li>
+        <li><a href="{{ url_for('techniciens') }}"><span class="icon">&#128104;&#8205;&#128295;</span> Gestion techniciens</a></li>
+        <li><a href="{{ url_for('configuration') }}"><span class="icon">&#9881;&#65039;</span> Configuration</a></li>
+        <li><a href="{{ url_for('dashboard_stats') }}"><span class="icon">&#128202;</span> Statistiques</a></li>
         <li class="sidebar-divider"></li>
       {% endif %}
 
       <!-- Portails externes (Tous) -->
-      <li><a href="https://portal.konicaminolta.fr/fr-fr/account/login?ReturnUrl=%2ffr-fr%2fservice-calls%2fpassive%2fdetail%2fiqqEsD3PAsbz0AjmVH3ZJpRANofTqPociqsgd_25Kxfkk8ePI-332poZGT9VmdP0BSSRrOBBmV_wzNAD4ZqsdA2%3fsource%3dERP&source=ERP" target="_blank"><span class="icon">🖨️</span> Portail Konica</a></li>
-      <li><a href="https://www.sfrbusiness.fr/espace-client/authentification/#/login/authentification" target="_blank"><span class="icon">📱</span> Portail SFR</a></li>
-      <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">☎️</span> TelWebPRD</a></li>
+      <li><a href="https://portal.konicaminolta.fr/fr-fr/account/login?ReturnUrl=%2ffr-fr%2fservice-calls%2fpassive%2fdetail%2fiqqEsD3PAsbz0AjmVH3ZJpRANofTqPociqsgd_25Kxfkk8ePI-332poZGT9VmdP0BSSRrOBBmV_wzNAD4ZqsdA2%3fsource%3dERP&source=ERP" target="_blank"><span class="icon">&#128424;&#65039;</span> Portail Konica</a></li>
+      <li><a href="https://www.sfrbusiness.fr/espace-client/authentification/#/login/authentification" target="_blank"><span class="icon">&#128241;</span> Portail SFR</a></li>
+      <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">&#9742;&#65039;</span> TelWebPRD</a></li>
       <li class="sidebar-divider"></li>
 
       <!-- Outils communs (Tous) -->
-      <li><a href="{{ url_for('profil') }}"><span class="icon">👤</span> Mon profil</a></li>
-      <li><a href="{{ url_for('annuaire') }}"><span class="icon">📞</span> Annuaire techniciens</a></li>
-      <li><a href="{{ url_for('wiki') }}"><span class="icon">📚</span> Base de connaissances</a></li>
-      <li><a href="http://u.osmfr.org/m/1022870/" target="_blank"><span class="icon">🗺️</span> Carte CHU</a></li>
-      <li><a href="https://easyvista-backoffice-prd.intra.ght44.fr/index.php?PHPSESSID=4ikdb03a4d690m7h5j0d1s97gs&internalurltime=1760602763" target="_blank"><span class="icon">💻</span> Easyvista</a></li>
-      <li><a href="https://wikidsnt/" target="_blank"><span class="icon">📖</span> WikiDSNT</a></li>
+      <li><a href="{{ url_for('profil') }}"><span class="icon">&#128100;</span> Mon profil</a></li>
+      <li><a href="{{ url_for('annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
+      <li><a href="{{ url_for('wiki') }}"><span class="icon">&#128218;</span> Base de connaissances</a></li>
+      <li><a href="http://u.osmfr.org/m/1022870/" target="_blank"><span class="icon">&#128506;&#65039;</span> Carte CHU</a></li>
+      <li><a href="https://easyvista-backoffice-prd.intra.ght44.fr/index.php?PHPSESSID=4ikdb03a4d690m7h5j0d1s97gs&internalurltime=1760602763" target="_blank"><span class="icon">&#128187;</span> Easyvista</a></li>
+      <li><a href="https://wikidsnt/" target="_blank"><span class="icon">&#128214;</span> WikiDSNT</a></li>
     </ul>
   </aside>
 
@@ -376,8 +386,8 @@
         <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
       </div>
       <div class="d-flex gap-2">
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
-        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm">&#127769;</button>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Se d&eacute;connecter</a>
       </div>
     </div>
   </nav>
@@ -387,9 +397,9 @@
   {% if role == 'admin' %}
   <div class="mb-3 d-flex gap-2 flex-wrap admin-actions">
     <a href="{{ url_for('add_incident') }}" class="btn btn-primary btn-admin">+ Ajouter un incident</a>
-    <a href="{{ url_for('techniciens') }}" class="btn btn-info btn-admin">👨‍🔧 Gestion techniciens</a>
-    <a href="{{ url_for('configuration') }}" class="btn btn-success btn-admin">⚙️ Configuration</a>
-    <a href="{{ url_for('wiki') }}" class="btn btn-info btn-admin">📚 Base de connaissances</a>
+    <a href="{{ url_for('techniciens') }}" class="btn btn-info btn-admin">&#128104;&#8205;&#128295; Gestion techniciens</a>
+    <a href="{{ url_for('configuration') }}" class="btn btn-success btn-admin">&#9881;&#65039; Configuration</a>
+    <a href="{{ url_for('wiki') }}" class="btn btn-info btn-admin">&#128218; Base de connaissances</a>
   </div>
   {% endif %}
 
@@ -424,15 +434,41 @@
     });
     
     const socket = window.socket;
-    
-    // Variable globale pour vérifier la connexion
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const pendingCardReloads = new Map();
+    let bulkRefreshTimer = null;
+
+    function scheduleIncidentReload(incidentId, delayMs = 120) {
+      if (!incidentId) return;
+      const key = String(incidentId);
+      if (pendingCardReloads.has(key)) {
+        clearTimeout(pendingCardReloads.get(key));
+      }
+      const timer = setTimeout(() => {
+        pendingCardReloads.delete(key);
+        reloadIncidentCard(key);
+      }, delayMs);
+      pendingCardReloads.set(key, timer);
+    }
+    window.scheduleIncidentReload = scheduleIncidentReload;
+
+    function requestBulkRefresh(reason = 'sync') {
+      if (bulkRefreshTimer) {
+        clearTimeout(bulkRefreshTimer);
+      }
+      bulkRefreshTimer = setTimeout(() => {
+        console.log('Refresh global demandé:', reason);
+        refreshIncidents();
+      }, 180);
+    }
+    window.requestBulkRefresh = requestBulkRefresh;
+// Variable globale pour vérifier la connexion
     window.socketConnected = false;
     
     // Gestionnaires de connexion Socket.IO
     socket.on('connect', () => {
       console.log('✅ Socket.IO connecté, SID:', socket.id);
       window.socketConnected = true;
-      socket.emit('join', { room: '{{ user.lower() }}' });
     });
     
     socket.on('disconnect', (reason) => {
@@ -451,7 +487,7 @@
       const existingCards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
       
       if (existingCards.length === 0) {
-        console.warn('⚠️ Aucune carte trouvée pour l\'incident', incidentId);
+        console.warn('âš ️ Aucune carte trouvée pour l\'incident', incidentId);
         return;
       }
       
@@ -541,7 +577,7 @@
     socket.on('incident_etat_changed', (data) => {
       if (data && data.id) {
         console.log('🔄 Rechargement de la carte incident:', data.id);
-        reloadIncidentCard(data.id);
+        scheduleIncidentReload(data.id);
       }
     });
     
@@ -565,7 +601,7 @@
               dateDisplay.className = 'text-success d-block mt-1 rdv-display';
               wrapper.appendChild(dateDisplay);
             }
-            dateDisplay.innerHTML = '📅 ' + data.date_rdv_formatted;
+            dateDisplay.innerHTML = '&#128197; ' + data.date_rdv_formatted;
           } else if (dateDisplay) {
             dateDisplay.remove();
           }
@@ -599,19 +635,6 @@
         });
       }
     });
-    
-    // Écouter TOUS les événements Socket.IO pour forcer le rechargement
-    if (socket.onAny) {
-      socket.onAny((eventName, ...args) => {
-        if (eventName === 'incident_etat_changed' || eventName === 'incident_update') {
-          const data = args[0];
-          if (data && data.id) {
-            console.log('🎯 Événement', eventName, 'détecté via onAny, rechargement carte:', data.id);
-            reloadIncidentCard(data.id);
-          }
-        }
-      });
-    }
     
     
     // Fonction utilitaire simple pour mettre à jour un badge (utilisée pour la mise à jour locale)
@@ -716,16 +739,20 @@
           }, 50);
         });
     }
+    window.refreshIncidents = refreshIncidents;
+
     socket.on('incident_update', (data) => {
       // Si l'événement contient un ID d'incident, recharger uniquement cette carte
       if (data && data.incident_id) {
         console.log('🔄 Rechargement de la carte incident:', data.incident_id);
-        reloadIncidentCard(data.incident_id);
+        scheduleIncidentReload(data.incident_id);
       } else {
-        // Sinon, recharger tout (comportement par défaut)
-        console.log('🔄 Rechargement complet suite à incident_update');
-        refreshIncidents();
+        console.log('ℹ️ incident_update sans incident_id ignoré');
       }
+    });
+
+    socket.on('bulk_refresh_required', (data) => {
+      requestBulkRefresh(data?.reason || 'bulk_refresh_required');
     });
 
     // Handler spécifique pour les changements d'état (mise à jour granulaire)
@@ -754,8 +781,11 @@
       }
     });
     socket.on('new_assignment', (data) => {
-      alert(`Nouveau ticket #${data.numero} sur ${data.site} (${data.date})`);
-      refreshIncidents();
+      if (data && data.incident_id) {
+        scheduleIncidentReload(data.incident_id);
+      } else {
+        requestBulkRefresh('new_assignment');
+      }
     });
 
     document.body.addEventListener('submit', (e) => {
@@ -767,6 +797,10 @@
 
         fetch(e.target.action, {
           method: e.target.method,
+          headers: csrfToken ? {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+          } : {},
           body: new FormData(e.target),
         }).then(() => {
           // Mise à jour visuelle locale pour le changement de statut
@@ -893,6 +927,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
           },
           body: JSON.stringify(data)
         })
@@ -935,12 +971,14 @@
         
         // Désactiver le bouton pendant la sauvegarde
         btn.disabled = true;
-        btn.textContent = '⏳';
+        btn.textContent = '...';
         
         fetch(`/api/incident/${incidentId}/rdv`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
           },
           body: JSON.stringify({ date_rdv: dateValue })
         })
@@ -958,13 +996,13 @@
                 dateDisplay.className = 'text-success d-block mt-1 rdv-display';
                 wrapper.appendChild(dateDisplay);
               }
-              dateDisplay.innerHTML = '📅 ' + result.date_rdv_formatted;
+              dateDisplay.innerHTML = '&#128197; ' + result.date_rdv_formatted;
             } else if (dateDisplay) {
               dateDisplay.remove();
             }
             
             // Flash visuel de succès
-            btn.textContent = '✓';
+            btn.textContent = 'OK';
             btn.classList.remove('btn-success');
             btn.classList.add('btn-outline-success');
             wrapper.style.transition = 'background 0.3s';
@@ -977,16 +1015,16 @@
             }, 1000);
             
             // Recharger la carte pour s'assurer que tout est synchro
-            if (typeof reloadIncidentCard === 'function') {
-              setTimeout(() => reloadIncidentCard(incidentId), 500);
+            if (typeof scheduleIncidentReload === 'function') {
+              scheduleIncidentReload(incidentId, 220);
             }
           } else {
             console.error('❌ Erreur RDV:', result.error);
-            btn.textContent = '✗';
+            btn.textContent = 'X';
             btn.classList.remove('btn-success');
             btn.classList.add('btn-danger');
             setTimeout(() => {
-              btn.textContent = '✓';
+              btn.textContent = 'OK';
               btn.classList.remove('btn-danger');
               btn.classList.add('btn-success');
             }, 2000);
@@ -994,11 +1032,11 @@
         })
         .catch(err => {
           console.error('❌ Erreur réseau RDV:', err);
-          btn.textContent = '✗';
+          btn.textContent = 'X';
           btn.classList.remove('btn-success');
           btn.classList.add('btn-danger');
           setTimeout(() => {
-            btn.textContent = '✓';
+            btn.textContent = 'OK';
             btn.classList.remove('btn-danger');
             btn.classList.add('btn-success');
           }, 2000);
@@ -1051,8 +1089,8 @@
                   window.notificationSystem.addNotification({
                       type: 'wiki_update_requested',
                       priority: 'info',
-                      title: '📝 Mise à jour demandée',
-                      message: `${data.title || 'Article'} — par ${data.requested_by || 'quelqu\\'un'}`,
+                      title: '\ud83d\udcdd Mise a jour demandee',
+                      message: `${data.title || 'Article'} - par ${data.requested_by || 'quelqu\\'un'}`,
                       action: data.article_id ? {
                           label: "Voir l'article",
                           onClick: () => { window.location.href = `/wiki/article/${data.article_id}`; }
@@ -1099,22 +1137,22 @@
                   window.notificationSystem.addNotification({
                       type: 'info',
                       priority: 'info',
-                      title: '📤 Ticket réaffecté',
-                      message: `${data.numero} a été réaffecté à ${data.to_technicien}`,
+                      title: '\ud83d\udce4 Ticket reaffecte',
+                      message: `${data.numero} a ete reaffecte a ${data.to_technicien}`,
                       incident_id: data.incident_id
                   });
                   break;
               
               case 'relance_due': {
-                  const urgentLevels = ['critique', 'haute', 'immediate', 'immédiate'];
+                  const urgentLevels = ['critique', 'haute', 'immediate', 'imm\\u00e9diate'];
                   const priority = urgentLevels.includes((data.urgence || '').toLowerCase()) ? 'urgent' : 'info';
                   const plannedAt = data.planned_at ? new Date(data.planned_at).toLocaleString('fr-FR') : null;
                   window.notificationSystem.addNotification({
                       type: 'relance_due',
                       priority: priority,
-                      title: '⏰ Relance à effectuer',
-                      message: `${data.numero} - Relance planifiée`,
-                      details: plannedAt ? `Prévue le ${plannedAt}` : '',
+                      title: '\u23f0 Relance a effectuer',
+                      message: `${data.numero} - Relance planifiee`,
+                      details: plannedAt ? `Prevue le ${plannedAt}` : '',
                       incident_id: data.incident_id,
                       action: {
                           label: 'Voir',
@@ -1135,3 +1173,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+
+

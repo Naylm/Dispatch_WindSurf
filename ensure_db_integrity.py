@@ -6,6 +6,57 @@ import os
 from werkzeug.security import generate_password_hash
 from db_config import get_db
 
+DB_INTEGRITY_LOCK_KEY = 8742301
+
+
+def _bootstrap_admin_user(cursor):
+    """Create an initial admin only from explicit bootstrap env vars."""
+    bootstrap_username = (os.environ.get("BOOTSTRAP_ADMIN_USERNAME") or "").strip()
+    bootstrap_password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD") or ""
+
+    if not bootstrap_username and not bootstrap_password:
+        return
+
+    if not bootstrap_username or not bootstrap_password:
+        print(
+            "   - BOOTSTRAP_ADMIN_USERNAME et BOOTSTRAP_ADMIN_PASSWORD doivent etre definis ensemble (bootstrap ignore)"
+        )
+        return
+
+    existing = cursor.execute(
+        "SELECT id FROM users WHERE LOWER(username)=LOWER(%s)",
+        (bootstrap_username,),
+    ).fetchone()
+    if existing:
+        print(f"   - Compte bootstrap '{bootstrap_username}' deja present")
+        return
+
+    cursor.execute(
+        """
+        INSERT INTO users (username, password, role, force_password_reset)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (username) DO NOTHING
+        """,
+        (bootstrap_username, generate_password_hash(bootstrap_password), "admin", 1),
+    )
+    if cursor.rowcount:
+        print(f"   - Compte admin bootstrap cree: {bootstrap_username} (reset mot de passe force)")
+    else:
+        print(f"   - Compte bootstrap '{bootstrap_username}' deja present")
+
+
+def _warn_if_no_admin_user(cursor):
+    admin_count_row = cursor.execute(
+        "SELECT COUNT(*) AS cnt FROM users WHERE role='admin'"
+    ).fetchone()
+    admin_count = admin_count_row["cnt"] if admin_count_row else 0
+    if admin_count == 0:
+        print(
+            "   - ATTENTION: aucun compte admin dans users. "
+            "Definir BOOTSTRAP_ADMIN_USERNAME/BOOTSTRAP_ADMIN_PASSWORD ou creer un admin manuellement."
+        )
+
+
 def ensure_database_integrity():
     """Garantit que toutes les tables nécessaires existent avec la bonne structure"""
     
@@ -13,6 +64,7 @@ def ensure_database_integrity():
     
     conn = get_db()
     cursor = conn.cursor()
+    cursor.execute("SELECT pg_advisory_lock(%s)", (DB_INTEGRITY_LOCK_KEY,))
     
     tables_created = []
     tables_verified = []
@@ -35,12 +87,6 @@ def ensure_database_integrity():
                 force_password_reset INTEGER DEFAULT 0
             )
         """)
-        # Créer un admin par défaut (mot de passe: admin)
-        admin_hash = generate_password_hash('admin')
-        cursor.execute("""
-            INSERT INTO users (username, password, role)
-            VALUES (%s, %s, %s)
-        """, ('admin', admin_hash, 'admin'))
         tables_created.append("users")
     else:
         tables_verified.append("users")
@@ -106,6 +152,9 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN nom VARCHAR(255)")
             print("   - Colonne nom ajoutee a la table users")
+
+    _bootstrap_admin_user(cursor)
+    _warn_if_no_admin_user(cursor)
     
     # ========== TABLE: techniciens ==========
     cursor.execute("""
@@ -255,7 +304,8 @@ def ensure_database_integrity():
                 valide INTEGER DEFAULT 0,
                 date_affectation DATE NOT NULL,
                 archived INTEGER DEFAULT 0,
-                localisation VARCHAR(255) DEFAULT ''
+                localisation VARCHAR(255) DEFAULT '',
+                version INTEGER NOT NULL DEFAULT 1
             )
         """)
         tables_created.append("incidents")
@@ -331,6 +381,58 @@ def ensure_database_integrity():
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE incidents ADD COLUMN {col_name} {col_def}")
                 print(f"   - Colonne {col_name} ajoutee a la table incidents")
+
+        # Migration: version pour synchronisation temps reel des incidents
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='version'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
+            print("   - Colonne version ajoutee a la table incidents")
+
+    # Migration de normalisation: corriger les anciennes valeurs d'etat mojibake
+    legacy_status_map = [
+        ("AffectÃ©", "Affecté"),
+        ("En cours de prÃ©paration", "En cours de préparation"),
+        ("Intervention programmÃ©e", "Intervention programmée"),
+        ("TransfÃ©rÃ©", "Transféré"),
+        ("En rÃ©servation", "En réservation"),
+        ("TraitÃ©", "Traité"),
+        ("ClÃ´turÃ©", "Clôturé"),
+    ]
+
+    for bad_value, good_value in legacy_status_map:
+        cursor.execute(
+            "UPDATE incidents SET etat=%s WHERE etat=%s",
+            (good_value, bad_value),
+        )
+        if cursor.rowcount:
+            print(f"   - {cursor.rowcount} incident(s) corriges: {bad_value} -> {good_value}")
+
+    # Normaliser aussi la table statuts pour eviter la reapparition de valeurs legacy
+    for bad_value, good_value in legacy_status_map:
+        cursor.execute(
+            "UPDATE statuts SET nom=%s WHERE nom=%s",
+            (good_value, bad_value),
+        )
+        if cursor.rowcount:
+            print(f"   - {cursor.rowcount} statut(s) corriges: {bad_value} -> {good_value}")
+
+    # Indexes de performance sur colonnes chaudes incidents
+    incident_indexes = [
+        ("idx_incidents_archived", "CREATE INDEX IF NOT EXISTS idx_incidents_archived ON incidents (archived)"),
+        ("idx_incidents_technicien_id", "CREATE INDEX IF NOT EXISTS idx_incidents_technicien_id ON incidents (technicien_id)"),
+        ("idx_incidents_etat", "CREATE INDEX IF NOT EXISTS idx_incidents_etat ON incidents (etat)"),
+        ("idx_incidents_date_affectation", "CREATE INDEX IF NOT EXISTS idx_incidents_date_affectation ON incidents (date_affectation DESC)"),
+        ("idx_incidents_collaborateur", "CREATE INDEX IF NOT EXISTS idx_incidents_collaborateur ON incidents (collaborateur)"),
+        ("idx_incidents_archived_technicien", "CREATE INDEX IF NOT EXISTS idx_incidents_archived_technicien ON incidents (archived, technicien_id)"),
+        ("idx_incidents_archived_etat_date", "CREATE INDEX IF NOT EXISTS idx_incidents_archived_etat_date ON incidents (archived, etat, date_affectation DESC)"),
+    ]
+    for index_name, index_sql in incident_indexes:
+        cursor.execute(index_sql)
+        print(f"   - Index verifie: {index_name}")
 
     # ========== TABLE: historique ==========
     cursor.execute("""
@@ -860,6 +962,7 @@ def ensure_database_integrity():
     
     # Commit toutes les modifications
     conn.commit()
+    cursor.execute("SELECT pg_advisory_unlock(%s)", (DB_INTEGRITY_LOCK_KEY,))
     cursor.close()
     conn.close()
     

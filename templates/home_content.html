@@ -873,7 +873,8 @@
           fetch('/incidents/assign', {
             method: 'POST',
             headers: {
-              'X-CSRFToken': csrfToken
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: new URLSearchParams({
               id: incidentId,
@@ -898,7 +899,8 @@
           fetch('/incidents/assign', {
             method: 'POST',
             headers: {
-              'X-CSRFToken': csrfToken
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: new URLSearchParams({
               id: incidentId,
@@ -909,7 +911,14 @@
           .then(data => {
             if (data.status === 'ok') {
               // Recharger la page pour mettre à jour la vue
-              location.reload();
+              if (window.scheduleIncidentReload) {
+                window.scheduleIncidentReload(incidentId, 120);
+              }
+              if (window.requestBulkRefresh) {
+                window.requestBulkRefresh('reassign_list');
+              } else if (window.refreshIncidents) {
+                window.refreshIncidents();
+              }
             } else {
               alert('Erreur lors du transfert du ticket');
             }
@@ -937,7 +946,8 @@
           fetch('/incidents/assign', {
             method: 'POST',
             headers: {
-              'X-CSRFToken': csrfToken
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: new URLSearchParams({
               id: incidentId,
@@ -1296,6 +1306,26 @@
 
     .tech-selector, .tech-selector-col, .tech-selector-list {
       cursor: pointer;
+    }
+
+    .filters-bar {
+      row-gap: 0.5rem;
+    }
+
+    .filters-bar .form-control,
+    .filters-bar .form-select,
+    .filters-bar .btn {
+      max-width: 100%;
+    }
+
+    .view-mode-row {
+      flex-wrap: wrap;
+    }
+
+    .incident-card-col .d-flex.gap-1,
+    .incident-card-grouped .d-flex.gap-1,
+    .small-card .d-flex.gap-1 {
+      flex-wrap: wrap;
     }
 
     /* Responsive pour le sélecteur de vue */
@@ -1787,7 +1817,8 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify(payload),
       credentials: 'same-origin'

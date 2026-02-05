@@ -33,15 +33,22 @@ docker compose up -d --build
 
 Acces: http://localhost
 
-Compte par defaut:
-- login: admin
-- mot de passe: admin
+Premier compte admin:
+- definir `BOOTSTRAP_ADMIN_USERNAME` et `BOOTSTRAP_ADMIN_PASSWORD` dans `.env`
+- le compte est cree au demarrage avec `force_password_reset=1`
 
 ## Configuration
 Variables utiles dans `.env`:
 ```
 SECRET_KEY=change_me
-GUNICORN_WORKERS=1
+POSTGRES_USER=dispatch_user
+POSTGRES_PASSWORD=change_me
+GUNICORN_WORKERS=2
+REDIS_URL=redis://redis:6379/0
+SOCKETIO_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
+SOCKETIO_DEBUG=false
+BOOTSTRAP_ADMIN_USERNAME=
+BOOTSTRAP_ADMIN_PASSWORD=
 DB_POOL_MIN=5
 DB_POOL_MAX=20
 ```

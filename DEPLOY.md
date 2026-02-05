@@ -1,61 +1,61 @@
-# Guide de Déploiement - Dispatch Manager
+﻿# Guide de DÃ©ploiement - Dispatch Manager
 
-Guide complet pour déployer Dispatch Manager sur un serveur Ubuntu en production avec mises à jour à chaud.
+Guide complet pour dÃ©ployer Dispatch Manager sur un serveur Ubuntu en production avec mises Ã  jour Ã  chaud.
 
-## 📋 Table des matières
+## ðŸ“‹ Table des matiÃ¨res
 
 - [Architecture](#architecture)
-- [Prérequis](#prérequis)
-- [Premier déploiement](#premier-déploiement)
-- [Mises à jour](#mises-à-jour)
+- [PrÃ©requis](#prÃ©requis)
+- [Premier dÃ©ploiement](#premier-dÃ©ploiement)
+- [Mises Ã  jour](#mises-Ã -jour)
 - [Gestion des secrets](#gestion-des-secrets)
 - [Commandes utiles](#commandes-utiles)
-- [Dépannage](#dépannage)
+- [DÃ©pannage](#dÃ©pannage)
 - [Rollback](#rollback)
 
 ---
 
-## 🏗 Architecture
+## ðŸ— Architecture
 
 ```
-┌──────────────┐         ┌──────────┐         ┌────────────────┐
-│              │  Push   │          │  Pull   │                │
-│  PC Local    ├────────>│  GitHub  │<────────│ Serveur Ubuntu │
-│  (Windows)   │         │          │         │    (Docker)    │
-│              │         │          │         │                │
-└──────────────┘         └──────────┘         └────────────────┘
-       │                                               │
-       │ .\deploy.ps1                                  │
-       └───────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”         â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”         â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚              â”‚  Push   â”‚          â”‚  Pull   â”‚                â”‚
+â”‚  PC Local    â”œâ”€â”€â”€â”€â”€â”€â”€â”€>â”‚  GitHub  â”‚<â”€â”€â”€â”€â”€â”€â”€â”€â”‚ Serveur Ubuntu â”‚
+â”‚  (Windows)   â”‚         â”‚          â”‚         â”‚    (Docker)    â”‚
+â”‚              â”‚         â”‚          â”‚         â”‚                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜         â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜         â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+       â”‚                                               â”‚
+       â”‚ .\deploy.ps1                                  â”‚
+       â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
                         SSH
 ```
 
-**Services déployés** :
-- **PostgreSQL 15** : Base de données (port interne 5432)
+**Services dÃ©ployÃ©s** :
+- **PostgreSQL 15** : Base de donnÃ©es (port interne 5432)
 - **Flask + Gunicorn** : Application web (port interne 5000)
 - **Nginx** : Reverse proxy + HTTPS (ports 80/443)
 
 ---
 
-## ✅ Prérequis
+## âœ… PrÃ©requis
 
 ### Sur votre PC Windows
 
-- [x] Git installé et configuré
+- [x] Git installÃ© et configurÃ©
 - [x] PowerShell 5.1+ (inclus dans Windows 10/11)
-- [x] Clé SSH configurée pour le serveur
-- [x] Accès au repository GitHub
+- [x] ClÃ© SSH configurÃ©e pour le serveur
+- [x] AccÃ¨s au repository GitHub
 
 ### Sur le serveur Ubuntu
 
 - [x] Ubuntu 24.04 LTS
-- [x] Docker et Docker Compose installés
-- [x] Accès SSH avec clé publique
-- [x] Nom de domaine configuré (ex: agartha.cc)
-- [x] Certificats SSL présents
+- [x] Docker et Docker Compose installÃ©s
+- [x] AccÃ¨s SSH avec clÃ© publique
+- [x] Nom de domaine configurÃ© (ex: agartha.cc)
+- [x] Certificats SSL prÃ©sents
 - [x] Ports 80 et 443 ouverts
 
-**Vérifier Docker sur le serveur** :
+**VÃ©rifier Docker sur le serveur** :
 ```bash
 ssh user@agartha.cc
 docker --version
@@ -64,64 +64,64 @@ docker compose version
 
 ---
 
-## 🚀 Premier déploiement
+## ðŸš€ Premier dÃ©ploiement
 
-### Étape 1 : Préparer le serveur
+### Ã‰tape 1 : PrÃ©parer le serveur
 
-Connectez-vous au serveur et créez la structure :
+Connectez-vous au serveur et crÃ©ez la structure :
 
 ```bash
 ssh user@agartha.cc
 
-# Créer le dossier de déploiement
+# CrÃ©er le dossier de dÃ©ploiement
 sudo mkdir -p /opt/dispatch
 sudo chown $USER:$USER /opt/dispatch
 ```
 
-### Étape 2 : Configurer les secrets
+### Ã‰tape 2 : Configurer les secrets
 
-Créez le fichier `.env` avec les secrets de production :
+CrÃ©ez le fichier `.env` avec les secrets de production :
 
 ```bash
 cd /opt/dispatch
 
-# Créer le fichier .env
+# CrÃ©er le fichier .env
 nano .env
 ```
 
 Copiez le contenu de [`.env.production.template`](.env.production.template) et remplacez les valeurs :
 
 ```bash
-# Générer un SECRET_KEY fort (64 caractères)
+# GÃ©nÃ©rer un SECRET_KEY fort (64 caractÃ¨res)
 python3 -c "import secrets; print(secrets.token_hex(32))"
 
-# Générer un mot de passe PostgreSQL fort
+# GÃ©nÃ©rer un mot de passe PostgreSQL fort
 python3 -c "import secrets; print(secrets.token_urlsafe(24))"
 ```
 
-**Exemple de `.env` configuré** :
+**Exemple de `.env` configurÃ©** :
 ```env
 FLASK_APP=app.py
 FLASK_ENV=production
-SECRET_KEY=a1b2c3d4e5f6... # 64 caractères générés
+SECRET_KEY=a1b2c3d4e5f6... # 64 caractÃ¨res gÃ©nÃ©rÃ©s
 
 POSTGRES_HOST=postgres
 POSTGRES_DB=dispatch
 POSTGRES_USER=dispatch_user
-POSTGRES_PASSWORD=XyZ9... # Mot de passe généré
+POSTGRES_PASSWORD=XyZ9... # Mot de passe gÃ©nÃ©rÃ©
 
 SESSION_COOKIE_SECURE=true
 SESSION_LIFETIME_MINUTES=480
 ```
 
-**Sécuriser le fichier** :
+**SÃ©curiser le fichier** :
 ```bash
 chmod 600 .env
 ```
 
-### Étape 3 : Vérifier les certificats SSL
+### Ã‰tape 3 : VÃ©rifier les certificats SSL
 
-Vérifiez que vos certificats SSL sont présents :
+VÃ©rifiez que vos certificats SSL sont prÃ©sents :
 
 ```bash
 ls -l /etc/ssl/certs/agartha.cc.crt
@@ -130,135 +130,133 @@ ls -l /etc/ssl/private/agartha.cc.key
 
 Si vos certificats sont ailleurs, adaptez les chemins dans `nginx.conf` (lignes 57-58).
 
-### Étape 4 : Déployer depuis Windows
+### Ã‰tape 4 : DÃ©ployer depuis Windows
 
 Ouvrez PowerShell sur votre PC et lancez :
 
 ```powershell
 cd C:\Users\nayso\Desktop\DispatchDockerWorking
 
-# Premier déploiement
+# Premier dÃ©ploiement
 .\deploy.ps1 -Server "user@agartha.cc" -FirstDeploy
 ```
 
 Le script va :
 - Cloner le repository depuis GitHub
-- Créer la structure de dossiers
-- Afficher les prochaines étapes
+- CrÃ©er la structure de dossiers
+- Afficher les prochaines Ã©tapes
 
-### Étape 5 : Démarrer les services
+### Ã‰tape 5 : DÃ©marrer les services
 
-Retournez sur le serveur et démarrez l'application :
+Retournez sur le serveur et dÃ©marrez l'application :
 
 ```bash
 ssh user@agartha.cc
 cd /opt/dispatch
 
-# Démarrer tous les services
+# DÃ©marrer tous les services
 docker compose up -d
 
-# Vérifier que tout démarre correctement
+# VÃ©rifier que tout dÃ©marre correctement
 docker compose ps
 docker compose logs -f app
 ```
 
-Attendez environ 30 secondes que tous les services démarrent.
+Attendez environ 30 secondes que tous les services dÃ©marrent.
 
-### Étape 6 : Vérifier l'application
+### Ã‰tape 6 : VÃ©rifier l'application
 
-Dans votre navigateur, accédez à :
+Dans votre navigateur, accÃ©dez Ã  :
 - **HTTPS** : https://agartha.cc
 - **Health check** : https://agartha.cc/health
 
-**Connexion par défaut** :
-- Username : `admin`
-- Password : `admin`
-
-⚠️ **IMPORTANT** : Changez le mot de passe admin immédiatement !
+**Connexion initiale** :
+- Compte cree via `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` dans `.env`
+- Le compte est force de changer son mot de passe a la premiere connexion
 
 ---
 
-## 🔄 Mises à jour (routine)
+## ðŸ”„ Mises Ã  jour (routine)
 
-Une fois le premier déploiement effectué, les mises à jour sont très simples.
+Une fois le premier dÃ©ploiement effectuÃ©, les mises Ã  jour sont trÃ¨s simples.
 
-### Workflow de mise à jour
+### Workflow de mise Ã  jour
 
-1. **Sur Windows** : Développer et tester en local
+1. **Sur Windows** : DÃ©velopper et tester en local
 2. **Commit et push** sur GitHub
-3. **Déployer** avec le script
+3. **DÃ©ployer** avec le script
 
 ### Exemple complet
 
 ```powershell
 # 1. Faire vos modifications en local
-# ... éditer les fichiers ...
+# ... Ã©diter les fichiers ...
 
 # 2. Tester localement
 docker compose up
 
 # 3. Commit et push
 git add .
-git commit -m "feat: Nouvelle fonctionnalité X"
+git commit -m "feat: Nouvelle fonctionnalitÃ© X"
 git push
 
-# 4. Déployer en production
+# 4. DÃ©ployer en production
 .\deploy.ps1 -Server "user@agartha.cc"
 ```
 
 **C'est tout !** Le script s'occupe de :
-- ✅ Backup automatique de la base de données
-- ✅ Pull des derniers changements
-- ✅ Rebuild du conteneur
-- ✅ Redémarrage avec ~30-60 secondes d'interruption
-- ✅ Vérification de santé
+- âœ… Backup automatique de la base de donnÃ©es
+- âœ… Pull des derniers changements
+- âœ… Rebuild du conteneur
+- âœ… RedÃ©marrage avec ~30-60 secondes d'interruption
+- âœ… VÃ©rification de santÃ©
 
 ### Options du script
 
 ```powershell
-# Déploiement normal
+# DÃ©ploiement normal
 .\deploy.ps1 -Server "user@agartha.cc"
 
-# Sauter le backup (NON RECOMMANDÉ)
+# Sauter le backup (NON RECOMMANDÃ‰)
 .\deploy.ps1 -Server "user@agartha.cc" -SkipBackup
 
-# Premier déploiement
+# Premier dÃ©ploiement
 .\deploy.ps1 -Server "user@agartha.cc" -FirstDeploy
 ```
 
 ---
 
-## 🔐 Gestion des secrets
+## ðŸ” Gestion des secrets
 
 ### Qu'est-ce qu'un secret ?
 
 Les **secrets** sont des informations sensibles :
-- `SECRET_KEY` : Clé de chiffrement des sessions
-- `POSTGRES_PASSWORD` : Mot de passe de la base de données
+- `SECRET_KEY` : ClÃ© de chiffrement des sessions
+- `POSTGRES_PASSWORD` : Mot de passe de la base de donnÃ©es
 - Certificats SSL
 - API keys tierces
 
-### Où sont les secrets ?
+### OÃ¹ sont les secrets ?
 
 | Environnement | Fichier | Contenu |
 |---------------|---------|---------|
 | **Local (dev)** | `.env` | Valeurs de test (`SECRET_KEY=dev`) |
-| **GitHub** | ❌ Aucun | Code source uniquement |
-| **Production** | `/opt/dispatch/.env` | Secrets forts générés |
+| **GitHub** | âŒ Aucun | Code source uniquement |
+| **Production** | `/opt/dispatch/.env` | Secrets forts gÃ©nÃ©rÃ©s |
 
-### Pourquoi séparer ?
+### Pourquoi sÃ©parer ?
 
-- ✅ Si quelqu'un accède à GitHub → pas de mots de passe de prod
-- ✅ Chaque environnement a ses propres secrets
-- ✅ Si un secret fuite → changer uniquement celui de prod
+- âœ… Si quelqu'un accÃ¨de Ã  GitHub â†’ pas de mots de passe de prod
+- âœ… Chaque environnement a ses propres secrets
+- âœ… Si un secret fuite â†’ changer uniquement celui de prod
 
-### Comment ça fonctionne ?
+### Comment Ã§a fonctionne ?
 
 Docker Compose lit automatiquement le fichier `.env` et injecte les variables dans les conteneurs. Transparent pour vous !
 
 ---
 
-## 🛠 Commandes utiles
+## ðŸ›  Commandes utiles
 
 ### Sur le serveur
 
@@ -267,7 +265,7 @@ Docker Compose lit automatiquement le fichier `.env` et injecte les variables da
 ssh user@agartha.cc
 cd /opt/dispatch
 
-# Voir les logs en temps réel
+# Voir les logs en temps rÃ©el
 docker compose logs -f app
 docker compose logs -f nginx
 docker compose logs -f postgres
@@ -275,37 +273,37 @@ docker compose logs -f postgres
 # Voir le status des conteneurs
 docker compose ps
 
-# Redémarrer un service
+# RedÃ©marrer un service
 docker compose restart app
 docker compose restart nginx
 
-# Arrêter tous les services
+# ArrÃªter tous les services
 docker compose down
 
-# Démarrer tous les services
+# DÃ©marrer tous les services
 docker compose up -d
 
-# Rebuild et redémarrer
+# Rebuild et redÃ©marrer
 docker compose down && docker compose up -d --build
 
-# Voir les ressources utilisées
+# Voir les ressources utilisÃ©es
 docker stats
 ```
 
-### Backup manuel de la base de données
+### Backup manuel de la base de donnÃ©es
 
 ```bash
 # Sur le serveur
 cd /opt/dispatch
 
-# Créer un backup
+# CrÃ©er un backup
 docker compose exec postgres pg_dump -U dispatch_user dispatch > backups/backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Lister les backups
 ls -lh backups/
 ```
 
-### Restaurer une base de données
+### Restaurer une base de donnÃ©es
 
 ```bash
 # Sur le serveur
@@ -317,21 +315,21 @@ docker compose exec -T postgres psql -U dispatch_user dispatch < backups/backup_
 
 ---
 
-## 🩺 Dépannage
+## ðŸ©º DÃ©pannage
 
-### L'application ne démarre pas
+### L'application ne dÃ©marre pas
 
 ```bash
-# Vérifier les logs
+# VÃ©rifier les logs
 docker compose logs app
 
-# Vérifier les variables d'environnement
+# VÃ©rifier les variables d'environnement
 docker compose exec app env | grep FLASK
 
-# Vérifier que le fichier .env existe
+# VÃ©rifier que le fichier .env existe
 ls -la /opt/dispatch/.env
 
-# Redémarrer proprement
+# RedÃ©marrer proprement
 docker compose down
 docker compose up -d
 ```
@@ -339,20 +337,20 @@ docker compose up -d
 ### Erreur de connexion PostgreSQL
 
 ```bash
-# Vérifier que PostgreSQL est démarré
+# VÃ©rifier que PostgreSQL est dÃ©marrÃ©
 docker compose ps postgres
 
-# Vérifier les logs PostgreSQL
+# VÃ©rifier les logs PostgreSQL
 docker compose logs postgres
 
 # Se connecter manuellement
 docker compose exec postgres psql -U dispatch_user dispatch
 ```
 
-### Nginx ne démarre pas (certificats SSL)
+### Nginx ne dÃ©marre pas (certificats SSL)
 
 ```bash
-# Vérifier les certificats
+# VÃ©rifier les certificats
 docker compose exec nginx ls -l /etc/ssl/certs/
 docker compose exec nginx ls -l /etc/ssl/private/
 
@@ -371,20 +369,20 @@ docker stats
 
 # Augmenter le nombre de workers Gunicorn
 nano .env
-# Modifier: GUNICORN_WORKERS=8
+# Modifier: GUNICORN_WORKERS=2 (et garder REDIS_URL actif)
 docker compose restart app
 
-# Vérifier le pool de connexions
+# VÃ©rifier le pool de connexions
 # Dans .env: DB_POOL_MAX=30
 ```
 
 ---
 
-## ⏮ Rollback (revenir en arrière)
+## â® Rollback (revenir en arriÃ¨re)
 
-Si un déploiement pose problème, vous pouvez revenir à la version précédente.
+Si un dÃ©ploiement pose problÃ¨me, vous pouvez revenir Ã  la version prÃ©cÃ©dente.
 
-### Méthode 1 : Rollback rapide
+### MÃ©thode 1 : Rollback rapide
 
 ```bash
 ssh user@agartha.cc
@@ -393,39 +391,39 @@ cd /opt/dispatch
 # Voir les derniers commits
 git log --oneline -10
 
-# Revenir au commit précédent
+# Revenir au commit prÃ©cÃ©dent
 git reset --hard HEAD~1  # ou git reset --hard <COMMIT_ID>
 
-# Rebuild et redémarrer
+# Rebuild et redÃ©marrer
 docker compose down
 docker compose up -d --build
 ```
 
-### Méthode 2 : Restaurer la base de données
+### MÃ©thode 2 : Restaurer la base de donnÃ©es
 
-Si la base de données a aussi besoin d'être restaurée :
+Si la base de donnÃ©es a aussi besoin d'Ãªtre restaurÃ©e :
 
 ```bash
-# 1. Arrêter l'application
+# 1. ArrÃªter l'application
 docker compose down
 
 # 2. Restaurer le backup
-docker compose up -d postgres  # Démarrer seulement PostgreSQL
-sleep 5  # Attendre le démarrage
+docker compose up -d postgres  # DÃ©marrer seulement PostgreSQL
+sleep 5  # Attendre le dÃ©marrage
 
 docker compose exec -T postgres psql -U dispatch_user dispatch < backups/backup_DERNIERE_VERSION_OK.sql
 
 # 3. Revenir au bon commit
 git reset --hard <COMMIT_OK>
 
-# 4. Redémarrer tout
+# 4. RedÃ©marrer tout
 docker compose down
 docker compose up -d --build
 ```
 
 ---
 
-## 📊 Monitoring (optionnel)
+## ðŸ“Š Monitoring (optionnel)
 
 ### Backups automatiques quotidiens
 
@@ -435,7 +433,7 @@ Ajouter un cron job sur le serveur :
 ssh user@agartha.cc
 crontab -e
 
-# Ajouter cette ligne (backup quotidien à 3h du matin)
+# Ajouter cette ligne (backup quotidien Ã  3h du matin)
 0 3 * * * cd /opt/dispatch && docker compose exec -T postgres pg_dump -U dispatch_user dispatch > backups/backup_$(date +\%Y\%m\%d).sql
 ```
 
@@ -452,30 +450,30 @@ Installer et configurer `systemd` pour recevoir des alertes.
 
 ---
 
-## 📝 Checklist de déploiement
+## ðŸ“ Checklist de dÃ©ploiement
 
-Avant votre premier déploiement, vérifiez :
+Avant votre premier dÃ©ploiement, vÃ©rifiez :
 
 - [ ] SSH fonctionne : `ssh user@agartha.cc`
-- [ ] Docker installé : `docker --version`
-- [ ] Docker Compose installé : `docker compose version`
-- [ ] Certificats SSL présents et chemins corrects dans `nginx.conf`
-- [ ] Fichier `.env` créé sur le serveur avec secrets forts
+- [ ] Docker installÃ© : `docker --version`
+- [ ] Docker Compose installÃ© : `docker compose version`
+- [ ] Certificats SSL prÃ©sents et chemins corrects dans `nginx.conf`
+- [ ] Fichier `.env` crÃ©Ã© sur le serveur avec secrets forts
 - [ ] Permissions sur `.env` : `chmod 600 .env`
 - [ ] Nom de domaine pointe vers l'IP du serveur
 - [ ] Ports 80 et 443 ouverts dans le firewall
-- [ ] Script `deploy.ps1` adapté avec le bon serveur
+- [ ] Script `deploy.ps1` adaptÃ© avec le bon serveur
 
 ---
 
-## 🎯 Résumé rapide
+## ðŸŽ¯ RÃ©sumÃ© rapide
 
-### Premier déploiement
+### Premier dÃ©ploiement
 ```powershell
 .\deploy.ps1 -Server "user@agartha.cc" -FirstDeploy
 ```
 
-### Mises à jour quotidiennes
+### Mises Ã  jour quotidiennes
 ```powershell
 git add .
 git commit -m "Description"
@@ -492,17 +490,18 @@ docker compose logs -f app
 
 ---
 
-## 📞 Support
+## ðŸ“ž Support
 
-En cas de problème :
+En cas de problÃ¨me :
 1. Consultez les logs : `docker compose logs app`
-2. Vérifiez le status : `docker compose ps`
+2. VÃ©rifiez le status : `docker compose ps`
 3. Testez le health check : `curl https://agartha.cc/health`
 
 ---
 
-**Temps d'interruption estimé lors des mises à jour** : ~30-60 secondes
+**Temps d'interruption estimÃ© lors des mises Ã  jour** : ~30-60 secondes
 
-**Fréquence des backups automatiques** : Quotidiens à 3h du matin
+**FrÃ©quence des backups automatiques** : Quotidiens Ã  3h du matin
 
-**Durée de conservation des backups** : 30 jours
+**DurÃ©e de conservation des backups** : 30 jours
+

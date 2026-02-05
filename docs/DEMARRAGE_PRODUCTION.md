@@ -1,17 +1,17 @@
-# 🚀 Guide de Démarrage - Mode Production
+﻿# ðŸš€ Guide de DÃ©marrage - Mode Production
 
-## ✅ Pré-requis
+## âœ… PrÃ©-requis
 
 - Python 3.7+
-- Environnement virtuel activé (`venv`)
-- Fichier `.env` configuré
-- Base de données `dispatch.db` présente
+- Environnement virtuel activÃ© (`venv`)
+- Fichier `.env` configurÃ©
+- Base de donnÃ©es `dispatch.db` prÃ©sente
 
 ---
 
-## 🎯 Démarrage Rapide
+## ðŸŽ¯ DÃ©marrage Rapide
 
-### Option 1 : Script BAT (Recommandé - Windows)
+### Option 1 : Script BAT (RecommandÃ© - Windows)
 ```bash
 .\DEMARRER.bat
 ```
@@ -28,9 +28,9 @@ python app.py
 
 ---
 
-## ⚙️ Configuration `.env`
+## âš™ï¸ Configuration `.env`
 
-Vérifiez que votre fichier `.env` contient :
+VÃ©rifiez que votre fichier `.env` contient :
 
 ```ini
 # Flask
@@ -38,7 +38,7 @@ FLASK_APP=app.py
 FLASK_ENV=production
 SECRET_KEY=7f3a8b2c9d1e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a
 
-# Base de données
+# Base de donnÃ©es
 DATABASE_PATH=dispatch.db
 
 # Serveur
@@ -49,47 +49,47 @@ DEBUG=False
 
 ---
 
-## 🔧 Vérifications au Démarrage
+## ðŸ”§ VÃ©rifications au DÃ©marrage
 
 L'application effectue automatiquement :
 
-1. ✅ Vérification de l'intégrité de la base de données
-2. ✅ Création des tables manquantes
-3. ✅ Initialisation des données par défaut
-4. ✅ Configuration du mode WAL pour SQLite
-5. ✅ Optimisation du cache (64MB)
+1. âœ… VÃ©rification de l'intÃ©gritÃ© de la base de donnÃ©es
+2. âœ… CrÃ©ation des tables manquantes
+3. âœ… Initialisation des donnÃ©es par dÃ©faut
+4. âœ… Configuration du mode WAL pour SQLite
+5. âœ… Optimisation du cache (64MB)
 
 ---
 
-## 📊 Indicateurs de Démarrage Réussi
+## ðŸ“Š Indicateurs de DÃ©marrage RÃ©ussi
 
 Vous devriez voir dans la console :
 
 ```
-⚠️  WARNING: SECRET_KEY chargée depuis .env
-🔧 Vérification de l'intégrité de la base de données...
-✅ Tables existantes vérifiées : 25
-📊 Base de données prête - 0 tables créées, 25 tables vérifiées
+âš ï¸  WARNING: SECRET_KEY chargÃ©e depuis .env
+ðŸ”§ VÃ©rification de l'intÃ©gritÃ© de la base de donnÃ©es...
+âœ… Tables existantes vÃ©rifiÃ©es : 25
+ðŸ“Š Base de donnÃ©es prÃªte - 0 tables crÃ©Ã©es, 25 tables vÃ©rifiÃ©es
  * Running on http://0.0.0.0:5000
 ```
 
 ---
 
-## 🌐 Accès à l'Application
+## ðŸŒ AccÃ¨s Ã  l'Application
 
-Une fois démarré, accédez à :
+Une fois dÃ©marrÃ©, accÃ©dez Ã  :
 
 **URL** : http://localhost:5000
 
-**Identifiants par défaut** :
-- Username : `melvin`
-- Password : `admin`
+**Compte initial** :
+- definir `BOOTSTRAP_ADMIN_USERNAME` et `BOOTSTRAP_ADMIN_PASSWORD` dans `.env`
+- le compte est force de changer son mot de passe a la premiere connexion
 
 ---
 
-## ⚠️ Problèmes Courants
+## âš ï¸ ProblÃ¨mes Courants
 
-### 1. Port 5000 déjà utilisé
+### 1. Port 5000 dÃ©jÃ  utilisÃ©
 ```bash
 # Trouver le processus
 netstat -ano | findstr :5000
@@ -100,18 +100,18 @@ taskkill /PID <PID> /F
 
 ### 2. SECRET_KEY manquante
 ```
-⚠️  WARNING: SECRET_KEY non définie dans .env
+âš ï¸  WARNING: SECRET_KEY non dÃ©finie dans .env
 ```
-**Solution** : Copiez la clé générée dans votre `.env`
+**Solution** : Copiez la clÃ© gÃ©nÃ©rÃ©e dans votre `.env`
 
-### 3. Base de données verrouillée
+### 3. Base de donnÃ©es verrouillÃ©e
 ```
 sqlite3.OperationalError: database is locked
 ```
 **Solution** : 
 - Attendez quelques secondes
-- Redémarrez l'application
-- Vérifiez qu'aucune autre instance ne tourne
+- RedÃ©marrez l'application
+- VÃ©rifiez qu'aucune autre instance ne tourne
 
 ### 4. Module manquant
 ```
@@ -124,12 +124,12 @@ pip install -r requirements.txt
 
 ---
 
-## 🔄 Arrêt de l'Application
+## ðŸ”„ ArrÃªt de l'Application
 
-### Arrêt Normal
+### ArrÃªt Normal
 Appuyez sur `CTRL + C` dans la console
 
-### Arrêt Forcé (Windows)
+### ArrÃªt ForcÃ© (Windows)
 ```bash
 # Trouver le processus Python
 tasklist | findstr python
@@ -140,9 +140,9 @@ taskkill /IM python.exe /F
 
 ---
 
-## 📝 Maintenance
+## ðŸ“ Maintenance
 
-### Backup de la Base de Données
+### Backup de la Base de DonnÃ©es
 ```bash
 python backup_database.py
 ```
@@ -152,50 +152,51 @@ python backup_database.py
 .\VIDER_WIKI.bat
 ```
 
-### Vérifier l'intégrité
+### VÃ©rifier l'intÃ©gritÃ©
 ```bash
 python ensure_db_integrity.py
 ```
 
 ---
 
-## 🎯 Performance Attendue
+## ðŸŽ¯ Performance Attendue
 
 Avec la configuration actuelle :
 
-| Métrique | Valeur |
+| MÃ©trique | Valeur |
 |----------|--------|
-| Utilisateurs simultanés | **10** ✅ |
+| Utilisateurs simultanÃ©s | **10** âœ… |
 | Latence moyenne | < 100ms |
-| Temps de démarrage | < 5s |
-| Mémoire utilisée | < 500MB |
+| Temps de dÃ©marrage | < 5s |
+| MÃ©moire utilisÃ©e | < 500MB |
 | CPU moyen | < 30% |
 
 ---
 
-## 📞 Support
+## ðŸ“ž Support
 
-En cas de problème :
+En cas de problÃ¨me :
 
-1. Vérifiez le fichier `AUDIT_OPTIMISATIONS.md`
+1. VÃ©rifiez le fichier `AUDIT_OPTIMISATIONS.md`
 2. Consultez les logs de la console
-3. Vérifiez le fichier `.env`
-4. Redémarrez l'application
+3. VÃ©rifiez le fichier `.env`
+4. RedÃ©marrez l'application
 
 ---
 
-## ✨ Optimisations Actives
+## âœ¨ Optimisations Actives
 
-- ✅ Mode WAL pour SQLite
-- ✅ Cache 64MB
-- ✅ Timeout 30s
-- ✅ SocketIO optimisé
-- ✅ Debug désactivé
-- ✅ Secret key sécurisée
+- âœ… Mode WAL pour SQLite
+- âœ… Cache 64MB
+- âœ… Timeout 30s
+- âœ… SocketIO optimisÃ©
+- âœ… Debug dÃ©sactivÃ©
+- âœ… Secret key sÃ©curisÃ©e
 
-**L'application est optimisée pour 10 techniciens connectés en permanence.**
+**L'application est optimisÃ©e pour 10 techniciens connectÃ©s en permanence.**
 
 ---
 
-**Dernière mise à jour** : 17 Novembre 2025  
+**DerniÃ¨re mise Ã  jour** : 17 Novembre 2025  
 **Version** : DispatchManager V1.2 Optimized
+
