@@ -366,6 +366,9 @@
       <!-- Outils communs (Tous) -->
       <li><a href="{{ url_for('profil') }}"><span class="icon">&#128100;</span> Mon profil</a></li>
       <li><a href="{{ url_for('annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
+      {% if role == 'admin' or role == 'technicien' or user_type == 'technicien' %}
+      <li><a href="{{ url_for('faq') }}"><span class="icon">&#10067;</span> FAQ opérationnelle</a></li>
+      {% endif %}
       <li><a href="{{ url_for('wiki') }}"><span class="icon">&#128218;</span> Base de connaissances</a></li>
       <li><a href="http://u.osmfr.org/m/1022870/" target="_blank"><span class="icon">&#128506;&#65039;</span> Carte CHU</a></li>
       <li><a href="https://easyvista-backoffice-prd.intra.ght44.fr/index.php?PHPSESSID=4ikdb03a4d690m7h5j0d1s97gs&internalurltime=1760602763" target="_blank"><span class="icon">&#128187;</span> Easyvista</a></li>
@@ -1173,6 +1176,3 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-
-

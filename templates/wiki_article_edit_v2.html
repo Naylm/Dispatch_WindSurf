@@ -3,220 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}" />
-    <title>{% if article %}Modifier{% else %}Créer{% endif %} un article - Base de Connaissances</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% if article %}Modifier{% else %}Créer{% endif %} un article - Base de connaissances</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Design System -->
-  <link href="{{ url_for('static', filename='css/tokens.css') }}?v=8.0" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='css/transitions.css') }}?v=8.0" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='css/components.css') }}?v=8.0" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='css/layouts.css') }}?v=8.0" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='css/polish.css') }}?v=8.0" rel="stylesheet" />
-  <!-- Custom Styles -->
+    <link href="{{ url_for('static', filename='css/tokens.css') }}?v=8.0" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/transitions.css') }}?v=8.0" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/components.css') }}?v=8.0" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/layouts.css') }}?v=8.0" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/polish.css') }}?v=8.0" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style_modern.css') }}" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
-        /* Layout éditeur/preview - Flex 40/60 */
-        .wiki-editor-layout {
-            display: flex;
-            gap: 1.5rem;
-            align-items: stretch;
-            margin-bottom: 2rem;
-        }
-        
-        .editor-column {
-            flex: 0 0 40%;
-            max-width: 40%;
-        }
-        
-        .preview-column {
-            flex: 1;
-        }
-        
-        /* Sur mobile : colonnes l'une sous l'autre */
-        @media (max-width: 992px) {
-            .wiki-editor-layout {
-                flex-direction: column;
-            }
-            .editor-column,
-            .preview-column {
-                max-width: 100%;
-                flex: 1 1 auto;
-            }
-        }
-        
-        .toolbar {
-            background: var(--bg-hover);
-            padding: 0.75rem;
-            border-radius: var(--border-radius-sm);
-            margin-bottom: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        
-        .toolbar-btn {
-            padding: 0.5rem 0.75rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        
-        .toolbar-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        
-        /* Limiter la hauteur et éviter l'effet "tapis qui s'étire" */
-        .editor-column textarea,
-        .preview-column .preview-box {
-            min-height: 350px;
-            max-height: 550px;
-            overflow-y: auto;
-            border-radius: 8px;
-            padding: 12px 14px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        #contentEditor {
-            border: 1px solid var(--border-color, #ddd);
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            background: var(--bg-input, #fff);
-            color: var(--text-primary, #333);
-            resize: vertical;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        
-        /* Prévisualisation propre */
-        .preview-column .preview-box {
-            background: var(--bg-card, #fff);
-            color: var(--text-main, #333);
-            border: 1px solid var(--border-color, #ddd);
-            /* Styles pour les retours à la ligne intelligents */
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-            white-space: normal;
-        }
-
-        #preview {
-            min-height: 350px;
-            max-height: 550px;
-        }
-
-        /* Appliquer aussi aux éléments enfants de la preview */
-        #preview,
-        #preview * {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            max-width: 100%;
-        }
-
-        /* Cas spéciaux pour les blocs de code et pre */
-        #preview pre,
-        #preview code {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            max-width: 100%;
-            overflow-x: auto;
-        }
-
-        /* URLs et liens longs */
-        #preview a {
-            word-break: break-all;
-            overflow-wrap: break-word;
-        }
-
-        #preview img {
-            max-width: 100%;
-            height: auto;
-            border-radius: var(--border-radius-sm);
-            margin: 0.5rem 0;
-        }
-        
-        .upload-zone {
-            border: 2px dashed var(--border-color);
-            border-radius: var(--border-radius-sm);
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-            margin-bottom: 1rem;
-        }
-        
-        .upload-zone:hover, .upload-zone.dragover {
-            border-color: var(--primary);
-            background: var(--bg-hover);
-        }
-        
-        .emoji-picker {
-            display: none;
-            position: absolute;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-sm);
-            padding: 1.5rem;
-            max-width: 500px;
-            max-height: 400px;
-            overflow-y: auto;
-            box-shadow: var(--shadow-lg);
-            z-index: 1050;
-            left: 50%;
-            transform: translateX(-50%);
-            margin-top: 5px;
-        }
-        
-        .emoji-picker.show {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 0.5rem;
-        }
-        
-        .emoji-btn {
-            font-size: 2rem;
-            padding: 0.75rem;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: var(--transition);
-            background: var(--bg-input);
-        }
-        
-        .emoji-btn:hover {
-            background: var(--primary);
-            transform: scale(1.3);
-        }
-        
-        .emoji-category {
-            grid-column: 1 / -1;
-            font-weight: 600;
-            margin-top: 1rem;
-            padding: 0.5rem;
-            background: var(--bg-hover);
-            border-radius: 4px;
-        }
-        
-        .form-section {
-            background: var(--bg-card);
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
-            margin-bottom: 1rem;
-        }
-    </style>
-  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+    <link href="{{ url_for('static', filename='css/wiki_editor_v2.css') }}?v=1.2" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </head>
-<body>
+<body class="wiki-editor-page">
     <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
         <div class="container-fluid">
             <span class="navbar-brand fw-bold">
-                {% if article %}✏️ Modifier l'article{% else %}➕ Nouvel article{% endif %}
+                {% if article %}Modifier l'article{% else %}Nouvel article{% endif %}
             </span>
             <div class="d-flex gap-2">
                 <a href="{{ url_for('wiki') }}" class="btn btn-outline-secondary btn-sm">Annuler</a>
@@ -226,27 +31,31 @@
 
     <div class="container py-4">
         {% include "_flash_messages.html" %}
+
         <form method="POST" id="articleForm" action="{{ url_for('create_wiki_article') if not article else url_for('edit_wiki_article', id=article.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <!-- Informations de base -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="contentInput" value="{% if article and article.content %}{{ article.content }}{% endif %}">
+
             <div class="form-section">
-                <h5 class="mb-3">📝 Informations de base</h5>
+                <h5 class="mb-3">Informations de base</h5>
                 <div class="row">
                     <div class="col-md-8 mb-3">
                         <label class="form-label">Titre de l'article *</label>
-                        <input type="text" class="form-control" name="title" 
-                               value="{% if article %}{{ article.title }}{% endif %}" 
-                               required>
+                        <input type="text" class="form-control" name="title" id="titleInput" value="{% if article %}{{ article.title }}{% endif %}" required>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Icône (emoji)</label>
-                        <div class="input-group" style="position: relative;">
-                            <input type="text" class="form-control form-control-lg text-center" name="icon" id="iconInput"
-                                   value="{% if article %}{{ article.icon }}{% else %}📝{% endif %}" 
-                                   maxlength="4" style="font-size: 2rem;" readonly>
-                            <button type="button" class="btn btn-primary" onclick="toggleEmojiPicker()">
-                                <span style="font-size: 1.5rem;">😀</span> Choisir
-                            </button>
+                        <div class="input-group icon-input-group">
+                            <input
+                                type="text"
+                                class="form-control form-control-lg text-center"
+                                name="icon"
+                                id="iconInput"
+                                value="{% if article and article.icon %}{{ article.icon }}{% else %}📝{% endif %}"
+                                maxlength="4"
+                                readonly
+                            >
+                            <button type="button" class="btn btn-primary" id="emojiPickerToggle">Choisir</button>
                             <div class="emoji-picker" id="emojiPicker"></div>
                         </div>
                     </div>
@@ -255,7 +64,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Catégorie *</label>
-                        <select class="form-select" id="categorySelect" required onchange="updateSubcategories()">
+                        <select class="form-select" id="categorySelect" required>
                             <option value="">Sélectionnez une catégorie</option>
                             {% for cat in categories %}
                             <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.name }}</option>
@@ -272,326 +81,148 @@
 
                 <div class="mb-3">
                     <label class="form-label">Tags (séparés par des virgules)</label>
-                    <input type="text" class="form-control" name="tags" 
-                           value="{% if article %}{{ article.tags }}{% endif %}"
-                           placeholder="exemple: wifi, réseau, configuration">
-                    <small class="text-muted">Les tags aident à organiser et rechercher les articles</small>
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="tags"
+                        id="tagsInput"
+                        value="{% if article and article.tags %}{{ article.tags }}{% endif %}"
+                        placeholder="exemple: wifi, réseau, configuration"
+                    >
+                    <small class="text-muted">Maximum 10 tags.</small>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-0">
                     <label class="form-label">Statut</label>
-                    <select class="form-select" name="status">
+                    <select class="form-select" name="status" id="statusSelect">
                         {% set current_status = article.status if article and article.status else 'published' %}
-                        <option value="published" {% if current_status == 'published' %}selected{% endif %}>✅ Publié</option>
-                        <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>📝 Brouillon</option>
-                        <option value="obsolete" {% if current_status == 'obsolete' %}selected{% endif %}>⛔ Obsolète</option>
-                        <option value="archived" {% if current_status == 'archived' %}selected{% endif %}>📦 Archivé</option>
+                        <option value="published" {% if current_status == 'published' %}selected{% endif %}>Publié</option>
+                        <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>Brouillon</option>
+                        <option value="obsolete" {% if current_status == 'obsolete' %}selected{% endif %}>Obsolète</option>
+                        <option value="archived" {% if current_status == 'archived' %}selected{% endif %}>Archivé</option>
                     </select>
-                    <small class="text-muted">Permet d'afficher le bon badge dans la page de l'article.</small>
                 </div>
             </div>
 
-            <!-- Upload d'image -->
             <div class="form-section">
-                <h5 class="mb-3">📸 Upload d'images</h5>
+                <h5 class="mb-3">Upload d'images</h5>
                 <div class="upload-zone" id="uploadZone">
                     <div>
-                        <span style="font-size: 3rem;">📁</span>
-                        <p>Cliquez ou glissez-déposez vos images ici</p>
-                        <small class="text-muted">PNG, JPG, GIF (max 5MB)</small>
+                        <div class="upload-icon">Image</div>
+                        <p class="mb-1">Cliquez ou glissez-déposez vos images ici</p>
+                        <small class="text-muted">PNG, JPG, GIF, WEBP - max 5MB</small>
                     </div>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <input type="file" id="fileInput" accept="image/*" multiple hidden>
                 </div>
-                <div id="uploadedImages"></div>
+                <div id="uploadedImages" class="d-grid gap-2"></div>
             </div>
 
-            <!-- Éditeur Markdown -->
             <div class="form-section">
-                <h5 class="mb-3">✍️ Contenu de l'article</h5>
-                
-                <!-- Barre d'outils -->
-                <div class="toolbar">
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('# ', '')" title="Titre 1">H1</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('## ', '')" title="Titre 2">H2</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('### ', '')" title="Titre 3">H3</button>
-                    <span class="mx-1">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="Gras"><strong>B</strong></button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="Italique"><em>I</em></button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('~~', '~~')" title="Barré"><s>S</s></button>
-                    <span class="mx-1">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="Code inline">Code</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('```\n', '\n```')" title="Bloc de code">```</button>
-                    <span class="mx-1">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('- ', '')" title="Liste">• Liste</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('1. ', '')" title="Liste numérotée">1. Liste</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('> ', '')" title="Citation">❝ Citation</button>
-                    <span class="mx-1">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('[Texte](', ')')" title="Lien">🔗 Lien</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('![Image](', ')')" title="Image">🖼️ Image</button>
-                </div>
-
-                <!-- Zone d'édition et prévisualisation -->
-                <div class="wiki-editor-layout">
-                    <div class="editor-column">
-                        <h6 class="mb-2">Édition (Markdown)</h6>
-                        <textarea id="contentEditor" name="content" placeholder="Écrivez votre contenu en Markdown...">{% if article %}{{ article.content }}{% endif %}</textarea>
-                    </div>
-                    <div class="preview-column">
-                        <h6 class="mb-2">Prévisualisation</h6>
-                        <div id="preview" class="preview-box"></div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h5 class="mb-0">Contenu de l'article</h5>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <small class="text-muted">Ctrl+S pour sauvegarder</small>
+                        <div class="btn-group btn-group-sm editor-view-controls" role="group" aria-label="Mode d'affichage">
+                            <button type="button" class="btn btn-outline-secondary active" data-editor-view="split">
+                                Mixte
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-editor-view="edit">
+                                Édition
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-editor-view="preview">
+                                Aperçu grand
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Aide Markdown -->
-                <details class="mt-3">
-                    <summary style="cursor: pointer;" class="text-muted">📖 Aide Markdown</summary>
-                    <div class="mt-2 p-3 bg-light rounded small">
-                        <strong># Titre 1</strong> → <span class="text-primary">Titre niveau 1</span><br>
-                        <strong>**Gras**</strong> → <strong>Gras</strong><br>
-                        <strong>*Italique*</strong> → <em>Italique</em><br>
-                        <strong>`Code`</strong> → <code>Code</code><br>
-                        <strong>[Lien](url)</strong> → Lien cliquable<br>
-                        <strong>![Image](url)</strong> → Insère une image<br>
-                        <strong>- Item</strong> → Liste à puces<br>
-                        <strong>1. Item</strong> → Liste numérotée<br>
-                    </div>
-                </details>
+                <div class="editor-layout view-split" id="editorLayout">
+                    <div id="toastEditor" class="toast-editor-host d-none"></div>
+                    <textarea
+                        id="contentFallback"
+                        name="content"
+                        class="form-control fallback-editor"
+                        placeholder="Écrivez votre contenu en Markdown..."
+                        required
+                    >{% if article and article.content %}{{ article.content }}{% endif %}</textarea>
+                </div>
+
+                <div class="editor-hints text-muted small mt-2">
+                    Le mode moderne Markdown + visuel est chargé automatiquement.
+                    Si indisponible, la zone de texte reste active en mode secours.
+                </div>
+                <div id="autosaveStatus" class="autosave-status text-muted small mt-2">Aucun brouillon local</div>
             </div>
 
-            <!-- Description du changement (pour les modifications) -->
             {% if article %}
             <div class="form-section">
-                <h5 class="mb-3">📝 Description du changement</h5>
-                <input type="text" class="form-control" name="change_description" 
-                       placeholder="Ex: Correction de fautes, ajout de captures d'écran, mise à jour de la procédure...">
-                <small class="text-muted">Facultatif - aide à suivre l'évolution de l'article</small>
+                <h5 class="mb-3">Description du changement</h5>
+                <input
+                    type="text"
+                    class="form-control"
+                    name="change_description"
+                    id="changeDescriptionInput"
+                    placeholder="Ex: correction de procédure, ajout de précision..."
+                >
+                <small class="text-muted">Optionnel, utile pour l’historique.</small>
             </div>
             {% endif %}
 
-            <!-- Boutons d'action -->
             <div class="d-flex gap-2 justify-content-end">
                 <a href="{{ url_for('wiki') }}" class="btn btn-secondary">Annuler</a>
-                <button type="submit" class="btn btn-success">
-                    {% if article %}💾 Sauvegarder les modifications{% else %}✅ Créer l'article{% endif %}
+                <button type="submit" class="btn btn-success" id="saveArticleBtn">
+                    {% if article %}Sauvegarder les modifications{% else %}Créer l'article{% endif %}
                 </button>
             </div>
         </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Stocker les données dans des data attributes pour éviter les erreurs de linting -->
-    <div id="jsData" style="display: none;" 
-         data-subcategories='{{ subcategories|tojson|safe }}'
-         {% if article and article.subcategory_id %}
-         data-article-subcategory-id="{{ article.subcategory_id }}"
-         {% endif %}>
+    <div class="modal fade" id="imageCropModal" tabindex="-1" aria-labelledby="imageCropModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageCropModalLabel">Recadrer l'image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cropper-wrap">
+                        <img id="cropperImage" alt="Prévisualisation du recadrage">
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="free">Libre</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="1:1">1:1</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="4:3">4:3</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="16:9">16:9</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="cropperRotateLeft">Rotation -90°</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="cropperRotateRight">Rotation +90°</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="cropperReset">Réinitialiser</button>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        Astuce: glissez pour déplacer l'image, utilisez la molette pour zoomer.
+                    </small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" id="cropperApplyBtn">Utiliser l'image recadrée</button>
+                </div>
+            </div>
+        </div>
     </div>
+
     <script>
-        // Récupérer les données depuis les data attributes
-        const dataElement = document.getElementById('jsData');
-        const subcategories = JSON.parse(dataElement.dataset.subcategories);
-
-        {% if article and article.subcategory_id %}
-        // Pré-remplir les select si on édite un article
-        window.addEventListener('load', function() {
-            const subcatId = parseInt(dataElement.dataset.articleSubcategoryId);
-            const subcat = subcategories.find(s => s.id === subcatId);
-            if (subcat) {
-                document.getElementById('categorySelect').value = subcat.category_id;
-                updateSubcategories();
-                document.getElementById('subcategorySelect').value = subcatId;
-            }
-        });
-        {% endif %}
-
-        // Mettre à jour les sous-catégories selon la catégorie sélectionnée
-        function updateSubcategories() {
-            const categoryId = parseInt(document.getElementById('categorySelect').value);
-            const subcatSelect = document.getElementById('subcategorySelect');
-            
-            subcatSelect.innerHTML = '<option value="">Sélectionnez une sous-catégorie</option>';
-            
-            const filtered = subcategories.filter(s => s.category_id === categoryId);
-            filtered.forEach(subcat => {
-                const option = document.createElement('option');
-                option.value = subcat.id;
-                option.textContent = `${subcat.icon} ${subcat.name}`;
-                subcatSelect.appendChild(option);
-            });
-        }
-
-        // Prévisualisation en temps réel
-        const editor = document.getElementById('contentEditor');
-        const preview = document.getElementById('preview');
-
-        editor.addEventListener('input', updatePreview);
-        updatePreview(); // Initialiser la prévisualisation
-
-        function updatePreview() {
-            preview.innerHTML = marked.parse(editor.value || '');
-        }
-
-        // Insertion de Markdown
-        function insertMarkdown(before, after) {
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const text = editor.value;
-            const selectedText = text.substring(start, end);
-            
-            const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
-            editor.value = newText;
-            
-            // Repositionner le curseur
-            const newCursorPos = start + before.length + selectedText.length;
-            editor.setSelectionRange(newCursorPos, newCursorPos);
-            editor.focus();
-            
-            updatePreview();
-        }
-
-        // Emoji picker avec catégories
-        const emojiCategories = {
-            'Smileys': ['😀', '😃', '😄', '😁', '🤣', '😂', '😅', '😊', '☺️', '😌', '😉', '😏', '😍', '🥰', '😘', '😗', '😙', '😚', '🤗', '🤩', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😮', '😯', '😲', '😳', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬'],
-            'Mains & Corps': ['💪', '👍', '👎', '👏', '🙌', '🤝', '🙏', '✍️', '💅', '👂', '👃', '👁️', '👀', '🧠', '👋', '🤚', '✋', '🖐️', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '👊', '✊', '🤛', '🤜'],
-            'Cœurs & Émotions': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💝', '💟', '💌'],
-            'Nature & Météo': ['⭐', '🌟', '✨', '💫', '☀️', '🌙', '⚡', '🔥', '💥', '❄️', '🌈', '☁️', '🌊', '💧', '☔', '🌸', '🌺', '🌻', '🌷', '🌹', '🌲', '🌳', '🍀'],
-            'Activités': ['🎯', '🎲', '🎮', '🎨', '🎬', '🎵', '🎶', '🎤', '🎧', '📻', '📺', '📷', '📹', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱'],
-            'Technologie': ['📱', '💻', '⌨️', '🖥️', '🖨️', '💾', '💿', '📀', '🔌', '💡', '🔦', '🔋', '⚙️', '🔧', '🔨', '🛠️'],
-            'Travail & Docs': ['📚', '📖', '📝', '📄', '📃', '📋', '📊', '📈', '📉', '🗂️', '📁', '📂', '🗃️', '🗄️', '📦', '📮', '📬', '📭', '📪', '📫', '✉️', '📩', '📨', '💼', '📎', '🖊️', '✏️', '📏', '📐'],
-            'Symboles': ['✅', '❌', '⚠️', '❗', '❓', '💯', '🔴', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔶', '🔷', '▶️', '⏸️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '➕', '➖', '✖️', '➗', '💲', '💵', '💴', '💶', '💷'],
-            'Transports': ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🚲', '🛴', '🛵', '🏍️', '✈️', '🚁', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚊', '🚝', '🚞', '🚋'],
-            'Nourriture': ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🍿', '🧂', '🥓', '🍳', '🥞', '🧇', '🧀', '🍖', '🍗', '🥩', '🍞', '🥐', '🥖', '🥨', '🥯', '🎂', '🍰', '🧁', '🍪', '🍩', '🍫', '🍬', '🍭', '🍮', '☕', '🍵', '🍷', '🍺', '🍻']
+        window.wikiEditorV2Config = {
+            mode: {{ ('edit' if article else 'create')|tojson }},
+            articleId: {{ (article.id if article else None)|tojson }},
+            articleSubcategoryId: {{ (article.subcategory_id if article and article.subcategory_id else None)|tojson }},
+            draftKey: {{ ('wiki-editor-v2:' ~ (article.id if article else 'new') ~ ':' ~ user)|tojson }},
+            uploadUrl: {{ url_for('upload_wiki_image')|tojson }},
+            subcategories: {{ subcategories|tojson|safe }}
         };
-
-        const emojiPicker = document.getElementById('emojiPicker');
-        
-        // Remplir le sélecteur avec toutes les catégories
-        Object.entries(emojiCategories).forEach(([categoryName, emojis]) => {
-            // Ajouter le titre de catégorie
-            const categoryTitle = document.createElement('div');
-            categoryTitle.className = 'emoji-category';
-            categoryTitle.textContent = categoryName;
-            emojiPicker.appendChild(categoryTitle);
-            
-            // Ajouter les émojis
-            emojis.forEach(emoji => {
-                const btn = document.createElement('div');
-                btn.className = 'emoji-btn';
-                btn.textContent = emoji;
-                btn.onclick = () => selectEmoji(emoji);
-                emojiPicker.appendChild(btn);
-            });
-        });
-
-        function toggleEmojiPicker() {
-            emojiPicker.classList.toggle('show');
-        }
-
-        function selectEmoji(emoji) {
-            document.getElementById('iconInput').value = emoji;
-            emojiPicker.classList.remove('show');
-        }
-
-        // Fermer l'emoji picker en cliquant ailleurs
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('#iconInput') && !e.target.closest('.btn-primary') && !e.target.closest('#emojiPicker')) {
-                emojiPicker.classList.remove('show');
-            }
-        });
-
-        // Upload d'images
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        const uploadedImages = document.getElementById('uploadedImages');
-
-        uploadZone.addEventListener('click', () => fileInput.click());
-
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
-
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
-        });
-
-        function handleFiles(files) {
-            Array.from(files).forEach(file => {
-                if (file.type.startsWith('image/')) {
-                    uploadImage(file);
-                }
-            });
-        }
-
-        function uploadImage(file) {
-            // Récupérer le token CSRF
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                            document.querySelector('input[name="csrf_token"]')?.value || '';
-            
-            if (!csrfToken) {
-                alert('Erreur de sécurité : token CSRF manquant. Rechargez la page.');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('csrf_token', csrfToken);
-
-            fetch('{{ url_for("upload_wiki_image") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(response => {
-                // Vérifier le Content-Type avant de parser en JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    return response.text().then(text => {
-                        throw new Error('Réponse serveur invalide (HTML au lieu de JSON). Vérifiez les logs serveur.');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success || data.status === 'ok') {
-                    // Ajouter l'image à la liste
-                    const imgDiv = document.createElement('div');
-                    imgDiv.className = 'alert alert-success d-flex align-items-center justify-content-between';
-                    imgDiv.innerHTML = `
-                        <div>
-                            <strong>✅ Image uploadée :</strong> ${data.filename || data.url || 'Image'}
-                        </div>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="insertImageUrl('${data.url}')">
-                            Insérer dans l'article
-                        </button>
-                    `;
-                    uploadedImages.appendChild(imgDiv);
-                } else {
-                    throw new Error(data.error || data.message || 'Erreur lors de l\'upload');
-                }
-            })
-            .catch(error => {
-                console.error('Erreur upload image:', error);
-                alert('Erreur lors de l\'upload : ' + error.message);
-            });
-        }
-
-        function insertImageUrl(url) {
-            insertMarkdown(`![Description](${url})`, '');
-        }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/vendor/dompurify.min.js') }}"></script>
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+    <script src="{{ url_for('static', filename='js/wiki_editor_v2.js') }}?v=1.2"></script>
 </body>
 </html>
