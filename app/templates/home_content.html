@@ -1,0 +1,318 @@
+{# templates/home_content.html - CONTENT ONLY #}
+
+{% if is_admin(role) %}
+{% set en_cours_statuts = statuts_by_category.get('en_cours', []) %}
+{% set suspendu_statuts = statuts_by_category.get('suspendu', []) %}
+{% set transfere_statuts = statuts_by_category.get('transfere', []) %}
+
+<!-- ========================= -->
+<!-- COMPTEURS EN TEMPS RÉEL -->
+<!-- ========================= -->
+<div class="d-flex flex-wrap gap-2 mb-2" id="statsCounters">
+  <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+    <small class="text-muted mb-0" style="font-size: 0.75rem;">Total</small>
+    <strong class="text-primary mb-0" style="font-size: 1.1rem;" id="totalCount">{{ incidents|length }}</strong>
+  </div>
+  <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+    <small class="text-muted mb-0" style="font-size: 0.75rem;">En cours</small>
+    <strong class="text-warning mb-0" style="font-size: 1.1rem;" id="enCoursCount">{{ stats_by_category.en_cours if
+      stats_by_category else incidents|selectattr("etat", "in", en_cours_statuts)|list|length }}</strong>
+  </div>
+  <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+    <small class="text-muted mb-0" style="font-size: 0.75rem;">Suspendus</small>
+    <strong class="text-danger mb-0" style="font-size: 1.1rem;" id="suspendusCount">{{ stats_by_category.suspendu if
+      stats_by_category else incidents|selectattr("etat", "in", suspendu_statuts)|list|length }}</strong>
+  </div>
+  <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded border" style="min-width: fit-content;">
+    <small class="text-muted mb-0" style="font-size: 0.75rem;">Transférés</small>
+    <strong class="text-info mb-0" style="font-size: 1.1rem;" id="transferesCount">{{ stats_by_category.transfere if
+      stats_by_category else incidents|selectattr("etat", "in", transfere_statuts)|list|length }}</strong>
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- BARRE DE RECHERCHE & FILTRES -->
+<!-- ========================= -->
+<div class="mb-3 d-flex flex-wrap align-items-center gap-2 p-2 bg-light rounded border filters-bar">
+  <input id="searchInput" type="text" class="form-control form-control-sm" style="width: 220px;"
+    placeholder="🔍 Rechercher..." />
+
+  <select id="filterEtat" class="form-select form-select-sm" style="width: 160px;">
+    <option value="">📊 État</option>
+    {% for st in statuts %}
+    <option value="{{ st.nom|lower }}">{{ st.nom }}</option>
+    {% endfor %}
+  </select>
+
+  <select id="filterUrgence" class="form-select form-select-sm" style="width: 140px;">
+    <option value="">⚡ Priorité</option>
+    {% for p in priorites %}
+    <option value="{{ p.nom|lower }}">{{ p.nom }}</option>
+    {% endfor %}
+  </select>
+
+  <select id="filterSite" class="form-select form-select-sm" style="width: 160px;">
+    <option value="">📍 Site</option>
+    {% for s in sites %}
+    <option value="{{ s.nom|lower }}">{{ s.nom }}</option>
+    {% endfor %}
+  </select>
+
+  <select id="sortBy" class="form-select form-select-sm" style="width: 160px;">
+    <option value="">🔄 Trier</option>
+    <option value="urgence-asc">Priorité ↑</option>
+    <option value="urgence-desc">Priorité ↓</option>
+    <option value="date-asc">Date ↑</option>
+    <option value="date-desc">Date ↓</option>
+    <option value="site-asc">Site A-Z</option>
+    <option value="numero-asc">N° A-Z</option>
+  </select>
+
+  <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm" style="white-space: nowrap;">
+    ✕ Réinit
+  </button>
+</div>
+
+<!-- ========================= -->
+<!-- SÉLECTEUR DE VUE MULTI-MODES -->
+<!-- ========================= -->
+<div class="mb-2 d-flex align-items-center gap-2 view-mode-row" style="padding: 0.25rem 0;">
+  <strong class="view-mode-label" style="font-size: 0.875rem; margin-right: 0.25rem;">Mode :</strong>
+  <button class="btn btn-sm btn-primary active view-btn" data-view="kanban" onclick="window.switchView('kanban')"
+    style="min-width: 80px; padding: 0.25rem 0.5rem;">
+    <span>📊</span> Kanban
+  </button>
+  <button class="btn btn-sm btn-outline-primary view-btn" data-view="list" onclick="window.switchView('list')"
+    style="min-width: 80px; padding: 0.25rem 0.5rem;">
+    <span>📋</span> Liste
+  </button>
+  <button class="btn btn-sm btn-outline-primary view-btn" data-view="table" onclick="window.switchView('table')"
+    style="min-width: 80px; padding: 0.25rem 0.5rem;">
+    <span>📑</span> Table
+  </button>
+  <button class="btn btn-sm btn-outline-primary view-btn" data-view="grouped" onclick="window.switchView('grouped')"
+    style="min-width: 80px; padding: 0.25rem 0.5rem;">
+    <span>📁</span> Groupé
+  </button>
+</div>
+
+<!-- ========================= -->
+<!-- VUE KANBAN (colonnes) -->
+<!-- ========================= -->
+<div id="kanban-view" class="view-container active">
+  <div class="tech-grid">
+    {% for tech in techniciens %}
+    <div class="tech-column" data-technicien="{{ tech.prenom }}">
+      <div class="card shadow-sm h-100 incident-col-card">
+        <div class="card-header text-center fw-bold bg-primary text-white">
+          {{ tech.prenom }}
+          <span class="badge bg-light text-primary ms-1" id="tech-count-{{ tech.prenom }}">
+            {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+            {{ tech_incidents|length }}
+          </span>
+        </div>
+        <ul class="list-group list-group-flush incident-list-col" data-technicien="{{ tech.prenom }}">
+          {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+          {% if tech_incidents|length > 0 %}
+          {% for i in tech_incidents %}
+          {% include "incident_card_partial.html" %}
+          {% endfor %}
+          {% else %}
+          <li class="list-group-item text-muted fst-italic text-center">Aucun incident</li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- VUE LISTE (groupée) -->
+<!-- ========================= -->
+<div id="list-view" class="view-container">
+  <div class="list-view-content">
+    {% for tech in techniciens %}
+    {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+    {% if tech_incidents|length > 0 %}
+    <div class="list-group mb-3">
+      <div class="list-group-item list-group-item-primary fw-bold">
+        {{ tech.prenom }} <span class="badge bg-light text-primary ms-2">{{ tech_incidents|length }}</span>
+      </div>
+      {% for i in tech_incidents %}
+      {% include "incident_card_list_partial.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- VUE TABLE (compacte) -->
+<!-- ========================= -->
+<div id="table-view" class="view-container">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>N°</th>
+          <th>Site</th>
+          <th>Sujet</th>
+          <th>Priorité</th>
+          <th>Technicien</th>
+          <th>Statut</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in incidents %}
+        <tr class="incident-row-table" data-id="{{ i.id }}" data-incident-id="{{ i.id }}"
+          data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}" data-sujet="{{ i.sujet|lower }}"
+          data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}">
+          <td>
+            <strong>{{ i.numero }}</strong>
+            <button class="btn btn-sm btn-link p-0 ms-1 copy-btn" data-numero="{{ i.numero }}"
+              title="Copier">📋</button>
+          </td>
+          <td>
+            {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
+            {% if site_info %}
+            <span class="badge site-badge" data-bg-color="{{ site_info.couleur }}"
+              data-text-color="{{ site_info.couleur|contrast_color }}">{{ i.site }}</span>
+            {% else %}
+            <span class="badge bg-secondary">{{ i.site }}</span>
+            {% endif %}
+          </td>
+          <td>{{ i.sujet }}</td>
+          <td>
+            {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
+            {% if priorite_info %}
+            <span class="badge priority-badge" data-bg-color="{{ priorite_info.couleur }}"
+              data-text-color="{{ priorite_info.couleur|contrast_color }}">{{ i.urgence }}</span>
+            {% else %}
+            <span class="badge bg-warning">{{ i.urgence }}</span>
+            {% endif %}
+          </td>
+          <td>{{ i.collaborateur }}</td>
+          <td>
+            {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+            {% if statut_info %}
+            <span class="badge status-badge" data-bg-color="{{ statut_info.couleur }}"
+              data-text-color="{{ statut_info.couleur|contrast_color }}">{{ i.etat }}</span>
+            {% if i.relance_planifiee_at and not i.relance_done_at %}
+            <span class="badge bg-info text-dark ms-1"
+              title="Relance planifiée le {{ i.relance_planifiee_at.strftime('%d/%m/%Y %H:%M') }}">⏰ Relance
+              planifiée</span>
+            {% endif %}
+            {% else %}
+            <span class="badge bg-secondary">{{ i.etat }}</span>
+            {% endif %}
+          </td>
+          <td><small>{{ i.date_affectation|format_date }}</small></td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('incident.historique', id=i.id) }}" class="btn btn-sm btn-outline-info"
+                title="Historique">🕒</a>
+              <a href="{{ url_for('incident.edit_incident', id=i.id) }}" class="btn btn-sm btn-outline-primary"
+                title="Modifier">✏️</a>
+              <button class="btn btn-sm btn-outline-danger delete-btn" data-incident-id="{{ i.id }}"
+                data-numero="{{ i.numero }}" title="Supprimer">🗑️</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- VUE GROUPÉE (accordion) -->
+<!-- ========================= -->
+<div id="grouped-view" class="view-container">
+  <div class="accordion" id="groupedAccordion">
+    {% for tech in techniciens %}
+    {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+    {% if tech_incidents|length > 0 %}
+    {% set tech_id = 'tech-' ~ tech.id %}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="heading-{{ tech_id }}">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+          data-bs-target="#collapse-{{ tech_id }}" aria-expanded="false" aria-controls="collapse-{{ tech_id }}">
+          <span class="fw-bold">{{ tech.prenom }}</span>
+          <span class="badge bg-primary ms-2">{{ tech_incidents|length }}</span>
+        </button>
+      </h2>
+      <div id="collapse-{{ tech_id }}" class="accordion-collapse collapse" data-bs-parent="#groupedAccordion"
+        aria-labelledby="heading-{{ tech_id }}">
+        <div class="accordion-body">
+          <div class="row g-2">
+            {% for i in tech_incidents %}
+            <div class="col-md-6 col-lg-4">
+              {% include "incident_card_grouped_partial.html" %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{% else %}
+
+<!-- ========================= -->
+<!-- VUE TECHNICIEN (Carte perso) -->
+<!-- ========================= -->
+<div id="userView" class="tech-view-container">
+  <!-- Filtres Technicien -->
+  <div class="tech-filters mb-3 w-100 d-flex gap-2 flex-wrap align-items-center bg-light p-2 rounded border">
+    <input type="text" id="searchInputTech" class="form-control form-control-sm" style="max-width: 200px;"
+      placeholder="🔍 Recherche...">
+
+    <select id="filterSiteTech" class="form-select form-select-sm" style="max-width: 150px;">
+      <option value="">📍 Tous sites</option>
+      {% for s in sites %}
+      <option value="{{ s.nom }}">{{ s.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="filterUrgenceTech" class="form-select form-select-sm" style="max-width: 150px;">
+      <option value="">⚡ Toutes urgences</option>
+      {% for p in priorites %}
+      <option value="{{ p.nom }}">{{ p.nom }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="sortByTech" class="form-select form-select-sm" style="max-width: 150px;">
+      <option value="">🔄 Trier par...</option>
+      <option value="site-asc">📍 Site (A-Z)</option>
+      <option value="urgence-desc">⚡ Urgence (Haute > Basse)</option>
+      <option value="statut-asc">📊 Statut</option>
+      <option value="localisation-asc">🏢 Localisation</option>
+      <option value="date-desc">📅 Date (Récent > Ancien)</option>
+    </select>
+
+    <button id="clearFiltersTechBtn" class="btn btn-outline-secondary btn-sm">✕ Réinit</button>
+  </div>
+
+  {% for i in incidents %}
+  {% include "incident_card_tech_partial.html" %}
+  {% endfor %}
+</div>
+
+{% endif %}
+
+<!-- Inject Configuration for JS -->
+<script>
+  window.dispatchConfig = {
+    username: {{ username | tojson }},
+  siteOrder: { { sites | map(attribute = 'nom') | list | tojson } },
+  statutOrder: { { statuts | map(attribute = 'nom') | list | tojson } },
+  priorities: { { priorites | tojson } }
+  };
+</script>

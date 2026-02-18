@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Archives - Dispatch Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h2 mb-1">Archives</h1>
+          <p class="text-muted">Historique des incidents</p>
+        </div>
+        <div>
+          <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary">
+            ← Retour
+          </a>
+        </div>
+      </div>
+
+      <!-- Archives Table -->
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">#</th>
+                  <th>Numéro</th>
+                  <th>Site</th>
+                  <th>Sujet</th>
+                  <th>Date Affect.</th>
+                  <th>État</th>
+                  <th class="pe-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for i in incidents %}
+                <tr>
+                  <td class="ps-3">{{ i.id }}</td>
+                  <td>
+                    <span class="badge bg-light text-dark border">{{ i.numero }}</span>
+                  </td>
+                  <td>{{ i.site }}</td>
+                  <td>{{ i.sujet }}</td>
+                  <td>
+                    {% if i.date_affectation %}
+                    {{ i.date_affectation|format_date }}
+                    {% else %}
+                    <span class="text-muted">–</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-secondary">{{ i.etat }}</span>
+                  </td>
+                  <td class="pe-3">
+                    {% if i.notes %}
+                    <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ i.notes }}">
+                      {{ i.notes }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+                {% if incidents|length == 0 %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">
+                    <i class="fas fa-box-open mb-2 d-block fa-2x"></i>
+                    Aucune archive trouvée
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Exporter incidents - Dispatch Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-8 col-xxl-6">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h2 mb-1">Exporter des incidents</h1>
+          <p class="text-muted">Sélectionnez les données à exporter</p>
+        </div>
+        <div>
+          <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary">
+            ← Retour
+          </a>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <h5 class="card-title mb-3">Filtre par technicien</h5>
+          <p class="text-muted mb-4">Sélectionnez les techniciens dont vous voulez exporter les incidents :</p>
+
+          <form id="exportFormExcel" method="post" action="{{ url_for('stats.export_incidents_excel') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+            <div class="row g-3 mb-4">
+              {% for tech in techniciens %}
+              <div class="col-md-6">
+                <div class="form-check p-3 border rounded hover-bg-light transition-base cursor-pointer">
+                  <input class="form-check-input" type="checkbox" value="{{ tech.id }}" id="tech-{{ tech.id }}"
+                    name="tech_ids">
+                  <label class="form-check-label w-100 cursor-pointer stretched-link" for="tech-{{ tech.id }}">
+                    {{ tech.prenom }} {% if tech.nom %}{{ tech.nom }}{% endif %}
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="d-flex gap-3 pt-3 border-top">
+              <button type="submit" class="btn btn-success flex-grow-1">
+                <i class="fas fa-file-excel me-2"></i> Exporter vers Excel
+              </button>
+              <button type="button" id="btnPdf" class="btn btn-danger flex-grow-1">
+                <i class="fas fa-file-pdf me-2"></i> Exporter vers PDF
+              </button>
+            </div>
+          </form>
+
+          <form id="exportFormPdf" method="post" action="{{ url_for('stats.export_incidents_pdf') }}" class="d-none">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div id="pdf-tech-ids-container"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Intercepte le clique sur "Exporter vers PDF" pour recopier les checkboxes
+  document.getElementById('btnPdf').onclick = function () {
+    const checked = Array.from(document.querySelectorAll('input[name="tech_ids"]:checked'))
+      .map((c) => c.value);
+
+    if (checked.length === 0) {
+      alert('Veuillez sélectionner au moins un technicien.');
+      return;
+    }
+
+    // On crée dynamiquement des inputs cachés dans le formulaire PDF
+    const container = document.getElementById('pdf-tech-ids-container');
+    container.innerHTML = ''; // Clear previous inputs
+
+    checked.forEach((id) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'tech_ids';
+      inp.value = id;
+      container.appendChild(inp);
+    });
+
+    document.getElementById('exportFormPdf').submit();
+  };
+</script>
+{% endblock %}

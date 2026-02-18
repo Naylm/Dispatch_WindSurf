@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche : {{ query }} - Base de Connaissances{% endblock %}
+
+{% block styles %}
+<style>
+    .search-result-item {
+        background: var(--color-bg-elevated);
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        transition: var(--transition-base);
+        border-left: 4px solid transparent;
+        border: 1px solid var(--color-border);
+    }
+
+    .search-result-item:hover {
+        box-shadow: var(--shadow-lg);
+        border-left-color: var(--color-primary);
+        transform: translateX(4px);
+    }
+
+    .result-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--color-primary);
+        text-decoration: none;
+        display: block;
+    }
+
+    .result-title:hover {
+        text-decoration: underline;
+    }
+
+    .result-excerpt {
+        color: var(--color-text-secondary);
+        margin-bottom: 0.75rem;
+    }
+
+    .result-meta {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+    }
+
+    .highlight {
+        background: yellow;
+        padding: 0.1rem 0.2rem;
+        border-radius: 2px;
+        color: black;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .no-results-icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold">🔍 Résultats de recherche</span>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('wiki.wiki') }}" class="btn btn-outline-primary btn-sm btn-back">← Retour au Wiki</a>
+            <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">Accueil</a>
+            <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    {% include "_flash_messages.html" %}
+    <!-- Barre de recherche avec filtres -->
+    <div class="row mb-4">
+        <div class="col-md-10 offset-md-1">
+            <form action="{{ url_for('wiki.search_wiki') }}" method="GET">
+                <div class="input-group input-group-lg mb-3">
+                    <span class="input-group-text">🔍</span>
+                    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Rechercher..."
+                        autofocus>
+                    <button type="submit" class="btn btn-primary">Rechercher</button>
+                </div>
+
+                <!-- Filtres -->
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small">Catégorie</label>
+                        <select name="category" class="form-select form-select-sm">
+                            <option value="">Toutes</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if current_filters.category==cat.id|string %}selected{%
+                                endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Tag</label>
+                        <select name="tag" class="form-select form-select-sm">
+                            <option value="">Tous</option>
+                            {% for tag in tags %}
+                            <option value="{{ tag.id }}" {% if current_filters.tag==tag.id|string %}selected{% endif %}>
+                                {{ tag.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Propriétaire</label>
+                        <select name="owner" class="form-select form-select-sm">
+                            <option value="">Tous</option>
+                            {% for owner in owners %}
+                            <option value="{{ owner }}" {% if current_filters.owner==owner %}selected{% endif %}>
+                                {{ owner }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Statut</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">Tous</option>
+                            <option value="published" {% if current_filters.status=='published' %}selected{% endif %}>
+                                Publié</option>
+                            <option value="draft" {% if current_filters.status=='draft' %}selected{% endif %}>Brouillon
+                            </option>
+                            <option value="archived" {% if current_filters.status=='archived' %}selected{% endif %}>
+                                Archivé</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Date</label>
+                        <select name="date" class="form-select form-select-sm">
+                            <option value="">Toutes</option>
+                            <option value="recent" {% if current_filters.date=='recent' %}selected{% endif %}>Récent (<
+                                    30j)</option>
+                            <option value="old" {% if current_filters.date=='old' %}selected{% endif %}>Ancien (> 6
+                                mois)</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats -->
+    {% if results %}
+    <div class="mb-4">
+        <h5>📊 {{ results|length }} résultat(s) pour "{{ query }}"</h5>
+    </div>
+
+    <div class="results-container">
+        {% for result in results %}
+        <div class="search-result-item">
+            <a href="{{ url_for('wiki.view_wiki_article', id=result.id) }}" class="result-title">
+                {{ result.icon }} {{ result.title }}
+            </a>
+
+            <div class="result-excerpt">
+                {% if result.summary %}
+                {{ result.summary }}
+                {% elif result.content %}
+                {{ result.content[:200] }}...
+                {% else %}
+                Aucun aperçu disponible
+                {% endif %}
+            </div>
+
+            {% if result.tags %}
+            <div class="mt-2">
+                {% for tag in result.tags.split(',') %}
+                <span class="badge bg-secondary me-1">{{ tag.strip() }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="result-meta">
+                {% if result.cat_name %}
+                <span>{{ result.cat_icon }} {{ result.cat_name }} › {{ result.subcat_name }}</span>
+                {% endif %}
+                <span>✍️ Par {{ result.created_by }}</span>
+                {% if result.owner %}
+                <span>👤 {{ result.owner }}</span>
+                {% endif %}
+                <span>👁️ {{ result.views_count }} vues</span>
+                <span>👍 {{ result.likes_count }}</span>
+                {% if result.updated_at %}
+                {% set freshness = result.updated_at|freshness_badge %}
+                <span class="badge {{ freshness.class }}">{{ freshness.text }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Aucun résultat -->
+    <div class="no-results">
+        <div class="no-results-icon">🔍</div>
+        <h3>Aucun résultat trouvé</h3>
+        <p class="text-muted">Essayez avec d'autres mots-clés ou parcourez les catégories</p>
+        <a href="{{ url_for('wiki.wiki') }}" class="btn btn-primary mt-3">
+            📚 Parcourir la base de connaissances
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+
+    themeToggle.onclick = () => {
+        document.body.classList.toggle('dark');
+        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    };
+    // Initial state set by base.html / theme.js
+</script>
+{% endblock %}

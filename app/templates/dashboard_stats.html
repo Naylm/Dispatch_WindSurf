@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Statistiques - Dispatch Manager{% endblock %}
+
+{% block head %}
+<!-- Chart.js 4.x -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script
+  src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.min.js"></script>
+
+<!-- CSS personnalisé -->
+<link href="{{ url_for('static', filename='css/dashboard_stats.css') }}" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-4">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm rounded">
+    <div class="container-fluid">
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
+      </div>
+      <span class="navbar-brand mb-0 h1">📊 Dashboard Statistiques</span>
+    </div>
+  </nav>
+
+  <!-- ===================== -->
+  <!-- SECTION 1 : FILTRES -->
+  <!-- ===================== -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">🔍 Filtres</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <!-- Plage de dates -->
+        <div class="col-md-3 col-sm-6">
+          <label for="filterStart" class="form-label">Date début</label>
+          <input type="date" id="filterStart" class="form-control" />
+        </div>
+        <div class="col-md-3 col-sm-6">
+          <label for="filterEnd" class="form-label">Date fin</label>
+          <input type="date" id="filterEnd" class="form-control" />
+        </div>
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label">Presets rapides</label>
+          <select id="datePreset" class="form-select">
+            <option value="">Personnalisé</option>
+            <option value="today">Aujourd'hui</option>
+            <option value="week">Cette semaine</option>
+            <option value="month" selected>Ce mois</option>
+            <option value="quarter">Ce trimestre</option>
+            <option value="year">Cette année</option>
+          </select>
+        </div>
+        <div class="col-md-3 col-sm-6 d-flex align-items-end">
+          <button id="btnApply" class="btn btn-primary me-2 flex-fill">Appliquer</button>
+          <button id="btnReset" class="btn btn-outline-secondary flex-fill">Réinitialiser</button>
+        </div>
+      </div>
+
+      <hr class="my-3" />
+
+      <div class="row g-3">
+        <!-- Techniciens -->
+        <div class="col-md-3 col-sm-6">
+          <label for="filterTech" class="form-label">Technicien(s)</label>
+          <select id="filterTech" class="form-select" multiple size="4">
+            {% for tech in techniciens %}
+            <option value="{{ tech.id }}">{{ tech.prenom }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Ctrl+clic pour sélection multiple</small>
+        </div>
+
+        <!-- Sites -->
+        <div class="col-md-3 col-sm-6">
+          <label for="filterSite" class="form-label">Site(s)</label>
+          <select id="filterSite" class="form-select" multiple size="4">
+            {% for site in sites %}
+            <option value="{{ site.id }}">{{ site.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Statuts -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label">Statut(s)</label>
+          <div id="filterStatus" class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
+            {% for statut in statuts %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="{{ statut.id }}" id="status_{{ statut.id }}">
+              <label class="form-check-label" for="status_{{ statut.id }}">{{ statut.nom }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Priorités -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label">Priorité(s)</label>
+          <div id="filterPriority" class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
+            {% for priorite in priorites %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="{{ priorite.id }}" id="priority_{{ priorite.id }}">
+              <label class="form-check-label" for="priority_{{ priorite.id }}">{{ priorite.nom }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== -->
+  <!-- SECTION 2 : KPIs -->
+  <!-- ===================== -->
+  <div class="row g-3 mb-4" id="kpiCards">
+    <!-- Les KPIs seront injectés par JavaScript -->
+  </div>
+
+  <!-- ===================== -->
+  <!-- SECTION 3 : GRAPHIQUES -->
+  <!-- ===================== -->
+
+  <!-- Ligne 1 -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-info text-white">
+          <h6 class="mb-0">Répartition par Technicien et Statut</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="chartParTechnicien"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-success text-white">
+          <h6 class="mb-0">Répartition par Site</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="chartParSite"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-warning text-white">
+          <h6 class="mb-0">Top 10 Sujets</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="chartTopSujets"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ligne 2 -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6 col-md-12">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <h6 class="mb-0">Évolution Temporelle</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height: 350px;">
+            <canvas id="chartEvolution"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 col-md-12">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-danger text-white">
+          <h6 class="mb-0">Performance par Technicien</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height: 350px;">
+            <canvas id="chartPerformance"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== -->
+  <!-- SECTION 4 : TABLEAUX SCROLLABLES -->
+  <!-- ===================== -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">📋 Tableaux Détaillés</h5>
+        </div>
+        <div class="card-body">
+          <ul class="nav nav-tabs" id="tableTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tech-tab" data-bs-toggle="tab" data-bs-target="#tech-table"
+                type="button">Par Technicien</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="site-tab" data-bs-toggle="tab" data-bs-target="#site-table" type="button">Par
+                Site</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="sujet-tab" data-bs-toggle="tab" data-bs-target="#sujet-table"
+                type="button">Par Sujet</button>
+            </li>
+          </ul>
+          <div class="tab-content mt-3" id="tableTabsContent">
+            <div class="tab-pane fade show active" id="tech-table" role="tabpanel">
+              <div class="table-scrollable">
+                <table class="table table-striped table-hover mb-0" id="tableTechnicien">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Technicien</th>
+                      <th>Total</th>
+                      <th>Traités</th>
+                      <th>En cours</th>
+                      <th>Suspendus</th>
+                      <th>Taux traitement</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="mt-2 pagination-info text-center" id="paginationTech"></div>
+            </div>
+            <div class="tab-pane fade" id="site-table" role="tabpanel">
+              <div class="table-scrollable">
+                <table class="table table-striped table-hover mb-0" id="tableSite">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Site</th>
+                      <th>Total</th>
+                      <th>Traités</th>
+                      <th>En cours</th>
+                      <th>Taux traitement</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="mt-2 pagination-info text-center" id="paginationSite"></div>
+            </div>
+            <div class="tab-pane fade" id="sujet-table" role="tabpanel">
+              <div class="table-scrollable">
+                <table class="table table-striped table-hover mb-0" id="tableSujet">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Sujet</th>
+                      <th>Total</th>
+                      <th>Traités</th>
+                      <th>Taux traitement</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="mt-2 pagination-info text-center" id="paginationSujet"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== -->
+  <!-- SECTION 5 : ACTIONS -->
+  <!-- ===================== -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body text-center">
+      <h5 class="mb-3">📥 Exports</h5>
+      <div class="btn-group" role="group">
+        <button id="btnExportExcel" class="btn btn-success">📊 Excel</button>
+        <button id="btnExportPDF" class="btn btn-danger">📄 PDF</button>
+        <button id="btnExportCSV" class="btn btn-info">📋 CSV</button>
+        <button id="btnPrint" class="btn btn-secondary">🖨️ Imprimer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay d-none">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">Chargement...</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard_stats.js') }}"></script>
+<script>
+  // Initialiser les données de référence
+  const TECHNICIENS = {{ techniciens | tojson }};
+  const SITES = {{ sites | tojson }};
+  const STATUTS = {{ statuts | tojson }};
+  const PRIORITES = {{ priorites | tojson }};
+</script>
+{% endblock %}

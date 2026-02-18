@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique Ticket #{{ id }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <div class="container-fluid">
+      <span class="navbar-brand fw-bold">Historique Ticket #{{ id }}</span>
+      <div class="d-flex align-items-center gap-2">
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
+        <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+      </div>
+    </div>
+  </nav>
+
+  {% if logs %}
+  <table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Date</th>
+        <th>Modifié par</th>
+        <th>Champ</th>
+        <th>Avant</th>
+        <th>Après</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.date_modification }}</td>
+        <td>{{ log.modifie_par }}</td>
+        <td>{{ log.champ }}</td>
+        <td class="text-danger">{{ log.ancienne_valeur }}</td>
+        <td class="text-success">{{ log.nouvelle_valeur }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">
+    Aucun changement enregistré pour ce ticket.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

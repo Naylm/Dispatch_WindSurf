@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Admin - Base de Connaissances{% endblock %}
+
+{% block styles %}
+<style>
+    .card {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 2rem !important;
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1rem 1.5rem;
+        background: var(--color-bg-base);
+        border-bottom: 1px solid var(--color-border);
+        font-weight: 600;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+        background: var(--color-bg-elevated);
+    }
+
+    /* Override bootstrap background colors with our tokens or just keep them for semantic meaning but soften them */
+    .bg-warning {
+        background-color: var(--color-warning-light) !important;
+        color: var(--color-warning-hover) !important;
+    }
+
+    .bg-info {
+        background-color: var(--color-info-light) !important;
+        color: var(--color-info-hover) !important;
+    }
+
+    .bg-secondary {
+        background-color: var(--color-bg-base) !important;
+        color: var(--color-text-secondary) !important;
+    }
+
+    .bg-danger {
+        background-color: var(--color-danger-light) !important;
+        color: var(--color-danger-hover) !important;
+    }
+
+    .table {
+        color: var(--color-text-primary);
+    }
+
+    .table-sm td,
+    .table-sm th {
+        padding: 0.75rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold">📊 Dashboard Admin - Base de Connaissances</span>
+        <div class="d-flex gap-2">
+            <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
+            <a href="{{ url_for('wiki.wiki') }}" class="btn btn-outline-primary btn-sm">← Retour au Wiki</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    {% include "_flash_messages.html" %}
+    <!-- Articles signalés obsolètes -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning">
+            ⚠️ Articles signalés obsolètes
+        </div>
+        <div class="card-body">
+            {% if outdated_articles %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Titre</th>
+                            <th>Signalements</th>
+                            <th>Dernière mise à jour</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for article in outdated_articles %}
+                        <tr>
+                            <td><a href="{{ url_for('wiki.view_wiki_article', id=article.id) }}">{{ article.title }}</a>
+                            </td>
+                            <td><span class="badge bg-danger">{{ article.feedback_count }}</span></td>
+                            <td>{{ article.updated_at.strftime('%d/%m/%Y') if article.updated_at else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('wiki.edit_wiki_article', id=article.id) }}"
+                                    class="btn btn-sm btn-outline-primary">Modifier</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Aucun article signalé obsolète</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Requêtes sans résultat -->
+    <div class="card mb-4">
+        <div class="card-header bg-info">
+            🔍 Requêtes sans résultat (Top 10)
+        </div>
+        <div class="card-body">
+            {% if no_result_queries %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Requête</th>
+                            <th>Nombre de tentatives</th>
+                            <th>Dernière vue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for query in no_result_queries %}
+                        <tr>
+                            <td><strong>{{ query.query }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ query.count }}</span></td>
+                            <td>{{ query.last_seen.strftime('%d/%m/%Y %H:%M') if query.last_seen else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Aucune requête sans résultat</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Articles peu consultés -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary">
+            👁️ Articles peu consultés (&lt; 5 vues)
+        </div>
+        <div class="card-body">
+            {% if low_views_articles %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Titre</th>
+                            <th>Vues</th>
+                            <th>Créé le</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for article in low_views_articles %}
+                        <tr>
+                            <td><a href="{{ url_for('wiki.view_wiki_article', id=article.id) }}">{{ article.title }}</a>
+                            </td>
+                            <td><span class="badge bg-warning">{{ article.views_count }}</span></td>
+                            <td>{{ article.created_at.strftime('%d/%m/%Y') if article.created_at else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('wiki.edit_wiki_article', id=article.id) }}"
+                                    class="btn btn-sm btn-outline-primary">Modifier</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Tous les articles ont plus de 5 vues</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Articles avec feedback négatif -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger">
+            👎 Articles avec feedback négatif
+        </div>
+        <div class="card-body">
+            {% if negative_feedback %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Titre</th>
+                            <th>Feedback négatif</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for article in negative_feedback %}
+                        <tr>
+                            <td><a href="{{ url_for('wiki.view_wiki_article', id=article.id) }}">{{ article.title }}</a>
+                            </td>
+                            <td><span class="badge bg-danger">{{ article.negative_count }}</span></td>
+                            <td>
+                                <a href="{{ url_for('wiki.edit_wiki_article', id=article.id) }}"
+                                    class="btn btn-sm btn-outline-primary">Modifier</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Aucun feedback négatif</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Theme toggle handled by base.html
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.onclick = () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        };
+    }
+</script>
+{% endblock %}

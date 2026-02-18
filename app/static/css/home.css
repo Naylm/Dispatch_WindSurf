@@ -1,0 +1,310 @@
+/* ========== RESPONSIVE GRID TECHNICIEN - CSS MEDIA QUERIES ========== */
+
+/* BASE: 1 colonne par défaut (mobile) */
+#userView {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 1rem !important;
+  padding: 0.5rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.small-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* TABLETTE: 2 colonnes (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  #userView {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem !important;
+  }
+}
+
+/* DESKTOP: 3 colonnes (>= 1024px) */
+@media (min-width: 1024px) {
+  #userView {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+  }
+}
+
+/* Conteneur scrollable horizontalement */
+#incident-content {
+  overflow-x: visible;
+  white-space: normal;
+  scroll-behavior: smooth;
+  padding-bottom: 6px;
+}
+
+/* ========== SIDEBAR BACKDROP POUR MOBILE ========== */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Afficher le backdrop seulement sur mobile quand sidebar ouverte */
+@media (max-width: 768px) {
+  .sidebar.open~.sidebar-backdrop {
+    display: block;
+    opacity: 1;
+  }
+}
+
+/* Si besoin de voir un peu plus la zone scrollable */
+#incident-content::-webkit-scrollbar {
+  height: 8px;
+}
+
+#incident-content::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary-subtle, #cbe2ff);
+  border-radius: 4px;
+}
+
+/* ===== RESPONSIVE: Gestion automatique par CSS Grid ===== */
+/* Les règles flex sont désactivées pour laisser CSS Grid gérer les colonnes automatiquement */
+
+/* ===== RESPONSIVE COMMUN: TABLETTE + PETITS ÉCRANS (768px - 1400px) ===== */
+@media (min-width: 769px) and (max-width: 1400px) {
+
+  /* Cartes incidents légèrement compactes */
+  .incident-card-col {
+    font-size: 0.9rem;
+  }
+
+  /* Notes compactes sur tablette */
+  .note-view-content {
+    font-size: 0.7rem;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .note-edit-textarea {
+    font-size: 0.7rem;
+  }
+}
+
+.admin-actions {
+  row-gap: 0.5rem;
+}
+
+.admin-actions .btn-admin {
+  min-width: 180px;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+/* ===== RESPONSIVE: MOBILE (< 768px) ===== */
+@media (max-width: 768px) {
+
+  /* Navbar mobile */
+  .navbar .container-fluid {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .navbar-brand {
+    font-size: 1rem !important;
+  }
+
+  /* Titre bienvenue plus petit */
+  h2.mb-4 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem !important;
+  }
+
+  /* Boutons admin en colonne */
+  .admin-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .admin-actions .btn {
+    width: 100%;
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem;
+  }
+
+  /* Barre de recherche et filtres en colonne */
+  .mb-4.d-flex.flex-wrap {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .mb-4.d-flex.flex-wrap input,
+  .mb-4.d-flex.flex-wrap select,
+  .mb-4.d-flex.flex-wrap button {
+    max-width: 100% !important;
+    width: 100%;
+    min-height: 2.5rem;
+  }
+
+  /* Vue colonnes admin - une colonne à la fois */
+  #columnsView .row {
+    flex-direction: column !important;
+    overflow-x: visible !important;
+    white-space: normal !important;
+  }
+
+  #columnsView .tech-column {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    display: block !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Cartes incidents admin plus compactes */
+  .incident-card-col {
+    font-size: 0.85rem;
+  }
+
+  .incident-card-col .badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  /* Boutons d'action tactiles */
+  .incident-card-col .btn-sm {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    min-height: 2rem;
+  }
+
+  /* Notes ultra-compactes sur mobile */
+  .note-wrapper {
+    margin-top: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .note-view-mode {
+    padding: 0.25rem 0.35rem;
+  }
+
+  .note-view-content {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .note-edit-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  /* En-tête des cartes technicien */
+  .card-header.d-flex {
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+
+  .card-header .copy-btn {
+    font-size: 0.7rem !important;
+    padding: 0.3rem 0.5rem !important;
+  }
+
+  /* Corps des cartes plus compact */
+  .card-body {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  /* Sélecteurs de statut tactiles */
+  .form-select-sm {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+    min-height: 2.2rem;
+  }
+
+  /* Conteneur principal avec padding réduit */
+  body.container {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Icônes emoji des notes - plus petites */
+  .note-dispatch-view::before,
+  .note-tech-view::before {
+    font-size: 0.75rem;
+    left: -1rem;
+  }
+}
+
+/* ===== RESPONSIVE: TRÈS PETITS ÉCRANS (< 400px) ===== */
+@media (max-width: 400px) {
+  .navbar-brand {
+    font-size: 0.85rem !important;
+  }
+
+  h2.mb-4 {
+    font-size: 1.1rem;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .card-header {
+    font-size: 0.8rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .card-body {
+    font-size: 0.75rem;
+    padding: 0.6rem !important;
+  }
+
+  /* Notes minimales */
+  .note-view-content {
+    font-size: 0.68rem;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .note-edit-textarea {
+    font-size: 0.68rem;
+  }
+
+  .note-role-badge {
+    font-size: 0.55rem;
+    padding: 0.08rem 0.25rem;
+  }
+}
+
+/* ===== RESPONSIVE: GRANDS ÉCRANS (> 1400px) ===== */
+@media (min-width: 1400px) {
+  /* Cartes incidents avec plus d'espace */
+  .incident-card-col {
+    font-size: 0.95rem;
+  }
+
+  /* Notes avec plus de contenu visible */
+  .note-view-content {
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+}

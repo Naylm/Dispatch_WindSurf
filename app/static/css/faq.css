@@ -1,0 +1,39 @@
+/* FAQ CSS extracted from faq.html */
+body {
+    background: var(--color-bg-base, #f6f8fb);
+}
+
+.faq-container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2rem;
+}
+
+.page-header {
+    background: var(--color-bg-elevated, #ffffff);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    margin-bottom: 1.25rem;
+}
+
+.section-card {
+    background: var(--color-bg-elevated, #ffffff);
+    border: 1px solid var(--color-border, #e8ebef);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    margin-bottom: 1rem;
+}
+
+.section-card h3 {
+    margin: 0;
+    padding: 1rem 1.25rem 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e9f5ff;
+    color: #0b3a67;
+    box-shadow: none;
+}

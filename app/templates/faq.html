@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}FAQ - Dispatch Manager{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/faq.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-light bg-light rounded mb-3 shadow-sm">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
+    <div class="d-flex gap-2">
+      <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
+      <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">Accueil</a>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+    </div>
+  </div>
+</nav>
+
+<main class="faq-container">
+  <div class="page-header">
+    <h1 class="h3 mb-2">FAQ opérationnelle</h1>
+    <p class="mb-3 text-muted">
+      Réponses rapides pour les techniciens et administrateurs.
+    </p>
+  </div>
+
+  <section class="mb-4">
+    <h2 class="h4 mb-3">FAQ Technicien</h2>
+    {% for category in technician_faq %}
+    {% set category_index = loop.index %}
+    <div class="section-card">
+      <h3>{{ category.title }}</h3>
+      <div class="accordion accordion-flush" id="techAccordion{{ category_index }}">
+        {% for item in category["items"] %}
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="techHeading{{ category_index }}{{ loop.index }}">
+            <button class="accordion-button {% if not (category_index == 1 and loop.index == 1) %}collapsed{% endif %}"
+              type="button" data-bs-toggle="collapse" data-bs-target="#techCollapse{{ category_index }}{{ loop.index }}"
+              aria-expanded="{{ 'true' if category_index == 1 and loop.index == 1 else 'false' }}"
+              aria-controls="techCollapse{{ category_index }}{{ loop.index }}">
+              {{ item.question }}
+            </button>
+          </h2>
+          <div id="techCollapse{{ category_index }}{{ loop.index }}"
+            class="accordion-collapse collapse {% if category_index == 1 and loop.index == 1 %}show{% endif %}"
+            aria-labelledby="techHeading{{ category_index }}{{ loop.index }}"
+            data-bs-parent="#techAccordion{{ category_index }}">
+            <div class="accordion-body">{{ item.answer }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  {% if is_admin %}
+  <section>
+    <h2 class="h4 mb-3">FAQ Admin</h2>
+    {% for category in admin_faq %}
+    {% set admin_category_index = loop.index %}
+    <div class="section-card">
+      <h3>{{ category.title }}</h3>
+      <div class="accordion accordion-flush" id="adminAccordion{{ admin_category_index }}">
+        {% for item in category["items"] %}
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="adminHeading{{ admin_category_index }}{{ loop.index }}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+              data-bs-target="#adminCollapse{{ admin_category_index }}{{ loop.index }}" aria-expanded="false"
+              aria-controls="adminCollapse{{ admin_category_index }}{{ loop.index }}">
+              {{ item.question }}
+            </button>
+          </h2>
+          <div id="adminCollapse{{ admin_category_index }}{{ loop.index }}" class="accordion-collapse collapse"
+            aria-labelledby="adminHeading{{ admin_category_index }}{{ loop.index }}"
+            data-bs-parent="#adminAccordion{{ admin_category_index }}">
+            <div class="accordion-body">{{ item.answer }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

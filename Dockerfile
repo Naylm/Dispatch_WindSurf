@@ -3,7 +3,7 @@ FROM python:3.11-slim-bullseye
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=app.py
+ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
 
 # Install system dependencies
@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 
 # Run the application with Gunicorn and eventlet
 # Workers configuration: default 2 workers + async eventlet for realtime I/O
-CMD gunicorn --worker-class eventlet -w ${GUNICORN_WORKERS:-2} --bind 0.0.0.0:5000 --timeout ${GUNICORN_TIMEOUT:-120} --graceful-timeout ${GUNICORN_GRACEFUL_TIMEOUT:-30} --keep-alive ${GUNICORN_KEEPALIVE:-65} app:app
+CMD gunicorn --worker-class eventlet -w ${GUNICORN_WORKERS:-2} --bind 0.0.0.0:5000 --timeout ${GUNICORN_TIMEOUT:-120} --graceful-timeout ${GUNICORN_GRACEFUL_TIMEOUT:-30} --keep-alive ${GUNICORN_KEEPALIVE:-65} run:app

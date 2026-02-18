@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Mon Profil{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/profil.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">
+            ← Retour à l'accueil
+        </a>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
+    </div>
+
+    {# Consommer tous les messages flash pour éviter qu'ils persistent, mais n'afficher que ceux pertinents pour le
+    profil #}
+    {% set all_messages = get_flashed_messages(with_categories=true) %}
+    {% if all_messages %}
+    {% for category, message in all_messages %}
+    {% if 'profil' in message|lower or 'mot de passe' in message|lower or 'photo' in message|lower or 'informations' in
+    message|lower or 'utilisateur' in message|lower %}
+    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show"
+        role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-avatar-wrapper">
+                <div class="profile-avatar">
+                    {% if user_data.photo_profil %}
+                    <img src="{{ url_for('static', filename='uploads/avatars/' + user_data.photo_profil) }}"
+                        alt="Photo de profil">
+                    {% else %}
+                    {{ user_data.prenom[0] if user_data.prenom else user_data.username[0] | upper }}{{ user_data.nom[0]
+                    if user_data.nom else '' | upper }}
+                    {% endif %}
+                </div>
+                <label for="photo_input" class="avatar-upload-btn" title="Changer la photo">
+                    📷
+                </label>
+                {% if user_data.photo_profil %}
+                <form action="{{ url_for('auth.delete_profile_photo') }}" method="POST" style="display: inline;"
+                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer votre photo de profil ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="avatar-delete-btn" title="Supprimer la photo">
+                        🗑️
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <h1 class="profile-name">{{ user_data.prenom }} {{ user_data.nom if user_data.nom else '' }}</h1>
+            <p class="profile-role">{{ 'Super Administrateur' if user_data.role == 'superadmin' else ('Administrateur'
+                if user_data.role == 'admin' else 'Technicien') }}</p>
+        </div>
+
+        <div class="profile-body">
+            <!-- Formulaire photo caché -->
+            <form id="photoForm" action="{{ url_for('auth.update_profile_photo') }}" method="POST"
+                enctype="multipart/form-data" style="display: none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="file" id="photo_input" name="photo" accept="image/png,image/jpeg,image/gif,image/webp"
+                    onchange="document.getElementById('photoForm').submit();">
+            </form>
+
+            <!-- Informations personnelles -->
+            <h3 class="section-title"><span class="icon">👤</span> Informations personnelles</h3>
+
+            <form action="{{ url_for('auth.update_profile_info') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Prénom <span class="text-danger">*</span></label>
+                        {% if is_admin(role) %}
+                        <input type="text" class="form-control" name="prenom" value="{{ user_data.prenom }}" required>
+                        {% else %}
+                        <input type="text" class="form-control" name="prenom" value="{{ user_data.prenom }}" readonly>
+                        <small class="text-muted">Contactez un admin pour modifier</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Nom</label>
+                        {% if is_admin(role) %}
+                        <input type="text" class="form-control" name="nom"
+                            value="{{ user_data.nom if user_data.nom else '' }}">
+                        {% else %}
+                        <input type="text" class="form-control" name="nom"
+                            value="{{ user_data.nom if user_data.nom else '' }}" readonly>
+                        <small class="text-muted">Contactez un admin pour modifier</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">📱 Numéro DECT / Téléphone</label>
+                        <input type="text" class="form-control" name="dect_number"
+                            value="{{ user_data.dect_number if user_data.dect_number else '' }}"
+                            placeholder="Ex: 1234 ou 06 12 34 56 78">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">📧 Email</label>
+                        <input type="email" class="form-control" name="email"
+                            value="{{ user_data.email if user_data.email else '' }}"
+                            placeholder="votre.email@example.com">
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-save">💾 Enregistrer les modifications</button>
+                </div>
+            </form>
+
+            <!-- Changement de mot de passe -->
+            <div class="form-section">
+                <h3 class="section-title"><span class="icon">🔐</span> Changer mon mot de passe</h3>
+
+                <form action="{{ url_for('auth.update_profile_password') }}" method="POST" id="passwordForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Mot de passe actuel</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="current_password"
+                                    id="current_password" required>
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('current_password')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nouveau mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="new_password" id="new_password"
+                                    required onkeyup="checkPasswordStrength()">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('new_password')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Confirmer le mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="confirm_password"
+                                    id="confirm_password" required onkeyup="checkPasswordMatch()">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('confirm_password')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <ul class="password-requirements list-unstyled">
+                                <li id="req-length" class="invalid">✗ Au moins 8 caractères</li>
+                                <li id="req-match" class="invalid">✗ Les mots de passe correspondent</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-save" id="submitPassword">🔑 Changer le mot de
+                            passe</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Questions de sécurité -->
+            <div class="form-section mt-4">
+                <h3 class="section-title"><span class="icon">🛡️</span> Sécurité du compte</h3>
+
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="mb-1">Questions secrètes</h5>
+                                <p class="text-muted small mb-0">Permet de récupérer votre mot de passe en cas d'oubli.
+                                </p>
+                            </div>
+                            {% if user_data.question1 and user_data.question2 %}
+                            <span class="badge bg-success">Configuré ✓</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Non configuré ⚠️</span>
+                            {% endif %}
+                        </div>
+
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#securityQuestionsForm">
+                            {{ 'Modifier les questions' if user_data.question1 else 'Configurer maintenant' }}
+                        </button>
+
+                        <div class="collapse mt-3" id="securityQuestionsForm">
+                            <form action="{{ url_for('auth.setup_recovery') }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Question secrète 1</label>
+                                    <input type="text" class="form-control form-control-sm" name="question1"
+                                        value="{{ user_data.question1 or '' }}" required
+                                        placeholder="Ex: Quel est le nom de votre premier animal ?">
+                                    <input type="text" class="form-control form-control-sm mt-1" name="answer1"
+                                        placeholder="Votre réponse" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Question secrète 2</label>
+                                    <input type="text" class="form-control form-control-sm" name="question2"
+                                        value="{{ user_data.question2 or '' }}" required
+                                        placeholder="Ex: Dans quelle ville êtes-vous né ?">
+                                    <input type="text" class="form-control form-control-sm mt-1" name="answer2"
+                                        placeholder="Votre réponse" required>
+                                </div>
+
+                                <div class="mb-3 border-top pt-3">
+                                    <label class="form-label small fw-bold text-danger">Mot de passe actuel (pour
+                                        valider)</label>
+                                    <input type="password" class="form-control form-control-sm" name="current_password"
+                                        required>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-sm">Enregistrer les questions</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Infos compte -->
+            <div class="mt-4 text-muted small">
+                <p class="mb-1">🔒 Identifiant de connexion : <strong>{{ user_data.username if user_data.username else
+                        user_data.prenom }}</strong></p>
+                <p class="mb-0">📅 Compte créé le : {{ user_data.created_at.strftime('%d/%m/%Y') if user_data.created_at
+                    else 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePassword(inputId) {
+        const input = document.getElementById(inputId);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function checkPasswordStrength() {
+        const password = document.getElementById('new_password').value;
+        const lengthReq = document.getElementById('req-length');
+
+        if (password.length >= 8) {
+            lengthReq.classList.remove('invalid');
+            lengthReq.classList.add('valid');
+            lengthReq.textContent = '✓ Au moins 8 caractères';
+        } else {
+            lengthReq.classList.remove('valid');
+            lengthReq.classList.add('invalid');
+            lengthReq.textContent = '✗ Au moins 8 caractères';
+        }
+
+        checkPasswordMatch();
+    }
+
+    function checkPasswordMatch() {
+        const password = document.getElementById('new_password').value;
+        const confirm = document.getElementById('confirm_password').value;
+        const matchReq = document.getElementById('req-match');
+
+        if (password === confirm && password.length > 0) {
+            matchReq.classList.remove('invalid');
+            matchReq.classList.add('valid');
+            matchReq.textContent = '✓ Les mots de passe correspondent';
+        } else {
+            matchReq.classList.remove('valid');
+            matchReq.classList.add('invalid');
+            matchReq.textContent = '✗ Les mots de passe correspondent';
+        }
+    }
+
+    // Validation avant soumission
+    document.getElementById('passwordForm').addEventListener('submit', function (e) {
+        const password = document.getElementById('new_password').value;
+        const confirm = document.getElementById('confirm_password').value;
+
+        if (password.length < 8) {
+            e.preventDefault();
+            alert('Le mot de passe doit contenir au moins 8 caractères.');
+            return false;
+        }
+
+        if (password !== confirm) {
+            e.preventDefault();
+            alert('Les mots de passe ne correspondent pas.');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

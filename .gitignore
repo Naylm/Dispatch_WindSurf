@@ -69,7 +69,7 @@ nul
 .env.local
 
 # Archive (fichiers obsolètes)
-archive/
+archives/
 
 # Maintenance tests
 maintenance/tests/*.txt
@@ -78,3 +78,11 @@ maintenance/tests/cookies*.txt
 # Scripts temporaires
 scripts/*.tmp
 scripts/test_*.py
+
+# Debug files
+debug_*.txt
+broken_urls*.txt
+cookies.txt
+app_startup_*.log
+*.sql
+
