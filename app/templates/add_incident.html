@@ -6,111 +6,128 @@
 <div class="container-fluid">
   <div class="row justify-content-center">
     <div class="col-12 col-xl-10">
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 class="h2 mb-1">Ajouter un incident</h1>
-          <p class="text-muted">Créez un nouveau ticket d'incident</p>
-        </div>
-        <div class="d-flex gap-2">
-          <button id="themeToggle" class="btn btn-outline-secondary" title="Changer de thème">&#127769;</button>
-          <a href="{{ url_for('admin.techniciens') }}" class="btn btn-outline-info">
-            👨‍🔧 Gestion techniciens
-          </a>
-          <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary">
+      <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 animate-fade-in-up">
+          <div>
+            <h2 class="fw-bold text-neon mb-1">
+              {% if incident %}Modifier{% else %}Ajouter{% endif %} un incident
+            </h2>
+            <p class="text-muted mb-0">Remplissez les informations ci-dessous</p>
+          </div>
+          <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary rounded-pill">
             ← Retour
           </a>
         </div>
-      </div>
 
-      <!-- Form Card -->
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-          <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="row justify-content-center animate-fade-in-up stagger-1">
+          <div class="col-lg-8">
+            <div class="card shadow-lg border-0" style="background: var(--bg-panel); backdrop-filter: blur(10px);">
+              <div class="card-body p-4 p-md-5">
 
-            <div class="row g-4 mb-4">
-              <!-- Numéro & Site -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Numéro Incident</label>
-                <input name="numero" class="form-control" required autocomplete="off" placeholder="Ex: INC-2025-001">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Site</label>
-                <select name="site" class="form-select" required>
-                  <option value="">-- Sélectionner un site --</option>
-                  {% for s in sites %}
-                  <option value="{{ s.nom }}">{{ s.nom }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <!-- Localisation -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Localisation précise</label>
-                <input name="localisation" class="form-control" placeholder="Bâtiment-Étage-Bureau..."
-                  autocomplete="off">
-                <div class="form-text">Exemple: HD-3E-AW_08</div>
-              </div>
-
-              <!-- Sujet -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Sujet</label>
-                <select name="sujet" class="form-select" required>
-                  <option value="">-- Sélectionner un sujet --</option>
-                  {% for suj in sujets %}
-                  <option value="{{ suj.nom }}">{{ suj.nom }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <!-- Priorité -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Priorité</label>
-                <select name="urgence" class="form-select" required>
-                  <option value="">-- Sélectionner une priorité --</option>
-                  {% for p in priorites %}
-                  <option value="{{ p.nom }}">{{ p.nom }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <!-- Collaborateur -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Collaborateur</label>
-                <select name="technicien_id" class="form-select" required>
-                  {% for tech in techniciens %}
-                  <option value="{{ tech.id }}">{{ tech.prenom }}{% if tech.nom %} {{ tech.nom }}{% endif %}</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <!-- Date -->
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Date d'affectation</label>
-                <input type="date" name="date_affectation" class="form-control" value="{{ current_date }}" required>
-              </div>
-
-              <!-- Note Dispatch -->
-              <div class="col-12">
-                <label class="form-label fw-bold">📋 Note Dispatch</label>
-                <textarea name="note_dispatch" class="form-control" rows="3"
-                  placeholder="Note administrative concernant cet incident..."></textarea>
-                <div class="form-text text-info">
-                  <i class="fas fa-info-circle"></i> Cette note sera visible par tous les techniciens mais ne pourra
-                  être modifiée que par les administrateurs.
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} mb-4 rounded-3 shadow-sm border-0">
+                  {{ message }}
                 </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="post" id="incidentForm" class="needs-validation" novalidate>
+                  <!-- Form content will be glassified via global CSS -->
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                  <div class="row g-4 mb-4">
+                    <!-- Numéro & Site -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Numéro Incident</label>
+                      <input name="numero" class="form-control" required autocomplete="off"
+                        placeholder="Ex: INC-2025-001">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Site</label>
+                      <select name="site" class="form-select" required>
+                        <option value="">-- Sélectionner un site --</option>
+                        {% for s in sites %}
+                        <option value="{{ s.nom }}">{{ s.nom }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <!-- Localisation -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Localisation précise</label>
+                      <input name="localisation" class="form-control" placeholder="Bâtiment-Étage-Bureau..."
+                        autocomplete="off">
+                      <div class="form-text">Exemple: HD-3E-AW_08</div>
+                    </div>
+
+                    <!-- Sujet -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Sujet</label>
+                      <select name="sujet" class="form-select" required>
+                        <option value="">-- Sélectionner un sujet --</option>
+                        {% for suj in sujets %}
+                        <option value="{{ suj.nom }}">{{ suj.nom }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <!-- Priorité -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Priorité</label>
+                      <select name="urgence" class="form-select" required>
+                        <option value="">-- Sélectionner une priorité --</option>
+                        {% for p in priorites %}
+                        <option value="{{ p.nom }}">{{ p.nom }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <!-- Collaborateur -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Collaborateur</label>
+                      <select name="technicien_id" class="form-select" required>
+                        {% for tech in techniciens %}
+                        <option value="{{ tech.id }}">{{ tech.prenom }}{% if tech.nom %} {{ tech.nom }}{% endif %}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">Date d'affectation</label>
+                      <input type="date" name="date_affectation" class="form-control" value="{{ current_date }}"
+                        required>
+                    </div>
+
+                    <!-- Note Dispatch -->
+                    <div class="col-12">
+                      <label class="form-label fw-bold">📋 Note Dispatch</label>
+                      <textarea name="note_dispatch" class="form-control" rows="3"
+                        placeholder="Note administrative concernant cet incident..."></textarea>
+                      <div class="form-text text-info">
+                        <i class="fas fa-info-circle"></i> Cette note sera visible par tous les techniciens mais ne
+                        pourra
+                        être modifiée que par les administrateurs.
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="d-flex gap-2 justify-content-end border-top pt-4">
+                    <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary px-4">Annuler</a>
+                    <button class="btn btn-success px-4" type="submit">
+                      <i class="fas fa-plus-circle me-1"></i> Ajouter l'incident
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-
-            <!-- Actions -->
-            <div class="d-flex gap-2 justify-content-end border-top pt-4">
-              <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary px-4">Annuler</a>
-              <button class="btn btn-success px-4" type="submit">
-                <i class="fas fa-plus-circle me-1"></i> Ajouter l'incident
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

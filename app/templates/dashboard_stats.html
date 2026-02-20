@@ -16,13 +16,14 @@
 {% block content %}
 <div class="container-fluid px-3 px-md-4 py-4">
   <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm rounded">
+  <!-- Navbar -->
+  <nav class="navbar mb-4">
     <div class="container-fluid">
+      <span class="navbar-brand">📊 Dashboard Statistiques</span>
       <div class="d-flex gap-2">
-        <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
+        <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
       </div>
-      <span class="navbar-brand mb-0 h1">📊 Dashboard Statistiques</span>
     </div>
   </nav>
 

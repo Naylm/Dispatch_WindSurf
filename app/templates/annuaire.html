@@ -3,57 +3,93 @@
 {% block title %}Annuaire techniciens - Dispatch Manager{% endblock %}
 
 {% block styles %}
-<link href="{{ url_for('static', filename='css/annuaire.css') }}" rel="stylesheet">
+<!-- Uses standard glass styles from style_modern.css -->
+<style>
+  .annuaire-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .tech-grid-annuaire {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .tech-card {
+    background: var(--bg-panel);
+    backdrop-filter: blur(10px);
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    text-align: center;
+    transition: all var(--duration-fast);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tech-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-glow-primary);
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .tech-avatar {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .tech-info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
-  <div class="container-fluid">
-    <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
-    <div class="d-flex gap-2">
-      <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
-      <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">🏠 Accueil</a>
-      <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
-    </div>
-  </div>
-</nav>
-
-<div class="annuaire-container">
-  <div class="page-header">
-    <h1>📞 Annuaire techniciens</h1>
-    <p>Liste des techniciens actifs avec leurs coordonnées</p>
+<div class="annuaire-container animate-fade-in-up">
+  <div class="page-header mb-5 text-center">
+    <h1 class="display-5 fw-bold text-neon">Annuaire & Contacts</h1>
+    <p class="text-muted lead">Coordonnées des équipes techniques</p>
   </div>
 
   {% if techniciens|length > 0 %}
-  <div class="techniciens-list">
+  <div class="tech-grid-annuaire">
     {% for tech in techniciens %}
-    <div class="technicien-card">
-      <div class="technicien-header">
-        <div class="technicien-avatar">
-          {{ tech.prenom[0] if tech.prenom else '?' }}{{ tech.nom[0] if tech.nom and tech.nom != 'None' else '' }}
-        </div>
-        <div class="technicien-name">
-          <h4>
-            {{ tech.prenom }} {% if tech.nom and tech.nom != 'None' %}{{ tech.nom }}{% endif %}
-          </h4>
-          <p>{% if tech.role and tech.role.lower() == 'admin' %}Admin{% else %}Technicien{% endif %}</p>
-        </div>
+    <div class="tech-card stagger-1">
+      <div class="tech-avatar">
+        {{ tech.prenom[0] if tech.prenom else '?' }}{{ tech.nom[0] if tech.nom and tech.nom != 'None' else '' }}
       </div>
-      <div class="technicien-info">
+      <h4 class="fw-bold mb-1 text-white">{{ tech.prenom }} {% if tech.nom and tech.nom != 'None' %}{{ tech.nom }}{%
+        endif %}</h4>
+      <div class="badge bg-glass text-neon mb-3 border border-white border-opacity-10">{{ 'Administrateur' if tech.role
+        == 'admin' else 'Technicien' }}</div>
+
+      <div class="pt-3 border-top border-white border-opacity-10">
         {% if tech.dect_number %}
-        <div class="info-item">
-          <span class="icon">📞</span>
-          <span class="label">Téléphone:</span>
-          <span class="value">{{ tech.dect_number }}</span>
+        <div class="tech-info-item">
+          <span>📞</span> <strong>{{ tech.dect_number }}</strong>
         </div>
         {% endif %}
+
         {% if tech.email %}
-        <div class="info-item">
-          <span class="icon">📧</span>
-          <span class="label">Email:</span>
-          <span class="value">
-            <a href="mailto:{{ tech.email }}" style="color: #0d6efd; text-decoration: none;">{{ tech.email }}</a>
-          </span>
+        <div class="tech-info-item">
+          <span>📧</span> <a href="mailto:{{ tech.email }}" class="text-decoration-none text-info">{{ tech.email }}</a>
         </div>
         {% endif %}
       </div>
@@ -61,10 +97,10 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty-state">
-    <div class="empty-state-icon">📞</div>
+  <div class="empty-state text-center py-5">
+    <div class="display-1 mb-3">📞</div>
     <h3>Aucun technicien trouvé</h3>
-    <p>Il n'y a actuellement aucun technicien actif dans l'annuaire.</p>
+    <p class="text-muted">Il n'y a actuellement aucun technicien actif dans l'annuaire.</p>
   </div>
   {% endif %}
 </div>

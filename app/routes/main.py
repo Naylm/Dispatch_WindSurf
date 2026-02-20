@@ -14,23 +14,34 @@ def home():
 
     # User display name logic
     user_display_name = session["user"].capitalize()
+    user_full_name = session["user"].capitalize()
     current_tech_id = None
+    photo_profil = None
 
     if session.get("user_type") == "technicien":
         tech = db.execute(
-            "SELECT id, prenom, nom FROM techniciens WHERE username=%s",
+            "SELECT id, prenom, nom, photo_profil FROM techniciens WHERE username=%s",
             (session["user"],)
         ).fetchone()
         if tech:
             current_tech_id = tech['id']
             user_display_name = tech['prenom']
+            nom = tech.get('nom') or ""
+            user_full_name = f"{tech['prenom']} {nom}".strip()
+            photo_profil = tech.get('photo_profil')
     else:
         user_row = db.execute(
-            "SELECT prenom FROM users WHERE username=%s",
+            "SELECT prenom, nom, photo_profil FROM users WHERE username=%s",
             (session["user"],)
         ).fetchone()
-        if user_row and user_row.get("prenom"):
-            user_display_name = user_row["prenom"]
+        if user_row:
+            prenom = user_row.get("prenom") or ""
+            nom = user_row.get("nom") or ""
+            if prenom:
+                user_display_name = prenom
+            if prenom or nom:
+                user_full_name = f"{prenom} {nom}".strip()
+            photo_profil = user_row.get('photo_profil')
 
     ref_data = get_reference_data()
     priorites = ref_data['priorites']
@@ -78,6 +89,8 @@ def home():
         "home.html",
         incidents=incidents,
         user=user_display_name,
+        user_full_name=user_full_name,
+        photo_profil=photo_profil,
         username=session["user"],
         role=session["role"],
         user_type=session.get("user_type"),

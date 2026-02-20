@@ -6,7 +6,7 @@ from flask_socketio import emit
 
 def _can_access_incident(db, incident):
     """Vérifie si l'utilisateur connecté peut accéder à l'incident"""
-    if session.get("role") == "admin":
+    if session.get("role") in ["admin", "superadmin"]:
         return True
     
     # Vérifier l'accès technicien

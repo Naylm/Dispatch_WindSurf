@@ -11,7 +11,7 @@ def admin_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if "user" not in session or session.get("role") != "admin":
+        if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
             return jsonify({"error": "Accès non autorisé"}), 403
         return f(*args, **kwargs)
     return decorated_function

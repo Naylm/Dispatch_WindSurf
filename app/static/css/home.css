@@ -15,6 +15,7 @@
   max-width: 100% !important;
   margin: 0 !important;
   box-sizing: border-box !important;
+  min-height: 180px;
 }
 
 /* TABLETTE: 2 colonnes (768px - 1023px) */
@@ -86,21 +87,21 @@
 /* ===== RESPONSIVE COMMUN: TABLETTE + PETITS ÉCRANS (768px - 1400px) ===== */
 @media (min-width: 769px) and (max-width: 1400px) {
 
-  /* Cartes incidents légèrement compactes */
+  /* Cartes incidents — taille lisible */
   .incident-card-col {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
   }
 
   /* Notes compactes sur tablette */
   .note-view-content {
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     max-height: none;
     height: auto;
     overflow: visible;
   }
 
   .note-edit-textarea {
-    font-size: 0.7rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -175,7 +176,7 @@
 
   /* Cartes incidents admin plus compactes */
   .incident-card-col {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
   }
 
   .incident-card-col .badge {
@@ -296,15 +297,61 @@
 
 /* ===== RESPONSIVE: GRANDS ÉCRANS (> 1400px) ===== */
 @media (min-width: 1400px) {
-  /* Cartes incidents avec plus d'espace */
   .incident-card-col {
     font-size: 0.95rem;
   }
 
-  /* Notes avec plus de contenu visible */
   .note-view-content {
     max-height: none;
     height: auto;
     overflow: visible;
+  }
+}
+
+/* ========================================================================== */
+/* DASHBOARD GRID LAYOUT (Clean, No Overlap, Responsive) */
+/* ========================================================================== */
+
+@media (min-width: 769px) {
+  #kanban-view {
+    width: 100%;
+    padding-bottom: 2rem;
+  }
+
+  /* Robust CSS Grid - No Overlap, Auto-filling columns */
+  .tech-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+    gap: 1.25rem;
+    align-items: start;
+    /* Align cards to top */
+  }
+
+  .tech-column {
+    width: 100%;
+    /* No margins needed, Gap handles it */
+  }
+
+  .tech-column .card {
+    width: 100%;
+    height: auto;
+    /* Match height of neighbors in same row if wanted, or use align-items: start for natural height */
+  }
+}
+
+/* Mobile: Single Column */
+@media (max-width: 768px) {
+  #kanban-view {
+    width: 100%;
+  }
+
+  .tech-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .tech-column {
+    width: 100%;
   }
 }

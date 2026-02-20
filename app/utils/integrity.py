@@ -304,6 +304,16 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN dect_number VARCHAR(20)")
             print("   - Colonne dect_number ajoutee a la table techniciens")
 
+        # Migration: ajouter colonne 'matricule' pour identifiant interne
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='techniciens' AND column_name='matricule'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE techniciens ADD COLUMN matricule VARCHAR(50)")
+            print("   - Colonne matricule ajoutee a la table techniciens")
+
         # Migration: ajouter colonne 'photo_profil' pour photo de profil
         cursor.execute("""
             SELECT column_name

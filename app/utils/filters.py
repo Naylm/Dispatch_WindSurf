@@ -42,7 +42,19 @@ def register_filters(app):
 
     @app.template_filter("format_date")
     def format_date(d):
+        if not d:
+            return ""
         try:
-            return datetime.strptime(d, "%Y-%m-%d").strftime("%d-%m-%Y")
+            # Parse if string
+            if isinstance(d, str):
+                dt = datetime.strptime(d, "%Y-%m-%d")
+            else:
+                dt = d
+            
+            months = {
+                1: "janv.", 2: "févr.", 3: "mars", 4: "avr.", 5: "mai", 6: "juin",
+                7: "juil.", 8: "août", 9: "sept.", 10: "oct.", 11: "nov.", 12: "déc."
+            }
+            return f"{dt.day} {months[dt.month]} {dt.year}"
         except:
-            return d
+            return str(d)

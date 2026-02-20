@@ -3,7 +3,7 @@
 {% block title %}Connexion - Dispatch Manager{% endblock %}
 
 {% block styles %}
-<link href="{{ url_for('static', filename='css/login.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/login.css') }}?v=11.0" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -40,8 +40,8 @@
 
       <div style="text-align: center; margin-top: 16px;">
         <a href="{{ url_for('auth.forgot_password') }}"
-          style="color: var(--color-primary); text-decoration: none; font-size: 14px;">
-          Mot de passe oublié ?
+          style="color: #60a5fa; text-decoration: none; font-size: 14px; font-weight: 500;">
+          🔑 Mot de passe oublié ?
         </a>
       </div>
     </form>
@@ -55,6 +55,11 @@
     {% endwith %}
 
   </div>
+
+  <button id="themeToggle"
+    onclick="document.documentElement.classList.toggle('light-mode');document.body.classList.toggle('light-mode');var l=document.documentElement.classList.contains('light-mode');localStorage.setItem('theme',l?'light':'dark');this.textContent=l?'☀️':'🌙';"
+    style="position: fixed; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; width: 44px; height: 44px; font-size: 1.2rem; cursor: pointer !important; backdrop-filter: blur(10px); transition: all 0.2s ease; z-index: 100;"
+    title="Changer de thème">🌙</button>
 
   <div class="footer">
     Dispatch Manager © 2025

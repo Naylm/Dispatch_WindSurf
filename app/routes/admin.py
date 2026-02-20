@@ -200,12 +200,21 @@ def delete_technicien(id):
 def toggle_technicien(id):
     """Active ou désactive un technicien"""
     db = get_db()
-    technicien = db.execute("SELECT actif FROM techniciens WHERE id=%s", (id,)).fetchone()
+    technicien = db.execute("SELECT actif, prenom FROM techniciens WHERE id=%s", (id,)).fetchone()
     
     if technicien:
         new_state = 0 if technicien['actif'] == 1 else 1
         db.execute("UPDATE techniciens SET actif=%s WHERE id=%s", (new_state, id))
         db.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            db.close()
+            return jsonify({
+                "success": True, 
+                "new_state": new_state,
+                "message": f"Technicien {'activé' if new_state == 1 else 'désactivé'}"
+            })
+            
         flash(f"Technicien {'activé' if new_state == 1 else 'désactivé'} avec succès!", "success")
     
     db.close()

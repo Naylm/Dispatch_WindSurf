@@ -3,19 +3,20 @@
 {% block title %}Dispatch Manager{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=12.8">
 {% endblock %}
 
 
 {% block body_class %}with-sidebar container-fluid py-4{% endblock %}
 
 {% block content %}
-<!-- Sidebar - Toggleable pour admins et techniciens -->
+<!-- Sidebar - Floating Glass Panel -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-header">
-    <h3>{% if is_admin(role) %}Menu Admin{% else %}Outils rapides{% endif %}</h3>
-    <button class="sidebar-close-btn" id="sidebarClose"
-      style="background: none; border: none; color: inherit; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; position: absolute; right: 1rem; top: 1rem;">&times;</button>
+  <div class="sidebar-header text-center pb-2">
+    <h3 class="text-neon" style="font-size: 1.5rem; letter-spacing: 1px;">{% if is_admin(role) %}Menu Admin{% else
+      %}Outils rapides{% endif %}</h3>
+    <button class="sidebar-close-btn text-white d-lg-none" id="sidebarClose"
+      style="background: none; border: none; font-size: 1.5rem; cursor: pointer; position: absolute; right: 1.5rem; top: 1.5rem; opacity: 0.7; transition: opacity 0.2s;">&times;</button>
   </div>
   <ul class="sidebar-links">
     {% if is_admin(role) %}
@@ -39,7 +40,6 @@
     <li class="sidebar-divider"></li>
 
     <!-- Outils communs (Tous) -->
-    <li><a href="{{ url_for('auth.profil') }}"><span class="icon">&#128100;</span> Mon profil</a></li>
     <li><a href="{{ url_for('main.annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
     {% if is_admin(role) or role == 'technicien' or user_type == 'technicien' %}
     <li><a href="{{ url_for('main.faq') }}"><span class="icon">&#10067;</span> FAQ opérationnelle</a></li>
@@ -52,47 +52,111 @@
         target="_blank"><span class="icon">&#128187;</span> Easyvista</a></li>
     <li><a href="https://wikidsnt/" target="_blank"><span class="icon">&#128214;</span> WikiDSNT</a></li>
   </ul>
+
+  <!-- Sidebar Profile Widget -->
+  <a href="{{ url_for('auth.profil') }}" class="profile-widget slide-up-animation text-decoration-none">
+    {% if photo_profil %}
+    <img src="{{ url_for('static', filename='uploads/avatars/' + photo_profil) }}" alt="Photo de profil"
+      class="profile-widget-img">
+    {% else %}
+    <div class="profile-widget-initials">{{ user_full_name[0] | upper }}</div>
+    {% endif %}
+    <div class="profile-widget-info">
+      <span class="profile-widget-name">{{ user_full_name }}</span>
+      <span class="profile-widget-role badge bg-secondary">{{ role.capitalize() }}</span>
+    </div>
+  </a>
 </aside>
 
 <!-- Backdrop pour mobile -->
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-<!-- Navbar -->
-<nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
-  <div class="container-fluid">
-    <div class="d-flex align-items-center gap-2">
-      <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Menu">
-        <span class="hamburger-icon"></span>
-      </button>
-      <span class="navbar-brand fw-bold mb-0">Dispatch Manager</span>
+<!-- Main Content Wrapper (pushed by sidebar on desktop) -->
+<div class="main-content" id="mainContent">
+
+  <!-- Navbar Glass -->
+  <nav class="navbar mb-2" id="mainNavbar" style="height: 55px; z-index: 1000; position: sticky; top: 0;">
+    <div class="container-fluid">
+      <div class="d-flex align-items-center gap-3">
+        <button class="sidebar-toggle-btn btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle"
+          title="Toggle Menu">
+          <span class="fs-5">☰</span>
+        </button>
+        <span class="navbar-brand" style="font-size: 1.2rem;">Dispatch Manager <span
+            class="badge bg-glass text-neon ms-2" style="font-size: 0.6em; vertical-align: middle;">V3.0</span></span>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Se d&eacute;connecter</a>
+      </div>
     </div>
-    <div class="d-flex gap-2">
-      <button id="themeToggle" class="btn btn-outline-secondary btn-sm">&#127769;</button>
-      <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Se d&eacute;connecter</a>
+  </nav>
+
+  <div class="animate-fade-in-up d-block" style="max-width: 600px;">
+    {% include "_flash_messages.html" %}
+  </div>
+
+
+  {% if is_admin(role) %}
+  <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2 admin-actions">
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('admin.add_incident') }}" class="btn btn-primary btn-admin">+ Ajouter un incident</a>
+      <a href="{{ url_for('admin.techniciens') }}" class="btn btn-info btn-admin">&#128104;&#8205;&#128295; Gestion
+        techniciens</a>
+      <a href="{{ url_for('admin.configuration') }}" class="btn btn-success btn-admin">&#9881;&#65039; Configuration</a>
+      <a href="{{ url_for('wiki.wiki') }}" class="btn btn-info btn-admin">&#128218; Base de connaissances</a>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="btn-group" role="group" aria-label="Sélecteur de vue">
+      <button type="button" class="btn btn-primary view-btn active" data-view="kanban"
+        onclick="window.switchView('kanban')" title="Vue Kanban (Colonnes)">
+        <i class="fas fa-columns"></i> 📊 Colonnes
+      </button>
+      <button type="button" class="btn btn-outline-primary view-btn" data-view="grouped"
+        onclick="window.switchView('grouped')" title="Vue Groupée (Accordéon)">
+        <i class="fas fa-layer-group"></i> 🗂️ Accordéons
+      </button>
+      <button type="button" class="btn btn-outline-primary view-btn" data-view="list"
+        onclick="window.switchView('list')" title="Vue Liste">
+        <i class="fas fa-list"></i> 📄 Liste
+      </button>
     </div>
   </div>
-</nav>
+  {% endif %}
 
-<h2 class="mb-4">Bienvenue {{ user }}</h2>
+  <!-- Bloc incidents, AJAX-refresh ici -->
+  <div id="incident-content">
+    {% include "home_content.html" %}
+  </div>
 
-{% if is_admin(role) %}
-<div class="mb-3 d-flex gap-2 flex-wrap admin-actions">
-  <a href="{{ url_for('admin.add_incident') }}" class="btn btn-primary btn-admin">+ Ajouter un incident</a>
-  <a href="{{ url_for('admin.techniciens') }}" class="btn btn-info btn-admin">&#128104;&#8205;&#128295; Gestion
-    techniciens</a>
-  <a href="{{ url_for('admin.configuration') }}" class="btn btn-success btn-admin">&#9881;&#65039; Configuration</a>
-  <a href="{{ url_for('wiki.wiki') }}" class="btn btn-info btn-admin">&#128218; Base de connaissances</a>
-</div>
-{% endif %}
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteIncidentModal" tabindex="-1" aria-labelledby="deleteIncidentModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content"
+        style="background: var(--bg-panel); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1);">
+        <div class="modal-header border-bottom border-white border-opacity-10">
+          <h5 class="modal-title text-danger" id="deleteIncidentModalLabel">⚠️ Confirmer la suppression</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteIncidentModalText">Êtes-vous sûr de vouloir supprimer ce ticket ?</p>
+          <p class="text-muted small mb-0">Cette action est irréversible.</p>
+        </div>
+        <div class="modal-footer border-top border-white border-opacity-10">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteIncidentBtn">🗑️ Supprimer</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<!-- Bloc incidents, AJAX-refresh ici -->
-<div id="incident-content">
-  {% include "home_content.html" %}
-</div>
+</div> <!-- /.main-content -->
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+<script src="{{ url_for('static', filename='js/home.js') }}?v=12.11"></script>
 <script>
   // Thème dark/light géré par static/js/theme.js
 

@@ -328,19 +328,32 @@ window.saveNote = function (button, incidentId, noteType) {
 };
 
 window.cancelEdit = function (button) {
+  if (event) event.preventDefault(); // Prevent accidental form submit if any
   const wrapper = button.closest('.note-wrapper');
   const textarea = wrapper.querySelector('.note-edit-textarea');
   const viewMode = wrapper.querySelector('.note-view-mode');
   const editMode = wrapper.querySelector('.note-edit-mode');
-  const viewContent = viewMode.querySelector('.note-view-content');
+  const viewContent = viewMode.querySelector('.note-content');
 
   // Restore logic
+  // Use textContent directly which contains the raw text or the empty message
+  // But wait, the viewContent might contain <span class="note-empty">...</span>
+  // We should check the data-value or just use the text if it's not the empty message.
+
+  // Actually, simpler: just hide edit mode. Textarea value reset is optional but nice.
+
+  // If we really want to reset:
+  /*
   const emptyEl = viewContent.querySelector('.note-empty');
   if (!emptyEl) {
-    textarea.value = viewContent.textContent.trim();
+    textarea.value = viewContent.textContent.trim(); 
   } else {
     textarea.value = '';
   }
+  */
+  // For now, simply toggling visibility is enough to "cancel" the *view* of editing.
+  // The user can re-open it and see their draft or original text.
+  // If we want to discard changes, we should reset textarea.value to original.
 
   editMode.style.display = 'none';
   viewMode.style.display = 'block';
@@ -349,16 +362,18 @@ window.cancelEdit = function (button) {
 window.updateViewMode = function (wrapper, newText, noteType) {
   const viewMode = wrapper.querySelector('.note-view-mode');
   const editMode = wrapper.querySelector('.note-edit-mode');
-  const viewContent = viewMode.querySelector('.note-view-content');
+  const viewContent = viewMode.querySelector('.note-content');
   const textarea = wrapper.querySelector('.note-edit-textarea');
 
-  if (newText && newText.trim() !== '') {
-    viewContent.textContent = newText;
-  } else {
-    let emptyMsg = 'Pas de note';
-    if (noteType === 'dispatch') emptyMsg = 'Pas de note dispatch';
-    else if (noteType === 'tech') emptyMsg = 'Pas encore de note';
-    viewContent.innerHTML = `<span class="note-empty">${emptyMsg}</span>`;
+  if (viewContent) {
+    if (newText && newText.trim() !== '') {
+      viewContent.textContent = newText;
+    } else {
+      let emptyMsg = 'Pas de note';
+      if (noteType === 'dispatch') emptyMsg = 'Pas de note dispatch';
+      else if (noteType === 'tech') emptyMsg = 'Pas encore de note';
+      viewContent.innerHTML = `<span class="note-empty">${emptyMsg}</span>`;
+    }
   }
   textarea.value = newText;
   editMode.style.display = 'none';
@@ -645,7 +660,7 @@ window.initTechView = function () {
 // ==========================================
 
 // Global initialization
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
   console.log('🚀 Home JS initialized');
 
   // Init View Preference
@@ -662,6 +677,164 @@ document.addEventListener('DOMContentLoaded', function () {
       window.saveNote(btn, btn.dataset.incidentId, btn.dataset.noteType);
     } else if (e.target.matches('.note-cancel-btn')) {
       window.cancelEdit(e.target);
+    }
+  });
+
+  // ==========================================
+  // COPY BUTTON (Copy incident number)
+  // ==========================================
+  document.addEventListener('click', function (e) {
+    const copyBtn = e.target.closest('.copy-btn');
+    if (copyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const numero = copyBtn.dataset.numero;
+      if (numero && navigator.clipboard) {
+        navigator.clipboard.writeText(numero).then(() => {
+          const orig = copyBtn.textContent;
+          copyBtn.textContent = '✅';
+          setTimeout(() => copyBtn.textContent = orig, 1500);
+        });
+      }
+    }
+  });
+
+  // ==========================================
+  // DELETE BUTTON (Delete incident)
+  // ==========================================
+  window._pendingDeleteId = null;
+  window._pendingDeleteNumero = null;
+
+  window.deleteIncident = function (btn, e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    window._pendingDeleteId = btn.dataset.incidentId;
+    window._pendingDeleteNumero = btn.dataset.numero || '';
+
+    // Update modal text
+    const modalText = document.getElementById('deleteIncidentModalText');
+    if (modalText) {
+      modalText.textContent = 'Supprimer le ticket ' + window._pendingDeleteNumero + ' ?';
+    }
+
+    // Show Bootstrap modal
+    const modalEl = document.getElementById('deleteIncidentModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    } else {
+      // Fallback to confirm() if modal not available
+      if (confirm('Supprimer le ticket ' + window._pendingDeleteNumero + ' ? Cette action est irréversible.')) {
+        window._executeDeleteIncident();
+      }
+    }
+  };
+
+  window._executeDeleteIncident = function () {
+    const incidentId = window._pendingDeleteId;
+    if (!incidentId) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    fetch('/delete/' + incidentId, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ csrf_token: csrfToken })
+    })
+      .then(response => {
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert("Erreur lors de la suppression de l'incident.");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Erreur réseau lors de la suppression de l'incident.");
+      });
+  };
+
+  // Wire up the modal's confirm button
+  const confirmDeleteBtn = document.getElementById('confirmDeleteIncidentBtn');
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', function () {
+      // Hide modal
+      const modalEl = document.getElementById('deleteIncidentModal');
+      if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+      window._executeDeleteIncident();
+    });
+  }
+
+  // ==========================================
+  // STATUS SELECTOR (Change incident status)
+  // ==========================================
+  document.addEventListener('change', function (e) {
+    if (e.target.matches('.status-selector-col, .status-selector-list')) {
+      const select = e.target;
+      const incidentId = select.dataset.incidentId;
+      const newEtat = select.value;
+      const currentEtat = select.dataset.current || '';
+
+      if (newEtat === currentEtat) return;
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      fetch(`/update_etat/${incidentId}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({ etat: newEtat })
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'ok') {
+            select.dataset.current = newEtat;
+            // Update status badge on the card
+            const card = select.closest('.incident-card-col, .small-card');
+            if (card) {
+              const badge = card.querySelector('.status-badge');
+              if (badge && d.couleur) {
+                badge.style.backgroundColor = d.couleur;
+                badge.style.color = d.text_color || '#fff';
+                badge.textContent = newEtat;
+              }
+              card.dataset.etat = newEtat.toLowerCase();
+            }
+          } else {
+            alert('Erreur: ' + (d.message || 'Échec de la mise à jour'));
+            select.value = currentEtat;
+          }
+        })
+        .catch(() => {
+          alert('Erreur réseau lors de la mise à jour du statut');
+          select.value = currentEtat;
+        });
+    }
+  });
+
+  // ==========================================
+  // HISTORY BUTTON (Force navigation)
+  // ==========================================
+  document.addEventListener('click', function (e) {
+    const historyBtn = e.target.closest('.history-btn');
+    if (historyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const url = historyBtn.dataset.url;
+      if (url) {
+        window.location.href = url;
+      }
     }
   });
 
@@ -684,13 +857,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Tech Assign Selectors (Delegated)
+  // ==========================================
+  // TECH ASSIGN SELECTORS (Delegated)
+  // ==========================================
   document.addEventListener('change', function (e) {
-    if (e.target.matches('.tech-selector, .tech-selector-list')) {
+    if (e.target.matches('.tech-selector-col, .tech-selector, .tech-selector-list')) {
       const select = e.target;
       const incidentId = select.dataset.incidentId;
       const newTech = select.value;
-      const currentTech = select.dataset.current || (select.closest('.incident-row-list') ? select.closest('.incident-row-list').querySelector('.list-group-item-primary')?.textContent.trim().split(' ')[0] : '');
+      const currentTech = select.dataset.current || '';
 
       if (confirm(`Affecter le ticket à ${newTech} ?`)) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -699,13 +874,120 @@ document.addEventListener('DOMContentLoaded', function () {
           headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ id: incidentId, collaborateur: newTech })
         }).then(r => r.json()).then(d => {
-          if (d.success) select.dataset.current = newTech;
-          else select.value = currentTech;
-        }).catch(() => select.value = currentTech);
+          if (d.status === 'ok') {
+            select.dataset.current = newTech;
+            // Reload page to reflect column change
+            window.location.reload();
+          } else {
+            alert('Erreur: ' + (d.message || 'Échec de la réaffectation'));
+            select.value = currentTech;
+          }
+        }).catch(() => {
+          alert('Erreur réseau');
+          select.value = currentTech;
+        });
       } else {
         select.value = currentTech;
       }
     }
   });
 
-}, { once: true });
+})();
+
+// ==========================================
+// RDV & RELANCE HANDLERS
+// ==========================================
+
+window.updateRdv = function (input) {
+  const incidentId = input.dataset.incidentId;
+  const newValue = input.value; // ISO string from datetime-local usually
+
+  // If empty, it sends empty string.
+  // Validate format if needed, but browser handles datetime-local mostly.
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+  // Visual feedback
+  input.style.opacity = '0.5';
+
+  fetch(`/api/incident/${incidentId}/rdv`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({
+      date_rdv: newValue
+    })
+  })
+    .then(r => r.json())
+    .then(data => {
+      input.style.opacity = '1';
+      if (data.success) {
+        // Success flash or border color
+        const originalBorder = input.style.borderColor;
+        input.style.borderColor = '#28a745';
+        setTimeout(() => { input.style.borderColor = originalBorder || ''; }, 1000);
+      } else {
+        alert('Erreur: ' + (data.error || 'Erreur mise à jour RDV'));
+      }
+    })
+    .catch(err => {
+      input.style.opacity = '1';
+      console.error(err);
+      alert('Erreur réseau');
+    });
+};
+
+window.updateRelance = function (checkbox) {
+  const incidentId = checkbox.dataset.incidentId;
+  // We need to send ALL relance states because the API might expect them or we want to be safe.
+  // Actually, the API `update_relances` accepts individual fields or all.
+  // Let's gather all checkboxes for this incident to be sure, OR just send the changed one if API supports partial.
+  // Looking at python code: `relance_mail = data.get("relance_mail")...` it seems to read all.
+  // So we should gather all checks from the wrapper.
+
+  const wrapper = checkbox.closest('.relances-wrapper');
+  if (!wrapper) return;
+
+  const payload = {};
+  wrapper.querySelectorAll('.relance-checkbox').forEach(cb => {
+    payload[cb.dataset.field] = cb.checked;
+  });
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+  // Visual feedback - disable all during save?
+  // Maybe just opacity
+  wrapper.style.opacity = '0.7';
+
+  fetch(`/api/incident/${incidentId}/relances`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json())
+    .then(data => {
+      wrapper.style.opacity = '1';
+      if (data.success) {
+        // Flash effect
+        wrapper.classList.add('bg-white', 'bg-opacity-25');
+        setTimeout(() => wrapper.classList.remove('bg-white', 'bg-opacity-25'), 300);
+      } else {
+        alert('Erreur: ' + (data.error || 'Erreur mise à jour Relances'));
+        // Revert checkbox?
+        checkbox.checked = !checkbox.checked;
+      }
+    })
+    .catch(err => {
+      wrapper.style.opacity = '1';
+      console.error(err);
+      alert('Erreur réseau');
+      checkbox.checked = !checkbox.checked;
+    });
+};

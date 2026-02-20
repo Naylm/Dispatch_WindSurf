@@ -1,1625 +1,737 @@
 /* ==============================
-   DISPATCH MANAGER - CSS PREMIUM V2.1
-   Design moderne, épuré et fonctionnel
+   DISPATCH MANAGER - V3.0 NEON GLASS
+   Theme: Dark Slate + Neon Accents
    ============================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-:root {
-  /* Palette Principale */
-  --primary: #6366f1;
-  /* Indigo 500 */
-  --primary-hover: #4f46e5;
-  /* Indigo 600 */
-  --secondary: #8b5cf6;
-  /* Violet 500 */
-  --primary-soft: rgba(99, 102, 241, 0.15);
-
-  /* État fonctionnels */
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
-
-  /* Backgrounds */
-  --bg-body: var(--color-bg-base, #f3f4f6);
-  --bg-card: var(--color-bg-elevated, rgba(255, 255, 255, 0.95));
-  --bg-sidebar: var(--color-bg-elevated, rgba(255, 255, 255, 0.95));
-  --bg-input: var(--color-bg-elevated, #ffffff);
-  --bg-hover: var(--color-bg-base, #f9fafb);
-
-  /* Typography */
-  --text-main: var(--color-text-primary, #111827);
-  --text-secondary: var(--color-text-secondary, #6b7280);
-  --text-muted: var(--color-text-muted, #9ca3af);
-  --location-color: #6b7280;
-  /* Gris moyen en mode clair */
-
-  /* Borders & Shadows */
-  --border-color: var(--color-border, #e5e7eb);
-  --border-radius: 12px;
-  --border-radius-sm: 8px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-
-  /* Glassmorphism */
-  --glass-blur: blur(12px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.5);
-
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Tech columns sizing (admin kanban) */
-  --tech-col-min: 320px;
-  --tech-col-max: 420px;
-}
-
-/* Mode Sombre */
-body.dark {
-  --primary: var(--color-primary, #818cf8);
-  --primary-hover: var(--color-primary-hover, #6366f1);
-  --secondary: var(--color-info, #a78bfa);
-  --primary-soft: rgba(59, 130, 246, 0.2);
-
-  --bg-body: var(--color-bg-base, #0f172a);
-  /* Slate 900 */
-  --bg-card: var(--color-bg-elevated, rgba(22, 27, 34, 0.92));
-  --bg-sidebar: var(--color-bg-elevated, rgba(22, 27, 34, 0.9));
-  --bg-input: var(--color-bg-elevated, #1e293b);
-  --bg-hover: #1f2937;
-
-  --text-main: var(--color-text-primary, #f8fafc);
-  --text-secondary: var(--color-text-secondary, #94a3b8);
-  --text-muted: var(--color-text-muted, #64748b);
-  --location-color: #9ca3af;
-  /* Gris clair en mode sombre - bien visible */
-
-  --border-color: var(--color-border, #30363d);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
-
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
-}
-
-/* Classe dédiée pour la localisation */
-.location-text {
-  color: var(--location-color);
-  font-size: 0.85rem;
-}
-
-/* ==============================
-   GLOBAL RESET & BASE
-   ============================== */
-
-* {
-  margin: 0;
-  padding: 0;
+/* GLOBAL RESET — Force default cursor EVERYWHERE */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-body);
-  color: var(--text-main);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  min-height: 100vh;
-}
-
-body.dark {
-  background-color: var(--bg-body);
-  color: var(--text-main);
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-ul {
-  list-style: none;
-}
-
-/* Layout */
-.container {
-  max-width: 1600px;
-  width: 96%;
-  margin: 0 auto;
-  padding: 2rem 0;
-}
-
-.filters-bar {
-  background: var(--bg-card);
-  border-color: var(--border-color);
-}
-
-.view-mode-label {
-  color: var(--text-secondary);
-}
-
-/* ==============================
-   COMPONENTS: NAVBAR
-   ============================== */
-
-.navbar {
-  background: var(--bg-card);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: var(--glass-border);
-  padding: 1rem 2rem;
-  position: sticky;
-  top: 0;
-  z-index: 150;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.navbar-brand {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(to right, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.025em;
-}
-
-/* ==============================
-   COMPONENTS: SIDEBAR
-   ============================== */
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 270px;
-  background: var(--bg-sidebar);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-right: var(--border-color) 1px solid;
-  padding: 1.5rem;
-  z-index: 100;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* Scrollbar styling pour sidebar */
-.sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
-}
-
-/* Sidebar ouverte / permanente */
-.sidebar.open,
-.sidebar-permanent {
-  transform: translateX(0);
-  box-shadow: var(--shadow);
-}
-
-.sidebar-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.sidebar-links a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--border-radius-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
-  transition: var(--transition);
-  margin-bottom: 4px;
-}
-
-.sidebar-links a:hover {
-  background: var(--bg-hover);
-  color: var(--primary);
-  transform: translateX(4px);
-}
-
-.sidebar-links a i {
-  font-size: 1.1em;
-}
-
-.sidebar-divider {
-  height: 1px;
-  background: var(--border-color);
-  margin: 1.5rem 0;
-  opacity: 0.5;
-}
-
-/* Layout Adjustments for Sidebar */
-body.with-sidebar-permanent,
-body.with-sidebar {
-  /* Common styles if any */
-}
-
-@media (min-width: 992px) {
-  body.with-sidebar {
-    padding-left: 270px;
-  }
-
-  /* Sidebar uses .open class even on desktop to allow toggling */
-}
-
-body.with-sidebar-permanent {
-  padding-left: 270px;
-  --tech-col-min: 300px;
-  --tech-col-max: 400px;
-}
-
-body.with-sidebar-permanent .navbar {
-  width: 100%;
-  border-radius: 0;
-  margin: 0;
-}
-
-/* ==============================
-   COMPONENTS: CARDS
-   ============================== */
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   cursor: default !important;
 }
 
-/* Force TOUS les enfants de card à avoir curseur par défaut */
-.card *:not(input):not(textarea):not(select):not(button):not(a) {
-  cursor: default !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
+/* Allow text cursor ONLY on actual text inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input:not([type]),
+textarea,
+[contenteditable="true"],
+.form-control,
+[role="textbox"] {
+  cursor: text !important;
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
-}
-
-.card-header {
-  padding: 1rem 1.5rem;
-  background: transparent;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-  font-size: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-body {
-  padding: 1.5rem;
-  flex: 1;
-  overflow: visible;
-  /* Permet aux notes de s'afficher complètement */
-  min-height: 0;
-  /* Permet au contenu de s'adapter */
-}
-
-/* Assurer que les cartes technicien permettent l'affichage complet des notes */
-.small-card .card-body {
-  overflow: visible !important;
-  height: auto !important;
-  min-height: 0;
-}
-
-/* Vue technicien - ordre manuel (drag) */
-#userView .small-card {
-  cursor: grab !important;
-}
-
-#userView .small-card .card-header,
-#userView .small-card .card-body {
-  cursor: grab !important;
-}
-
-#userView .small-card.dragging {
-  opacity: 0.6;
-  transform: scale(0.98);
-  border: 2px dashed rgba(99, 102, 241, 0.5);
-}
-
-#userView .small-card.drag-disabled {
-  cursor: default !important;
-}
-
-#userView .small-card button,
-#userView .small-card select,
-#userView .small-card input,
-#userView .small-card textarea,
-#userView .small-card a {
+/* Pointer cursor for interactive elements */
+select,
+.form-select,
+a,
+button,
+.btn,
+label,
+[role="button"],
+.dropdown-item,
+.nav-link,
+.list-group-item-action,
+summary,
+[data-bs-toggle],
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"],
+input[type="file"] {
   cursor: pointer !important;
 }
 
-/* Tech Grid & Columns - Vue Admin (Revert to original) */
+/* Grab cursor for draggable cards */
+.small-card,
+.incident-card-col {
+  cursor: grab !important;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ==============================
+   THEME-ADAPTIVE INPUT CLASSES
+   Replace hardcoded bg-dark text-white
+   ============================== */
+.theme-input {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+}
+
+.theme-input::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+.theme-input:focus {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.2rem var(--primary-glow) !important;
+}
+
+/* ==============================
+   TYPOGRAPHY
+   ============================== */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.text-neon {
+  color: var(--primary) !important;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* ==============================
+   SIDEBAR
+   ============================== */
+.sidebar {
+  position: fixed;
+  top: 95px;
+  left: 1rem;
+  width: 220px;
+  height: calc(100vh - 110px);
+  background: rgba(30, 41, 59, 0.7);
+  /* Transparence pour le fond */
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  /* Bords arrondis */
+  overflow-y: auto;
+  padding: 1.5rem 0;
+  z-index: 900;
+  transition: transform 0.3s var(--ease-smooth), width 0.3s var(--ease-smooth);
+  /* Flex layout to push widget to bottom */
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-links {
+  list-style-type: none;
+  /* Enlever les points rouges/blancs */
+  padding-left: 0;
+  margin-bottom: 0;
+  flex-grow: 1;
+  /* Pushes the widget element below it to the bottom */
+}
+
+.sidebar a {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1.25rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  border-left: 3px solid transparent;
+  transition: all var(--duration-fast) var(--ease-smooth);
+}
+
+.sidebar a:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  /* Effet hover plus subtil */
+  border-left-color: var(--primary);
+}
+
+.sidebar a.active {
+  color: var(--primary);
+  background: rgba(99, 102, 241, 0.15);
+  /* Transparence pour l'élément actif */
+  border-left-color: var(--primary);
+}
+
+/* ==============================
+   MAIN CONTENT
+   ============================== */
+.main-content {
+  margin-left: calc(220px + 2rem);
+  max-width: calc(100vw - 220px - 2rem);
+  padding: 2rem 1.5rem;
+  min-height: calc(100vh - 80px);
+  overflow-x: hidden;
+}
+
+/* ==============================
+   NAVBAR
+   ============================== */
+.navbar {
+  background: var(--bg-panel) !important;
+  backdrop-filter: var(--glass-blur);
+  border-bottom: var(--glass-border);
+  border-left: var(--glass-border);
+  border-right: var(--glass-border);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  margin: 0 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 80px;
+}
+
+.navbar-brand {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--primary) !important;
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* ==============================
+   KANBAN / TECH GRID
+   ============================== */
 .tech-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--tech-col-min), 1fr));
-  gap: 1.5rem;
-  padding-bottom: 2rem;
-  max-width: 100%;
+  display: flex;
+  gap: 1rem;
   overflow-x: auto;
+  height: calc(100vh - 220px);
+  padding-bottom: 8px;
 }
 
 .tech-column {
-  min-width: var(--tech-col-min);
-  max-width: var(--tech-col-max);
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 280px);
-  /* Hauteur fixe pour permettre le scroll */
-  max-height: calc(100vh - 280px);
-}
-
-.tech-column .card {
-  height: 100%;
-  background: var(--bg-card);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  /* Permet le scroll vertical si nécessaire */
-  overflow-x: hidden;
-  /* Empêche le débordement horizontal */
-  max-height: 100%;
-  position: relative;
-  /* S'assurer que la carte prend toute la hauteur disponible */
-}
-
-.tech-column .card-header {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  min-width: 350px;
+  max-width: 350px;
   flex-shrink: 0;
-  /* Empêche le header de rétrécir */
-  position: relative;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-/* Liste scrollable dans chaque colonne */
 .incident-list-col {
-  flex: 1 1 0;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  min-height: 0 !important;
-  /* CRITIQUE : Permet au flex de fonctionner avec overflow */
-  position: relative;
-  /* Le flex: 1 1 0 permet à la liste de prendre l'espace restant après le header */
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
 }
 
-/* Scrollbar personnalisée pour les colonnes */
-.incident-list-col::-webkit-scrollbar {
-  width: 8px;
+.incident-col-card {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.incident-list-col::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+/* ==============================
+   CARDS
+   ============================== */
+.card {
+  background: var(--bg-panel);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-smooth),
+    box-shadow var(--duration-fast) var(--ease-smooth);
 }
 
-.incident-list-col::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+.card-body {
+  padding: 1.25rem;
 }
 
-.incident-list-col::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* Firefox */
-.incident-list-col {
-  scrollbar-width: thin;
-  scrollbar-color: #888 #f1f1f1;
-}
-
-body.dark .incident-list-col::-webkit-scrollbar-track {
-  background: #1a2028;
-}
-
-body.dark .incident-list-col::-webkit-scrollbar-thumb {
-  background: #3b4654;
-}
-
-body.dark .incident-list-col::-webkit-scrollbar-thumb:hover {
-  background: #4b5867;
-}
-
-body.dark .incident-list-col {
-  scrollbar-color: #3b4654 #1a2028;
-}
-
-/* Incident Items */
+/* === INCIDENT CARD OVERRIDES (Admin Kanban) === */
 .incident-card-col {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  cursor: grab;
-  transition: background-color 0.2s;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
+  border-radius: var(--radius-md) !important;
+  min-height: 240px;
 }
 
-.incident-card-col:hover {
-  background: var(--bg-hover);
+.incident-card-col .card-body {
+  padding: 1.25rem !important;
+  font-size: 1rem !important;
 }
 
-.incident-card-col:last-child {
-  border-bottom: none;
+.incident-card-col .card-body .badge {
+  font-size: 0.8rem !important;
+  padding: 0.35rem 0.65rem !important;
 }
 
-/* Contenu flexible dans les cartes */
-.incident-card-col p,
-.incident-card-col .fst-italic,
-.incident-card-col strong {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-  user-select: none;
-  cursor: default;
+.incident-card-col .card-body strong,
+.incident-card-col .card-body .fw-medium,
+.incident-card-col .card-body .fw-bold {
+  color: var(--text-main) !important;
 }
 
-/* Badges flexibles */
-.badge {
-  display: inline-block;
-  white-space: nowrap;
-  margin: 0.1rem;
-  user-select: none;
-  cursor: default;
+.incident-card-col .card-body .small,
+.incident-card-col .card-body small {
+  color: var(--text-secondary) !important;
+  font-size: 0.85rem !important;
 }
 
-/* Bloc de note dans les cartes d'incidents */
-.incident-note {
-  margin-top: 0.5rem;
-  padding: 0.45rem 0.75rem;
-  background: rgba(15, 23, 42, 0.9);
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+.incident-card-col .note-wrapper {
+  font-size: 0.85rem !important;
 }
 
-body:not(.dark) .incident-note {
-  background: rgba(255, 255, 255, 0.9);
+.incident-card-col .note-content {
+  color: var(--text-secondary) !important;
+  font-size: 0.82rem !important;
+  min-height: 1.2em;
 }
 
-body.dark .incident-note {
-  background: rgba(22, 27, 34, 0.92);
-  color: var(--text-secondary);
+/* === TECHNICIAN SMALL-CARD OVERRIDES === */
+.small-card {
+  border-radius: var(--radius-md) !important;
+  min-height: 220px;
 }
 
-.incident-note-text {
-  display: block;
-  white-space: normal;
+.small-card .card-body {
+  padding: 1.25rem !important;
+  font-size: 1rem !important;
+}
+
+.small-card .card-body .badge {
+  font-size: 0.8rem !important;
+  padding: 0.35rem 0.65rem !important;
+}
+
+.small-card .card-body .fw-medium {
+  color: var(--text-main) !important;
+}
+
+.small-card .card-body small {
+  color: var(--text-secondary) !important;
+  font-size: 0.85rem !important;
+}
+
+.small-card .note-content {
+  color: var(--text-secondary) !important;
 }
 
 /* ==============================
-   COMPONENTS: BUTTONS
+   BUTTONS
    ============================== */
-
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0.6rem 1.2rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-sm);
   font-weight: 500;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: var(--transition);
-  border: 1px solid transparent;
-  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-smooth);
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+.btn-admin {
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-smooth);
 }
 
-.btn-primary:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-  border-color: var(--text-secondary);
-}
-
-.btn-danger {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-danger:hover {
-  filter: brightness(110%);
-}
-
-/* Admin action bar buttons - ensure readable text */
-.admin-actions .btn {
-  color: #fff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.admin-actions .btn.btn-info,
-.admin-actions .btn.btn-success,
-.admin-actions .btn.btn-primary {
-  color: #fff !important;
-}
-
-.admin-actions .btn-admin {
-  color: #fff !important;
-  --bs-btn-color: #fff;
-  --bs-btn-hover-color: #fff;
-  --bs-btn-active-color: #fff;
-}
-
-.btn-sm {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
+.btn-admin:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 /* ==============================
-   FORMS
+   BADGES
    ============================== */
+.badge {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.4em 0.75em;
+}
 
+/* ==============================
+   FORM CONTROLS (theme-adaptive)
+   ============================== */
 .form-control,
 .form-select {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-family: inherit;
-  transition: var(--transition);
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border-color: var(--input-border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .form-control:focus,
 .form-select:focus {
-  outline: none;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 0.2rem var(--primary-glow);
+}
+
+.form-control::placeholder {
+  color: var(--text-tertiary);
+}
+
+.form-label {
+  color: var(--text-secondary);
 }
 
 /* ==============================
-   UTILITIES & BADGES
+   HOVER EFFECTS
    ============================== */
-
-.badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
+.hover-glow:hover {
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.transition-base {
+  transition: all var(--duration-normal) var(--ease-smooth);
+}
+
+.transition-opacity {
+  transition: opacity var(--duration-fast) var(--ease-smooth);
+}
+
+.hover-opacity-100:hover {
+  opacity: 1 !important;
+}
+
+/* ==============================
+   TEXT UTILITIES
+   ============================== */
+.text-neon {
+  color: var(--primary);
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Override Bootstrap .text-muted for dark glass backgrounds */
 .text-muted {
-  color: var(--text-muted) !important;
+  color: var(--text-secondary) !important;
 }
 
-.shadow-sm {
-  box-shadow: var(--shadow-sm) !important;
+/* ==============================
+   GLASSMORPHISM
+   ============================== */
+.bg-glass {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
 }
 
-.mb-3 {
-  margin-bottom: 1rem !important;
+/* ==============================
+   TABLE STYLING
+   ============================== */
+.table {
+  color: var(--text-main);
 }
 
-.mt-3 {
-  margin-top: 1rem !important;
+.table thead {
+  color: var(--text-main);
 }
 
-.d-flex {
-  display: flex !important;
+.table> :not(caption)>*>* {
+  background-color: transparent;
+  color: var(--text-main);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
-.justify-content-between {
-  justify-content: space-between !important;
+.table-hover>tbody>tr:hover>* {
+  background-color: var(--bg-surface);
 }
 
-/* Stats Counters */
-#statsCounters .card {
-  text-align: center;
-  padding: 1.5rem;
-  background: linear-gradient(to bottom right, var(--bg-card), var(--bg-hover));
+/* ==============================
+   STATUS SELECTOR
+   ============================== */
+.status-selector-col,
+.tech-selector-col {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+  font-size: 0.85rem;
 }
 
-#statsCounters h3 {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: linear-gradient(to right, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
+/* ==============================
+   NOTES
+   ============================== */
+.note-view-mode {
+  border-radius: var(--radius-sm);
+}
+
+.note-edit-textarea {
+  font-size: 0.85rem;
+}
+
+.note-content {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ==============================
+   ANIMATIONS (from home.css)
+   ============================== */
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==============================
+   SCROLLBAR STYLING
+   ============================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 /* ==============================
    RESPONSIVE
    ============================== */
-
-@media (max-width: 992px) {
-  body.with-sidebar-permanent {
-    padding-left: 0;
-  }
-
+@media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
     width: 280px;
-    /* Slightly wider on mobile for better touch targets */
+    z-index: 1100;
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+    max-width: 100vw;
     padding: 1rem;
   }
 
-  .sidebar.open {
-    transform: translateX(0);
-    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
-  }
-
-  .sidebar-toggle {
-    display: block !important;
-  }
-
   .tech-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-}
-
-/* Petits écrans - sidebar plein écran si nécessaire */
-@media (max-width: 576px) {
-  .sidebar {
-    width: 100%;
-    max-width: 320px;
-  }
-
-  .sidebar-links a {
-    padding: 12px 14px;
-    font-size: 0.95rem;
-  }
-
-  .sidebar-header h3 {
-    font-size: 1.25rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
-    padding: 0.75rem;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .tech-grid {
-    grid-template-columns: 1fr;
+    height: auto;
+    min-height: calc(100vh - 200px);
   }
 
   .tech-column {
-    min-width: 100%;
-  }
-
-  .navbar {
-    padding: 0.75rem;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  /* Stats counters responsive */
-  #statsCounters .col-md-3 {
-    width: 50%;
-    float: left;
-    padding: 5px;
-  }
-
-  /* Cartes d'incidents - Responsive complet */
-  .card {
-    margin-bottom: 0.75rem;
-    padding: 0.75rem;
-  }
-
-  .card-body {
-    padding: 0.75rem !important;
-  }
-
-  .incident-card-col {
-    padding: 0.75rem;
-  }
-
-  /* Tech grid responsive */
-  .tech-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .tech-column {
-    min-height: auto;
-    height: calc(100vh - 200px);
-    max-height: calc(100vh - 200px);
-  }
-
-  .tech-column .card {
-    max-height: 100%;
-    height: 100%;
-  }
-
-  .incident-list-col {
-    max-height: 100%;
-    height: 100% !important;
-  }
-
-  /* Badges et boutons plus petits sur mobile */
-  .badge {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
-  }
-
-  .btn-sm {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-  }
-
-  /* Notes plus compactes sur mobile */
-  .note-wrapper {
-    margin-top: 0.5rem;
-  }
-
-  .note-view-content,
-  .note-edit-textarea {
-    font-size: 0.8rem;
-  }
-
-  /* Formulaires inline responsive */
-  .d-flex.flex-wrap {
-    flex-direction: column;
-    gap: 0.5rem !important;
-  }
-
-  .d-flex.flex-wrap .btn,
-  .d-flex.flex-wrap .form-select {
-    width: 100%;
-  }
-}
-
-/* Très petits écrans (mobiles en portrait) */
-@media (max-width: 480px) {
-  .container {
-    padding: 0.5rem;
-  }
-
-  .card {
-    border-radius: 8px;
-    font-size: 0.9rem;
-  }
-
-  .card-header {
-    padding: 0.5rem !important;
-    font-size: 0.95rem;
-  }
-
-  .card-body {
-    padding: 0.5rem !important;
-  }
-
-  .incident-card-col {
-    padding: 0.5rem;
-  }
-
-  /* Notes ultra compactes */
-  .note-wrapper {
-    margin-top: 0.4rem;
-  }
-
-  .note-view-header,
-  .note-edit-header {
-    font-size: 0.7rem;
-  }
-
-  .note-view-content,
-  .note-edit-textarea {
-    font-size: 0.75rem;
-    padding: 0.3rem;
-  }
-
-  .note-edit-actions button {
-    font-size: 0.7rem;
-    padding: 0.3rem 0.5rem;
-  }
-
-  /* Badges et icônes */
-  .badge {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.4rem;
-  }
-
-  /* Stats counters empilés */
-  #statsCounters .col-md-3 {
-    width: 100%;
-    margin-bottom: 0.5rem;
-  }
-
-  #statsCounters h3 {
-    font-size: 2rem;
-  }
-
-  /* Navbar ultra compact */
-  .navbar {
-    padding: 0.5rem;
-  }
-
-  .navbar-brand {
-    font-size: 1rem;
+    min-width: 300px;
+    max-width: 300px;
   }
 }
 
 /* ==============================
-   SIDEBAR TOGGLE BUTTON
+   LIGHT MODE COMPONENT OVERRIDES
    ============================== */
+.light-mode .card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
 
-.sidebar-toggle-btn {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
-  border-radius: var(--border-radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
+.light-mode .card-header.bg-primary {
+  background-color: var(--primary) !important;
+}
+
+.light-mode .navbar {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.light-mode .sidebar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .sidebar a {
+  color: #475569 !important;
+  /* Slate 600 */
+}
+
+.light-mode .sidebar a:hover {
+  color: #0f172a !important;
+  /* Slate 900 */
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+
+.light-mode .sidebar a.active {
+  color: var(--primary) !important;
+  background: rgba(99, 102, 241, 0.1) !important;
+}
+
+.light-mode .badge.bg-dark {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.light-mode .note-view-mode {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light-mode .border-white {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-mode .border-opacity-10 {
+  --bs-border-opacity: 0.1;
+}
+
+/* Light-mode overrides for Bootstrap dark utilities */
+.light-mode .bg-dark {
+  background-color: var(--input-bg) !important;
+}
+
+.light-mode .text-white {
+  color: var(--text-main) !important;
+}
+
+/* Explicitly keep white text on vibrant backgrounds in light mode */
+.light-mode .bg-primary.text-white,
+.light-mode .bg-primary .text-white,
+.light-mode .bg-danger.text-white,
+.light-mode .bg-danger .text-white,
+.light-mode .bg-info.text-white,
+.light-mode .bg-info .text-white,
+.light-mode .bg-success.text-white,
+.light-mode .bg-success .text-white,
+.light-mode .btn-primary.text-white,
+.light-mode .btn-primary .text-white,
+.light-mode .btn-danger.text-white,
+.light-mode .btn-danger .text-white {
+  color: #ffffff !important;
+}
+
+.light-mode .border-secondary {
+  border-color: var(--input-border) !important;
+}
+
+.light-mode .text-light {
+  color: var(--text-main) !important;
+}
+
+.light-mode .bg-opacity-25 {
+  --bs-bg-opacity: 0.08;
+}
+
+.light-mode .bg-opacity-50 {
+  --bs-bg-opacity: 0.12;
+}
+
+.light-mode .modal-content {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+}
+
+/* ==============================
+   PROFILE WIDGET
+   ============================== */
+.profile-widget {
+  margin: auto 1rem 0 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  color: var(--text-main);
+  text-decoration: none;
+}
+
+.light-mode .profile-widget {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+.light-mode .profile-widget-initials {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+}
+
+.profile-widget:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.profile-widget-img,
+.profile-widget-initials {
+  width: 42px;
+  /* Slightly smaller for the sidebar */
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+  background: var(--bg-base);
+}
+
+.profile-widget-initials {
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-sm);
+  background: var(--primary-light);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.3rem;
 }
 
-.sidebar-toggle-btn:hover {
-  background: var(--bg-hover);
-  transform: scale(1.05);
-  box-shadow: var(--shadow);
-}
-
-.sidebar-toggle-btn:active {
-  transform: scale(0.95);
-}
-
-/* Augmenter la taille sur mobile pour une meilleure accessibilité (44x44px min) */
-@media (max-width: 768px) {
-  .sidebar-toggle-btn {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-.hamburger-icon {
-  position: relative;
-  width: 18px;
-  height: 2px;
-  background: var(--text-main);
-  transition: var(--transition);
-  border-radius: 1px;
-}
-
-.hamburger-icon::before,
-.hamburger-icon::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 18px;
-  height: 2px;
-  background: var(--text-main);
-  transition: var(--transition);
-  border-radius: 1px;
-}
-
-.hamburger-icon::before {
-  top: -5px;
-}
-
-.hamburger-icon::after {
-  top: 5px;
-}
-
-/* Animation when sidebar is open */
-.sidebar.open~* .hamburger-icon {
-  background: transparent;
-}
-
-.sidebar.open~* .hamburger-icon::before {
-  transform: rotate(45deg);
-  top: 0;
-}
-
-.sidebar.open~* .hamburger-icon::after {
-  transform: rotate(-45deg);
-  top: 0;
-}
-
-/* Sidebar hidden state */
-.sidebar.sidebar-hidden {
-  transform: translateX(-100%);
-}
-
-/* Content expanded when sidebar is hidden */
-body.content-expanded {
-  padding-left: 0 !important;
-  --tech-col-min: 280px;
-  --tech-col-max: 380px;
-}
-
-body.content-expanded .container {
-  max-width: 100%;
-}
-
-/* ==============================
-   COMPACT NOTE SYSTEM - OPTIMIZED FOR SPACE & ERGONOMICS
-   ============================== */
-
-/* Note wrapper - ultra compact container */
-.note-wrapper {
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-  min-height: 0;
-  /* Permet au contenu de s'adapter */
-}
-
-/* Assurer que les notes dans les cartes technicien s'affichent correctement */
-.small-card .note-wrapper {
-  overflow: visible;
-  height: auto;
-  min-height: 0;
-}
-
-.small-card .note-view-mode {
-  overflow: visible;
-  height: auto;
-  min-height: 0;
-}
-
-/* ===== VIEW MODE - COMPACT ===== */
-.note-view-mode {
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  width: 100%;
-  transition: all 0.15s ease;
-  display: block;
-  height: auto;
-  align-self: flex-start;
-  cursor: pointer;
-}
-
-/* Dispatch note - Blue theme, more prominent */
-.note-dispatch-view {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.06) 100%);
-  border-left: 3px solid var(--primary);
-  position: relative;
-}
-
-.note-dispatch-view::before {
-  content: '📋';
-  position: absolute;
-  left: -1.2rem;
-  top: 0.25rem;
-  font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-.note-dispatch-view:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%);
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.25);
-}
-
-body.dark .note-dispatch-view {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(14, 165, 233, 0.12) 100%);
-}
-
-/* Tech note - Gray theme, subtle */
-.note-tech-view {
-  background: rgba(107, 114, 128, 0.06);
-  border-left: 3px solid var(--text-secondary);
-  position: relative;
-}
-
-.note-tech-view::before {
-  content: '💬';
-  position: absolute;
-  left: -1.2rem;
-  top: 0.25rem;
-  font-size: 0.85rem;
-  opacity: 0.6;
-}
-
-.note-tech-view:hover {
-  background: rgba(107, 114, 128, 0.12);
-  box-shadow: 0 1px 3px rgba(107, 114, 128, 0.2);
-}
-
-body.dark .note-tech-view {
-  background: rgba(148, 163, 184, 0.15);
-}
-
-/* Compact header with inline label + badge */
-.note-view-header {
+.profile-widget-info {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  margin-bottom: 0.25rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  line-height: 1.2;
 }
 
-.note-view-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.note-dispatch-view .note-view-label {
-  color: var(--primary);
-}
-
-/* Role badge */
-.note-role-badge {
-  display: inline-block;
-  padding: 0.1rem 0.35rem;
-  background: var(--primary-soft);
-  color: var(--primary);
-  border-radius: 3px;
-  font-size: 0.6rem;
+.profile-widget-name {
   font-weight: 600;
-  text-transform: uppercase;
+  font-size: 1rem;
+  white-space: nowrap;
 }
 
-.note-tech-view .note-role-badge {
-  background: rgba(107, 114, 128, 0.15);
-  color: var(--text-secondary);
-}
-
-/* Compact edit button */
-.note-edit-btn {
-  background: none;
-  border: none;
-  padding: 0.15rem 0.3rem;
-  font-size: 0.65rem;
-  cursor: pointer;
-  opacity: 0.4;
-  transition: all 0.15s;
-  border-radius: 3px;
-  color: var(--text-secondary);
-}
-
-.note-edit-btn:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-body.dark .note-edit-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* Note content - Full height auto-extensible */
-.note-view-content {
-  font-size: 0.72rem;
-  color: var(--text-main);
-  line-height: 1.35;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  cursor: default;
-  overflow-wrap: break-word;
-  text-align: left;
-  height: auto;
-  min-height: 0;
-  max-height: none !important;
-  /* Force l'affichage complet */
-  overflow: visible;
-  padding: 0;
-  margin: 0;
-  text-indent: 0;
-  display: block;
-}
-
-/* Assurer que les notes dans les cartes technicien s'affichent correctement */
-.small-card .note-view-content {
-  max-height: none !important;
-  height: auto !important;
-  overflow: visible !important;
-  white-space: pre-wrap !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-}
-
-/* Force no indent on paragraphs inside notes */
-.note-view-content p {
-  margin: 0;
-  padding: 0;
-  text-indent: 0;
-  text-align: left;
-}
-
-/* Expand/collapse button */
-.note-expand-btn {
-  display: inline-block;
-  margin-top: 0.2rem;
-  font-size: 0.65rem;
-  color: var(--primary);
-  cursor: pointer;
-  font-weight: 600;
-  text-decoration: none;
-  opacity: 0.8;
-  transition: opacity 0.15s;
-}
-
-.note-expand-btn:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-/* ===== EDIT MODE - COMPACT ===== */
-.note-edit-mode {
-  padding: 0.5rem 0.75rem;
-  background: var(--bg-input);
-  border: 2px solid var(--primary);
-  border-radius: 4px;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
-  height: auto;
-  align-self: flex-start;
-}
-
-.note-edit-header {
-  margin-bottom: 0.3rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.note-edit-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-/* Character counter */
-.note-char-count {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.note-char-count.warning {
-  color: #f59e0b;
-}
-
-.note-char-count.danger {
-  color: #ef4444;
-}
-
-.note-edit-textarea {
-  width: 100%;
-  min-height: 2.5rem;
-  height: auto;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-family: inherit;
-  font-size: 0.72rem;
-  resize: vertical;
-  transition: var(--transition);
-  line-height: 1.35;
-  display: block;
-  box-sizing: border-box;
-  outline: none;
-  overflow: visible;
-  margin: 0;
-  text-indent: 0;
-  text-align: left;
-  user-select: text !important;
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  cursor: text !important;
-}
-
-.note-edit-textarea:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
-}
-
-.note-edit-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08);
-}
-
-/* Permettre la sélection uniquement dans les vrais champs éditables */
-input,
-textarea,
-select,
-[contenteditable="true"] {
-  user-select: text !important;
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  cursor: text !important;
-}
-
-select {
-  cursor: pointer !important;
-}
-
-/* Force le curseur par défaut sur TOUS les textes et éléments non-interactifs */
-p,
-span,
-div,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-strong,
-em,
-i,
-b,
-small,
-label,
-.badge,
-.note-view-content,
-.note-view-label,
-.note-role-badge,
-.incident-card-col {
-  cursor: default !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-}
-
-/* Exception : permettre la sélection dans le contenu des articles wiki */
-.article-content,
-.article-content *,
-#articleContent,
-#articleContent *,
-.article-body,
-.article-body *,
-.markdown-body,
-.markdown-body * {
-  user-select: text !important;
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  cursor: text !important;
-}
-
-/* Boutons et liens doivent avoir le curseur pointer */
-button,
-a,
-.btn {
-  cursor: pointer !important;
-}
-
-/* Compact action buttons */
-.note-edit-actions {
-  display: flex;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-  justify-content: flex-end;
-}
-
-.note-save-btn,
-.note-cancel-btn {
-  padding: 0.3rem 0.65rem;
-  border-radius: 4px;
+.profile-widget-role {
   font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
-.note-save-btn {
-  background: var(--primary);
-  color: white;
-}
-
-.note-save-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
-}
-
-.note-save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Saving state */
-.note-save-btn.saving {
-  position: relative;
-  pointer-events: none;
-}
-
-.note-save-btn.saving::after {
-  content: '';
-  position: absolute;
-  width: 0.7rem;
-  height: 0.7rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.note-cancel-btn {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.note-cancel-btn:hover {
-  background: var(--border-color);
-}
-
-/* Empty note placeholder - more subtle */
-.note-empty {
-  font-style: italic;
-  color: var(--text-muted);
-  opacity: 0.5;
-  display: inline;
-  font-size: 0.7rem;
-  line-height: inherit;
-}
-
-/* Success animation - more subtle */
-.note-save-animation {
-  animation: noteSaveFlash 0.5s ease;
-}
-
-@keyframes noteSaveFlash {
-
-  0%,
-  100% {
-    background: inherit;
-  }
-
-  50% {
-    background: rgba(34, 197, 94, 0.12);
-    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
-  }
-}
-
-/* ==============================
-   CUSTOM TOOLTIP
-   ============================== */
-
-.custom-tooltip {
-  position: absolute;
-  z-index: 1000;
-  max-width: 350px;
-  padding: 0.75rem 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-lg);
-  font-size: 0.875rem;
-  color: var(--text-main);
-  line-height: 1.6;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  pointer-events: none;
+.slide-up-animation {
   opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-.custom-tooltip.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.custom-tooltip::before {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 20px;
-  width: 12px;
-  height: 12px;
-  background: var(--bg-card);
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  transform: rotate(45deg);
-}
-
-/* Animation de sauvegarde réussie */
-@keyframes save-success {
-  0% {
-    background: var(--bg-input);
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
   }
 
-  50% {
-    background: rgba(16, 185, 129, 0.2);
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-
-  100% {
-    background: var(--bg-input);
-  }
-}
-
-.note-save-animation {
-  animation: save-success 0.6s ease;
-}
-
-/* ============================================================ */
-/* PROTECTION ANTI-CARET : Empêche le curseur de saisie sur texte */
-/* ============================================================ */
-
-/* Désactiver complètement le focus sur tous les éléments non-interactifs */
-.card,
-.list-group-item,
-.incident-card-col,
-.note-view-mode,
-.note-view-content,
-.note-view-label,
-p,
-span,
-div:not([contenteditable="true"]),
-strong,
-em,
-small,
-label,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.badge,
-.note-role-badge,
-.site-badge,
-.priority-badge,
-.status-badge {
-  -webkit-tap-highlight-color: transparent !important;
-  outline: none !important;
-  caret-color: transparent !important;
-  pointer-events: auto !important;
-}
-
-/* Empêcher le focus sur les éléments non-form */
-.card *:not(input):not(textarea):not(select):not(button):not(a):not([contenteditable="true"]) {
-  -webkit-user-modify: read-only !important;
-  outline: none !important;
-  caret-color: transparent !important;
-}
-
-/* Forcer l'absence de caret sur les cartes d'incidents */
-.incident-card-col,
-.incident-card-col *:not(input):not(textarea):not(select):not(button):not(a) {
-  caret-color: transparent !important;
-  -webkit-user-modify: read-only !important;
-}
-
-/* Notes en mode lecture : absolument aucun caret */
-.note-view-content,
-.note-view-label,
-.note-role-badge {
-  caret-color: transparent !important;
-  -webkit-user-modify: read-only !important;
-  pointer-events: none !important;
-  /* Empêche tout focus sur le texte */
-}
-
-/* Le conteneur de la note doit permettre les clics pour le bouton */
-.note-view-mode {
-  caret-color: transparent !important;
-  -webkit-user-modify: read-only !important;
-  pointer-events: auto !important;
-  /* Permet les clics mais pas le caret */
-}
-
-/* Bouton d'édition toujours cliquable */
-.note-edit-btn {
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-
-/* Les zones d'édition DOIVENT avoir le caret et être focusables */
-.note-edit-textarea,
-input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
-textarea,
-select,
-[contenteditable="true"] {
-  pointer-events: auto !important;
-  caret-color: auto !important;
-  -webkit-user-modify: read-write !important;
-}
-
-/* Empêcher la sélection de texte sur TOUS les éléments non-form */
-* {
-  -webkit-touch-callout: none !important;
-}
-
-*:not(input):not(textarea):not(select):not([contenteditable="true"]) {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-}
-
-/* Permettre la sélection uniquement dans les champs */
-input,
-textarea,
-[contenteditable="true"] {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
 }

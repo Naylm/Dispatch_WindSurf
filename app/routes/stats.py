@@ -282,7 +282,7 @@ def dashboard_stats():
     """Route principale du dashboard de statistiques."""
     if "user" not in session:
         return "Unauthorized", 401
-    if session.get("role") != "admin":
+    if session.get("role") not in ["admin", "superadmin"]:
         return "Forbidden", 403
 
     try:
@@ -316,7 +316,7 @@ def api_stats_data():
     """API pour récupérer les données statistiques filtrées avec cache."""
     if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    if session.get("role") != "admin":
+    if session.get("role") not in ["admin", "superadmin"]:
         return jsonify({"error": "Forbidden"}), 403
 
     start_date = request.args.get("start_date")
@@ -417,7 +417,7 @@ def api_stats_kpis():
     """API optimisée pour récupérer uniquement les KPIs avec cache."""
     if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    if session.get("role") != "admin":
+    if session.get("role") not in ["admin", "superadmin"]:
         return jsonify({"error": "Forbidden"}), 403
 
     start_date = request.args.get("start_date")

@@ -1,39 +1,113 @@
-/* FAQ CSS extracted from faq.html */
+/* FAQ CSS - Glassmorphism Edition */
 body {
-    background: var(--color-bg-base, #f6f8fb);
+    background-color: var(--bg-app);
 }
 
 .faq-container {
-    max-width: 1080px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 1.5rem 1rem 2rem;
+    padding: 2rem 1rem;
+    animation: fadeInPage 0.6s ease-out;
 }
 
 .page-header {
-    background: var(--color-bg-elevated, #ffffff);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
-    margin-bottom: 1.25rem;
+    background: var(--bg-panel);
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.page-header h1 {
+    color: var(--primary);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
 }
 
 .section-card {
-    background: var(--color-bg-elevated, #ffffff);
-    border: 1px solid var(--color-border, #e8ebef);
-    border-radius: 12px;
-    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
-    margin-bottom: 1rem;
+    background: var(--bg-surface);
+    backdrop-filter: blur(10px);
+    border: var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
 }
 
 .section-card h3 {
     margin: 0;
-    padding: 1rem 1.25rem 0.5rem;
-    font-size: 1.05rem;
-    font-weight: 700;
+    padding: 1.25rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: var(--glass-border);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-card h3::before {
+    content: '📌';
+    font-size: 1rem;
+}
+
+/* Accordion Overrides */
+.accordion-item {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.accordion-item:last-child {
+    border-bottom: none;
+}
+
+.accordion-button {
+    background: transparent;
+    color: var(--text-main);
+    font-weight: 500;
+    box-shadow: none !important;
+    padding: 1.25rem 1.5rem;
+    transition: all 0.2s;
 }
 
 .accordion-button:not(.collapsed) {
-    background-color: #e9f5ff;
-    color: #0b3a67;
-    box-shadow: none;
+    background: rgba(99, 102, 241, 0.15);
+    /* Primary with opacity */
+    color: var(--primary-hover);
+    font-weight: 600;
+}
+
+.accordion-button::after {
+    filter: invert(1) brightness(2);
+    /* White arrow for dark mode default */
+    opacity: 0.5;
+}
+
+.accordion-button:not(.collapsed)::after {
+    filter: invert(1) sepia(1) saturate(5) hue-rotate(200deg);
+    /* Blue arrow */
+    opacity: 1;
+}
+
+.accordion-body {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-secondary);
+    padding: 1.5rem;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+/* Light Mode Specifics */
+body.light-mode .accordion-button::after {
+    filter: none;
+    /* Default black arrow */
+}
+
+body.light-mode .section-card h3 {
+    background: rgba(0, 0, 0, 0.02);
 }

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, jsonify, request, flash, redirect, url_for
+from flask import Blueprint, render_template, session, jsonify, request, flash, redirect, url_for, current_app
 from app.utils.db_config import get_db
 from app.utils.references import get_reference_data
 from app.utils.incidents import (
@@ -53,7 +53,7 @@ def api_incident(id):
     statuts = ref_data['statuts']
     
     # Récupérer les techniciens (pour le select)
-    if session["role"] == "admin":
+    if session.get("role") in ["admin", "superadmin"]:
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         techniciens = []
@@ -87,7 +87,7 @@ def api_incident(id):
 
 @incident_bp.route("/edit_incident/<int:id>", methods=["GET", "POST"])
 def edit_incident(id):
-    if "user" not in session or session["role"] != "admin":
+    if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
         return redirect(url_for("auth.login"))
 
     db = get_db()
@@ -163,7 +163,7 @@ def edit_note(id):
     db = get_db()
     inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
     
-    if session["role"] != "admin":
+    if session.get("role") not in ["admin", "superadmin"]:
         tech = db.execute("SELECT id FROM techniciens WHERE username=%s",
                          (session["user"],)).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
@@ -209,7 +209,8 @@ def edit_note_inline(id):
     if not inc:
         return jsonify({"error": "Incident introuvable"}), 404
 
-    if session["role"] != "admin":
+    # Allow if admin/superadmin OR if assigned tech
+    if session["role"] not in ["admin", "superadmin"]:
         tech = db.execute("SELECT id FROM techniciens WHERE username=%s",
                          (session["user"],)).fetchone()
         if not tech or inc["technicien_id"] != tech["id"]:
@@ -234,8 +235,8 @@ def edit_note_inline(id):
 
 @incident_bp.route("/edit_note_dispatch/<int:id>", methods=["POST"])
 def edit_note_dispatch(id):
-    if "user" not in session or session["role"] != "admin":
-        return jsonify({"error": "Permission refusée - Admin uniquement"}), 403
+    if "user" not in session or session["role"] not in ["admin", "superadmin"]:
+        return jsonify({"error": "Permission refusée - Admin/Superadmin uniquement"}), 403
 
     db = get_db()
     inc = db.execute("SELECT * FROM incidents WHERE id=%s", (id,)).fetchone()
@@ -424,7 +425,7 @@ def update_etat(id):
 
 @incident_bp.route("/valider/<int:id>", methods=["POST"])
 def valider(id):
-    if "user" not in session or session["role"] != "admin":
+    if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
         return redirect(url_for("auth.login"))
 
     val = 1 if request.form.get("valide") == "on" else 0
@@ -439,21 +440,32 @@ def valider(id):
 
 @incident_bp.route("/delete/<int:id>", methods=["POST"])
 def delete(id):
-    if "user" not in session or session["role"] != "admin":
+    current_app.logger.error(f"DEBUG_DELETE: session={session.get('user')}, role={session.get('role')} for ticket {id}")
+    if "user" not in session or session.get("role") not in ("admin", "superadmin"):
+        current_app.logger.error("DEBUG_DELETE: Unauthorized, redirecting to login")
         return redirect(url_for("auth.login"))
         
-    # This seems to be a hard delete without history? The original app had delete_incident in admin with history.
-    # The original app line 3236 had "delete" which did simpler delete.
-    # I should prefer the safe one?
-    # I'll implement it as per original but maybe redirect to delete_incident logic if possible?
-    # For now, faithful port:
     db = get_db()
     inc = db.execute("SELECT id, collaborateur FROM incidents WHERE id=%s", (id,)).fetchone()
     if inc:
-        db.execute("DELETE FROM incidents WHERE id=%s", (id,))
-        db.commit()
-        _emit_incident_event("incident_deleted", id, technician_names=[inc.get("collaborateur")], action="delete")
-        _emit_bulk_refresh("incident_deleted", technician_names=[inc.get("collaborateur")], incident_id=id)
+        try:
+            current_app.logger.error(f"DEBUG_DELETE: Found incident, preparing to delete {id}")
+            # Delete dependent records manually just in case
+            db.execute("DELETE FROM historique WHERE incident_id=%s", (id,))
+            
+            # Delete the incident itself
+            db.execute("DELETE FROM incidents WHERE id=%s", (id,))
+            db.commit()
+            current_app.logger.error("DEBUG_DELETE: Success deleting in DB")
+            
+            _emit_incident_event("incident_deleted", id, technician_names=[inc.get("collaborateur")], action="delete")
+            _emit_bulk_refresh("incident_deleted", technician_names=[inc.get("collaborateur")], incident_id=id)
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors de la suppression de l'incident {id}: {e}")
+            db.rollback()
+            return "Erreur", 500
+    else:
+        current_app.logger.error("DEBUG_DELETE: Incident not found in DB")
 
     return redirect(url_for("main.home"))
 
@@ -474,7 +486,7 @@ def historique(id):
 
 @incident_bp.route("/details")
 def details():
-    if "user" not in session or session["role"] != "admin":
+    if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
         return redirect(url_for("auth.login"))
 
     date = request.args.get("date")

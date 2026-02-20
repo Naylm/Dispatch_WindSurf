@@ -4,20 +4,21 @@
 
 {% block content %}
 <div class="container py-4">
-  <nav class="navbar navbar-light bg-light rounded mb-4 shadow-sm">
-    <div class="container-fluid">
-      <span class="navbar-brand fw-bold">Modifier Incident #{{ incident.numero }}</span>
-      <div class="d-flex align-items-center gap-2">
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">&#127769;</button>
-        <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
-      </div>
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 animate-fade-in-up">
+    <div>
+      <h2 class="fw-bold text-neon mb-1">Modifier Incident #{{ incident.numero }}</h2>
+      <p class="text-muted mb-0">Remplissez les informations ci-dessous</p>
     </div>
-  </nav>
+    <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary rounded-pill">
+      ← Retour
+    </a>
+  </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
   {% for category, message in messages %}
-  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+  <div class="alert alert-{{ category }} mb-4 rounded-3 shadow-sm border-0 animate-fade-in-up">
     {{ message }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
@@ -25,109 +26,109 @@
   {% endif %}
   {% endwith %}
 
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <form method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label for="numero" class="form-label">Numéro de ticket</label>
-            <input type="text" class="form-control" id="numero" name="numero" value="{{ incident.numero }}" required>
-          </div>
+  <div class="row justify-content-center animate-fade-in-up stagger-1">
+    <div class="col-lg-8">
+      <div class="card shadow-lg border-0" style="background: var(--bg-panel); backdrop-filter: blur(10px);">
+        <div class="card-body p-4 p-md-5">
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-          <div class="col-md-6 mb-3">
-            <label for="date_affectation" class="form-label">Date d'affectation</label>
-            <input type="date" class="form-control" id="date_affectation" name="date_affectation"
-              value="{{ incident.date_affectation }}" required>
-          </div>
+            <div class="row g-3">
+              <div class="col-md-6 mb-3">
+                <label for="numero" class="form-label text-neon">Numéro de ticket</label>
+                <input type="text" class="form-control" id="numero" name="numero" value="{{ incident.numero }}"
+                  required>
+              </div>
+
+              <div class="col-md-6 mb-3">
+                <label for="date_affectation" class="form-label text-neon">Date d'affectation</label>
+                <input type="date" class="form-control" id="date_affectation" name="date_affectation"
+                  value="{{ incident.date_affectation }}" required>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6 mb-3">
+                <label for="site" class="form-label text-neon">Site</label>
+                <select class="form-select" id="site" name="site" required>
+                  <option value="">-- Sélectionner un site --</option>
+                  {% for s in sites %}
+                  <option value="{{ s.nom }}" {% if incident.site==s.nom %}selected{% endif %}>{{ s.nom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6 mb-3">
+                <label for="localisation" class="form-label text-neon">Localisation</label>
+                <input type="text" class="form-control" id="localisation" name="localisation"
+                  value="{{ incident.localisation or '' }}" placeholder="Ex: HD-3E-AW_08">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="sujet" class="form-label text-neon">Sujet</label>
+              <select class="form-select" id="sujet" name="sujet" required>
+                <option value="">-- Sélectionner un sujet --</option>
+                {% for suj in sujets %}
+                <option value="{{ suj.nom }}" {% if incident.sujet==suj.nom %}selected{% endif %}>{{ suj.nom }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6 mb-3">
+                <label for="urgence" class="form-label text-neon">Priorité</label>
+                <select class="form-select" id="urgence" name="urgence" required>
+                  <option value="">-- Sélectionner une priorité --</option>
+                  {% for p in priorites %}
+                  <option value="{{ p.nom }}" {% if incident.urgence==p.nom %}selected{% endif %}>{{ p.nom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6 mb-3">
+                <label for="technicien_id" class="form-label text-neon">Technicien</label>
+                <select class="form-select" id="technicien_id" name="technicien_id" required>
+                  <option value="">-- Sélectionner un technicien --</option>
+                  {% for tech in techniciens %}
+                  <option value="{{ tech.id }}" {% if incident.technicien_id==tech.id %}selected{% endif %}>{{
+                    tech.prenom
+                    }}{% if tech.nom %} {{ tech.nom }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="etat" class="form-label text-neon">État</label>
+              <select class="form-select" id="etat" name="etat" required>
+                {% for st in statuts %}
+                <option value="{{ st.nom }}" {% if incident.etat==st.nom %}selected{% endif %}>
+                  {{ st.nom }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="note_dispatch" class="form-label text-neon">📋 Note Dispatch</label>
+              <textarea class="form-control" id="note_dispatch" name="note_dispatch"
+                rows="3">{{ incident.note_dispatch or '' }}</textarea>
+              <small class="text-white-50">Visible par tous, modifiable uniquement par Admin.</small>
+            </div>
+
+            <div class="mb-4">
+              <label for="notes" class="form-label text-neon">💬 Note Technicien</label>
+              <textarea class="form-control" id="notes" name="notes" rows="3">{{ incident.notes or '' }}</textarea>
+            </div>
+
+            <div class="d-flex gap-3 pt-3 border-top border-secondary">
+              <button type="submit" class="btn btn-primary px-4">Enregistrer</button>
+              <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary px-4">Annuler</a>
+            </div>
+          </form>
         </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label for="site" class="form-label">Site</label>
-            <select class="form-select" id="site" name="site" required>
-              <option value="">-- Sélectionner un site --</option>
-              {% for s in sites %}
-              <option value="{{ s.nom }}" {% if incident.site==s.nom %}selected{% endif %}>{{ s.nom }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-md-6 mb-3">
-            <label for="localisation" class="form-label">Localisation précise <small class="text-muted">(ex:
-                HD-3E-AW_08)</small></label>
-            <input type="text" class="form-control" id="localisation" name="localisation"
-              value="{{ incident.localisation or '' }}" placeholder="Bâtiment-Étage-Bureau...">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label for="sujet" class="form-label">Sujet</label>
-            <select class="form-select" id="sujet" name="sujet" required>
-              <option value="">-- Sélectionner un sujet --</option>
-              {% for suj in sujets %}
-              <option value="{{ suj.nom }}" {% if incident.sujet==suj.nom %}selected{% endif %}>{{ suj.nom }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label for="urgence" class="form-label">Priorité</label>
-            <select class="form-select" id="urgence" name="urgence" required>
-              <option value="">-- Sélectionner une priorité --</option>
-              {% for p in priorites %}
-              <option value="{{ p.nom }}" {% if incident.urgence==p.nom %}selected{% endif %}>{{ p.nom }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-md-6 mb-3">
-            <label for="technicien_id" class="form-label">Technicien affecté</label>
-            <select class="form-select" id="technicien_id" name="technicien_id" required>
-              <option value="">-- Sélectionner un technicien --</option>
-              {% for tech in techniciens %}
-              <option value="{{ tech.id }}" {% if incident.technicien_id==tech.id %}selected{% endif %}>{{ tech.prenom
-                }}{% if tech.nom %} {{ tech.nom }}{% endif %}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <label for="etat" class="form-label">État</label>
-          <select class="form-select" id="etat" name="etat" required>
-            {% for st in statuts %}
-            <option value="{{ st.nom }}" {% if incident.etat==st.nom %}selected{% endif %}>
-              {{ st.nom }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label for="note_dispatch" class="form-label">📋 Note Dispatch <small class="text-muted">(Admin seulement -
-              visible par tous)</small></label>
-          <textarea class="form-control" id="note_dispatch" name="note_dispatch"
-            rows="3">{{ incident.note_dispatch or '' }}</textarea>
-          <small class="text-muted">Cette note sera visible par tous les techniciens mais ne pourra être modifiée que
-            par les admins.</small>
-        </div>
-
-        <div class="mb-3">
-          <label for="notes" class="form-label">💬 Note Technicien <small
-              class="text-muted">(optionnelle)</small></label>
-          <textarea class="form-control" id="notes" name="notes" rows="3">{{ incident.notes or '' }}</textarea>
-          <small class="text-muted">Note de travail du technicien.</small>
-        </div>
-
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary">💾 Enregistrer les modifications</button>
-          <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Annuler</a>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 </div>

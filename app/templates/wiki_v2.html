@@ -246,12 +246,14 @@
 
 {% block content %}
 <!-- Navbar -->
-<nav class="navbar wiki-navbar navbar-light bg-light rounded mb-4 shadow-sm">
+<!-- Navbar Glass -->
+<nav class="navbar mb-4">
     <div class="container-fluid">
-        <span class="navbar-brand fw-bold">📚 Base de Connaissances V2.0</span>
+        <span class="navbar-brand">📚 Base de Connaissances <span
+                class="badge bg-glass text-warning ms-2">V2.0</span></span>
         <div class="d-flex gap-2">
             <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
-            <button id="themeToggle" class="btn btn-outline-secondary btn-sm">🌙</button>
+            <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
         </div>
     </div>
 </nav>

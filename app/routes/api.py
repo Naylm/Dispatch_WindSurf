@@ -31,7 +31,7 @@ def _get_current_tech_info(db):
 def _can_access_incident(db, incident):
     if not incident:
         return False
-    if session.get("role") == "admin":
+    if session.get("role") in ["admin", "superadmin"]:
         return True
     tech_info = _get_current_tech_info(db)
     if tech_info and incident.get("technicien_id") == tech_info.get("id"):
@@ -63,7 +63,7 @@ def api_incident(id):
     sites = ref_data['sites']
     statuts = ref_data['statuts']
     
-    if session["role"] == "admin":
+    if session.get("role") in ["admin", "superadmin"]:
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         techniciens = []

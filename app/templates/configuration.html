@@ -7,18 +7,19 @@
   <div class="row justify-content-center">
     <div class="col-12 col-xl-10">
       <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 class="h2 mb-1">Configuration</h1>
-          <p class="text-muted">Gérez les paramètres de l'application</p>
+      <!-- Header Glass -->
+      <nav class="navbar mb-4">
+        <div class="container-fluid">
+          <div class="d-flex flex-column">
+            <h1 class="h3 mb-0 text-neon">Configuration</h1>
+            <small class="text-muted">Paramètres globaux</small>
+          </div>
+          <div class="d-flex gap-2">
+            <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
+            <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+          </div>
         </div>
-        <div>
-          <button id="themeToggle" class="btn btn-outline-secondary me-2" title="Changer de thème">&#127769;</button>
-          <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary">
-            ← Retour
-          </a>
-        </div>
-      </div>
+      </nav>
 
       {% if unknown_statuts or statuts_without_category %}
       <div class="alert alert-warning shadow-sm mb-4" role="alert">
@@ -46,13 +47,15 @@
       </div>
       {% endif %}
 
-      <!-- Import de base de données -->
-      <div class="card shadow-sm border-warning mb-4">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0"><i class="fas fa-database me-2"></i>Importer une nouvelle base de données</h5>
+      <!-- Import de base de données (Glass Warning) -->
+      <div class="card border-0 shadow-lg mb-4"
+        style="background: rgba(50, 20, 20, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 193, 7, 0.3);">
+        <div class="card-header bg-transparent border-bottom border-warning border-opacity-25 py-3">
+          <h5 class="mb-0 text-warning"><i class="fas fa-database me-2"></i>Importer une nouvelle base de données</h5>
         </div>
         <div class="card-body">
-          <div class="alert alert-warning" role="alert">
+          <div class="alert alert-warning bg-warning bg-opacity-10 border-warning border-opacity-25 text-warning mb-4"
+            role="alert">
             <strong>⚠️ Attention :</strong> Cette opération remplacera complètement la base de données PostgreSQL
             actuelle.
             Un backup automatique sera créé avant la migration.
@@ -61,12 +64,12 @@
           <form method="post" action="{{ url_for('maintenance.import_database_preview') }}"
             enctype="multipart/form-data" id="importForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <div class="row align-items-end">
+            <div class="row align-items-end g-3">
               <div class="col-md-8">
-                <label for="dbFile" class="form-label">Sélectionner un fichier dispatch.db</label>
-                <input type="file" class="form-control" id="dbFile" name="dbFile" accept=".db,.sqlite,.sqlite3"
-                  required>
-                <div class="form-text">Formats acceptés : .db, .sqlite, .sqlite3</div>
+                <label for="dbFile" class="form-label text-muted small">Sélectionner un fichier dispatch.db</label>
+                <input type="file" class="form-control bg-dark text-white border-secondary" id="dbFile" name="dbFile"
+                  accept=".db,.sqlite,.sqlite3" required>
+                <div class="form-text text-white text-opacity-50">Formats acceptés : .db, .sqlite, .sqlite3</div>
               </div>
               <div class="col-md-4">
                 <button type="submit" class="btn btn-warning w-100" id="previewBtn">
@@ -85,72 +88,81 @@
       <div class="row g-4">
         <!-- Gestion des Sujets -->
         <div class="col-md-4">
-          <div class="card shadow-sm h-100">
-            <div class="card-header bg-primary text-white">
-              <h5 class="mb-0">📋 Sujets</h5>
+          <div class="card h-100 border-0 shadow-sm"
+            style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-xl);">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3">
+              <h5 class="mb-0 text-neon">📋 Sujets</h5>
             </div>
             <div class="card-body">
               <form method="post" action="{{ url_for('admin.add_sujet') }}" class="mb-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="input-group">
-                  <input type="text" name="nom" class="form-control" placeholder="Nouveau sujet" required>
+                  <input type="text" name="nom" class="form-control bg-dark text-white border-secondary"
+                    placeholder="Nouveau sujet" required>
                   <button type="submit" class="btn btn-primary">Ajouter</button>
                 </div>
               </form>
 
-              <ul class="list-group">
+              <div class="list-group list-group-flush rounded-3" style="max-height: 300px; overflow-y: auto;">
                 {% for sujet in sujets %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div
+                  class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 text-white">
                   <span>{{ sujet.nom }}</span>
                   <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-outline-primary border-0" data-bs-toggle="modal"
                       data-bs-target="#editSujetModal" data-id="{{ sujet.id }}" data-nom="{{ sujet.nom }}"
                       title="Modifier le sujet">
                       ✏️
                     </button>
                     <form method="post" action="{{ url_for('admin.delete_sujet', id=sujet.id) }}" class="d-inline">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                      <button type="submit" class="btn btn-sm btn-outline-danger"
+                      <button type="submit" class="btn btn-sm btn-outline-danger border-0"
                         onclick="return confirm('Supprimer ce sujet ?')" title="Supprimer">🗑️</button>
                     </form>
                   </div>
-                </li>
+                </div>
                 {% endfor %}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Gestion des Priorités -->
         <div class="col-md-4">
-          <div class="card shadow-sm h-100">
-            <div class="card-header bg-warning text-dark">
-              <h5 class="mb-0">⚡ Priorités</h5>
+          <div class="card h-100 border-0 shadow-sm"
+            style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-xl);">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3">
+              <h5 class="mb-0 text-neon">⚡ Priorités</h5>
             </div>
             <div class="card-body">
               <form method="post" action="{{ url_for('admin.add_priorite') }}" class="mb-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="mb-2">
-                  <input type="text" name="nom" class="form-control mb-2" placeholder="Nom de la priorité" required>
+                  <input type="text" name="nom" class="form-control bg-dark text-white border-secondary mb-2"
+                    placeholder="Nom de la priorité" required>
                   <div class="input-group mb-2">
-                    <span class="input-group-text">Couleur</span>
-                    <input type="color" name="couleur" class="form-control form-control-color" value="#ffc107" required>
+                    <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
+                    <input type="color" name="couleur" class="form-control form-control-color bg-dark border-secondary"
+                      value="#ffc107" required>
                   </div>
-                  <input type="number" name="niveau" class="form-control mb-2" placeholder="Niveau (1-4)" min="1"
-                    max="10" required>
+                  <input type="number" name="niveau" class="form-control bg-dark text-white border-secondary mb-2"
+                    placeholder="Niveau (1-10)" min="1" max="10" required>
                   <button type="submit" class="btn btn-warning w-100">Ajouter</button>
                 </div>
               </form>
 
-              <ul class="list-group">
+              <div class="list-group list-group-flush rounded-3" style="max-height: 300px; overflow-y: auto;">
                 {% for priorite in priorites %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div
+                  class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 text-white">
                   <div>
-                    <span class="badge priority-badge" data-bg-color="{{ priorite.couleur }}">{{ priorite.nom }}</span>
+                    <span class="badge rounded-pill"
+                      style="background-color: {{ priorite.couleur }}; color: {{ priorite.couleur|contrast_color }}">{{
+                      priorite.nom }}</span>
                     <small class="text-muted ms-2">(Niveau {{ priorite.niveau }})</small>
                   </div>
                   <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-outline-primary border-0" data-bs-toggle="modal"
                       data-bs-target="#editPrioriteModal" data-id="{{ priorite.id }}" data-nom="{{ priorite.nom }}"
                       data-couleur="{{ priorite.couleur }}" data-niveau="{{ priorite.niveau }}"
                       title="Modifier la priorité">
@@ -159,495 +171,525 @@
                     <form method="post" action="{{ url_for('admin.delete_priorite', id=priorite.id) }}"
                       class="d-inline">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                      <button type="submit" class="btn btn-sm btn-outline-danger"
+                      <button type="submit" class="btn btn-sm btn-outline-danger border-0"
                         onclick="return confirm('Supprimer cette priorité ?')" title="Supprimer">🗑️</button>
                     </form>
                   </div>
-                </li>
+                </div>
                 {% endfor %}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Gestion des Sites -->
         <div class="col-md-4">
-          <div class="card shadow-sm h-100">
-            <div class="card-header bg-info text-white">
-              <h5 class="mb-0">🏢 Sites</h5>
+          <div class="card h-100 border-0 shadow-sm"
+            style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-xl);">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3">
+              <h5 class="mb-0 text-neon">📍 Sites</h5>
             </div>
             <div class="card-body">
               <form method="post" action="{{ url_for('admin.add_site') }}" class="mb-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="mb-2">
-                  <input type="text" name="nom" class="form-control mb-2" placeholder="Nom du site" required>
+                  <input type="text" name="nom" class="form-control bg-dark text-white border-secondary mb-2"
+                    placeholder="Nom du site" required>
                   <div class="input-group mb-2">
-                    <span class="input-group-text">Couleur</span>
-                    <input type="color" name="couleur" class="form-control form-control-color" value="#007bff" required>
+                    <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
+                    <input type="color" name="couleur" class="form-control form-control-color bg-dark border-secondary"
+                      value="#007bff" required>
                   </div>
                   <button type="submit" class="btn btn-info w-100">Ajouter</button>
                 </div>
               </form>
 
-              <ul class="list-group">
+              <div class="list-group list-group-flush rounded-3" style="max-height: 300px; overflow-y: auto;">
                 {% for site in sites %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  <span class="badge site-badge" data-bg-color="{{ site.couleur }}">{{ site.nom }}</span>
+                <div
+                  class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 text-white">
+                  <span class="badge rounded-pill"
+                    style="background-color: {{ site.couleur }}; color: {{ site.couleur|contrast_color }}">{{
+                    site.nom }}</span>
                   <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-outline-primary border-0" data-bs-toggle="modal"
                       data-bs-target="#editSiteModal" data-id="{{ site.id }}" data-nom="{{ site.nom }}"
                       data-couleur="{{ site.couleur }}" title="Modifier le site">
                       ✏️
                     </button>
                     <form method="post" action="{{ url_for('admin.delete_site', id=site.id) }}" class="d-inline">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                      <button type="submit" class="btn btn-sm btn-outline-danger"
+                      <button type="submit" class="btn btn-sm btn-outline-danger border-0"
                         onclick="return confirm('Supprimer ce site ?')" title="Supprimer">🗑️</button>
                     </form>
                   </div>
-                </li>
+                </div>
                 {% endfor %}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Gestion des Statuts -->
-        <div class="col-md-6">
-          <div class="card shadow-sm h-100">
-            <div class="card-header bg-success text-white">
-              <h5 class="mb-0">🔄 Statuts</h5>
+        <div class="col-12">
+          <div class="card h-100 border-0 shadow-sm"
+            style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-xl);">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3">
+              <h5 class="mb-0 text-neon">🔄 Statuts</h5>
             </div>
             <div class="card-body">
-              <form method="post" action="{{ url_for('admin.add_statut') }}" class="mb-3">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <div class="mb-2">
-                  <input type="text" name="nom" class="form-control mb-2" placeholder="Nom du statut" required>
-                  <div class="input-group mb-2">
-                    <span class="input-group-text">Couleur</span>
-                    <input type="color" name="couleur" class="form-control form-control-color" value="#28a745" required>
-                  </div>
-                  <div class="input-group mb-2">
-                    <span class="input-group-text">Catégorie</span>
-                    <select name="category" class="form-select" required>
-                      <option value="">Sélectionner une catégorie</option>
-                      <option value="en_cours">🔄 En cours</option>
-                      <option value="suspendu">⏸️ Suspendu</option>
-                      <option value="transfere">➡️ Transféré</option>
-                      <option value="traite">✅ Traité</option>
-                    </select>
-                  </div>
-                  <div class="form-text mb-2">
-                    <small class="text-muted">
-                      <strong>Catégories :</strong><br>
-                      • <strong>En cours</strong> : Affecté, En préparation, En intervention<br>
-                      • <strong>Suspendu</strong> : Suspendu, Intervention programmée<br>
-                      • <strong>Transféré</strong> : Transféré, En réservation<br>
-                      • <strong>Traité</strong> : Traité
-                    </small>
-                  </div>
+              <div class="row">
+                <div class="col-md-4 border-end border-white border-opacity-10">
+                  <form method="post" action="{{ url_for('admin.add_statut') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <div class="mb-3">
+                      <label class="form-label text-white">Nouveau Statut</label>
+                      <input type="text" name="nom" class="form-control bg-dark text-white border-secondary mb-2"
+                        placeholder="Nom" required>
 
-                  <!-- Options de fonctionnalités -->
-                  <div class="border rounded p-2 mb-2 bg-light">
-                    <small class="fw-bold d-block mb-2">📋 Fonctionnalités du statut :</small>
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" name="has_relances" id="addHasRelances" value="1">
-                      <label class="form-check-label" for="addHasRelances">
-                        📧 Compteur de relances <small class="text-muted">(Mail, Relance 1, Relance 2, Clôture)</small>
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" name="has_rdv" id="addHasRdv" value="1">
-                      <label class="form-check-label" for="addHasRdv">
-                        📅 Date de rendez-vous
-                      </label>
-                    </div>
-                  </div>
+                      <div class="input-group mb-2">
+                        <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
+                        <input type="color" name="couleur"
+                          class="form-control form-control-color bg-dark border-secondary" value="#28a745" required>
+                      </div>
 
-                  <button type="submit" class="btn btn-success w-100">Ajouter</button>
+                      <select name="category" class="form-select bg-dark text-white border-secondary mb-2" required>
+                        <option value="">Catégorie...</option>
+                        <option value="en_cours">🔄 En cours</option>
+                        <option value="suspendu">⏸️ Suspendu</option>
+                        <option value="transfere">➡️ Transféré</option>
+                        <option value="traite">✅ Traité</option>
+                      </select>
+
+                      <div class="border border-white border-opacity-10 rounded p-2 mb-3 bg-dark bg-opacity-25">
+                        <small class="fw-bold d-block mb-2 text-neon">Options :</small>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="has_relances" id="addHasRelances"
+                            value="1">
+                          <label class="form-check-label text-white small" for="addHasRelances">
+                            📧 Relances
+                          </label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="has_rdv" id="addHasRdv" value="1">
+                          <label class="form-check-label text-white small" for="addHasRdv">
+                            📅 Rendez-vous
+                          </label>
+                        </div>
+                      </div>
+
+                      <button type="submit" class="btn btn-success w-100">Ajouter</button>
+                    </div>
+                  </form>
+                  <div class="mt-3 text-white text-opacity-50 small">
+                    <strong>Légende Catégories :</strong><br>
+                    • En cours : Actif<br>
+                    • Suspendu : En attente<br>
+                    • Transféré : Hors service<br>
+                    • Traité : Clos
+                  </div>
                 </div>
-              </form>
 
-              <ul class="list-group">
-                {% for statut in statuts %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  <div class="d-flex align-items-center flex-wrap gap-1">
-                    <span class="badge me-1 status-badge" data-bg-color="{{ statut.couleur }}">{{ statut.nom }}</span>
-                    <small class="badge bg-secondary me-1">
-                      {% if statut.category == 'en_cours' %}🔄 En cours
-                      {% elif statut.category == 'suspendu' %}⏸️ Suspendu
-                      {% elif statut.category == 'transfere' %}➡️ Transféré
-                      {% elif statut.category == 'traite' %}✅ Traité
-                      {% else %}Non catégorisé
-                      {% endif %}
-                    </small>
-                    {% if statut.has_relances %}<span class="badge bg-info"
-                      title="Compteur de relances activé">📧</span>{% endif %}
-                    {% if statut.has_rdv %}<span class="badge bg-warning text-dark" title="RDV activé">📅</span>{% endif
-                    %}
+                <div class="col-md-8">
+                  <div class="list-group list-group-flush rounded-3" style="max-height: 500px; overflow-y: auto;">
+                    {% for statut in statuts %}
+                    <div
+                      class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 text-white">
+                      <div class="d-flex align-items-center flex-wrap gap-2">
+                        <span class="badge rounded-pill"
+                          style="background-color: {{ statut.couleur }}; color: {{ statut.couleur|contrast_color }}">{{
+                          statut.nom }}</span>
+
+                        <small class="badge bg-dark bg-opacity-50 border border-secondary text-light rounded-pill">
+                          {% if statut.category == 'en_cours' %}🔄 En cours
+                          {% elif statut.category == 'suspendu' %}⏸️ Suspendu
+                          {% elif statut.category == 'transfere' %}➡️ Transféré
+                          {% elif statut.category == 'traite' %}✅ Traité
+                          {% else %}Non catégorisé
+                          {% endif %}
+                        </small>
+
+                        {% if statut.has_relances %}<span class="badge bg-info text-dark rounded-pill"
+                          title="Relances">📧</span>{% endif %}
+                        {% if statut.has_rdv %}<span class="badge bg-warning text-dark rounded-pill"
+                          title="RDV">📅</span>{% endif %}
+                      </div>
+
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary border-0" data-bs-toggle="modal"
+                          data-bs-target="#editStatutModal" data-id="{{ statut.id }}" data-nom="{{ statut.nom }}"
+                          data-couleur="{{ statut.couleur }}" data-category="{{ statut.category or '' }}"
+                          data-has-relances="{{ 'true' if statut.has_relances else 'false' }}"
+                          data-has-rdv="{{ 'true' if statut.has_rdv else 'false' }}" title="Modifier">
+                          ✏️
+                        </button>
+                        <form method="post" action="{{ url_for('admin.delete_statut', id=statut.id) }}"
+                          class="d-inline">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                          <button type="submit" class="btn btn-sm btn-outline-danger border-0"
+                            onclick="return confirm('Supprimer ce statut ?')" title="Supprimer">🗑️</button>
+                        </form>
+                      </div>
+                    </div>
+                    {% endfor %}
                   </div>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-                      data-bs-target="#editStatutModal" data-id="{{ statut.id }}" data-nom="{{ statut.nom }}"
-                      data-couleur="{{ statut.couleur }}" data-category="{{ statut.category or '' }}"
-                      data-has-relances="{{ 'true' if statut.has_relances else 'false' }}"
-                      data-has-rdv="{{ 'true' if statut.has_rdv else 'false' }}" title="Modifier le statut">
-                      ✏️
-                    </button>
-                    <form method="post" action="{{ url_for('admin.delete_statut', id=statut.id) }}" class="d-inline">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                      <button type="submit" class="btn btn-sm btn-outline-danger"
-                        onclick="return confirm('Supprimer ce statut ?')" title="Supprimer">🗑️</button>
-                    </form>
-                  </div>
-                </li>
-                {% endfor %}
-              </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- ========================= -->
-<!-- MODAUX D'ÉDITION -->
-<!-- ========================= -->
+    <!-- ========================= -->
+    <!-- MODAUX D'ÉDITION -->
+    <!-- ========================= -->
 
-<!-- Modal pour modifier un sujet -->
-<div class="modal fade" id="editSujetModal" tabindex="-1" aria-labelledby="editSujetModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editSujetModalLabel">✏️ Modifier un sujet</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editSujetForm" method="post" action="{{ url_for('admin.edit_sujet') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <input type="hidden" id="editSujetId" name="id">
-
-          <div class="mb-3">
-            <label for="editSujetNom" class="form-label">Nom du sujet</label>
-            <input type="text" class="form-control" id="editSujetNom" name="nom" required>
+    <!-- Modal pour modifier un sujet -->
+    <div class="modal fade" id="editSujetModal" tabindex="-1" aria-labelledby="editSujetModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title text-neon" id="editSujetModalLabel">✏️ Modifier un sujet</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="submit" form="editSujetForm" class="btn btn-primary">💾 Enregistrer les modifications</button>
+          <div class="modal-body">
+            <form id="editSujetForm" method="post" action="{{ url_for('admin.edit_sujet') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <input type="hidden" id="editSujetId" name="id">
+
+              <div class="mb-3">
+                <label for="editSujetNom" class="form-label">Nom du sujet</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="editSujetNom" name="nom"
+                  required>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" form="editSujetForm" class="btn btn-primary">💾 Enregistrer</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Modal pour modifier une priorité -->
-<div class="modal fade" id="editPrioriteModal" tabindex="-1" aria-labelledby="editPrioriteModalLabel"
-  aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editPrioriteModalLabel">✏️ Modifier une priorité</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editPrioriteForm" method="post" action="{{ url_for('admin.edit_priorite') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <input type="hidden" id="editPrioriteId" name="id">
-
-          <div class="mb-3">
-            <label for="editPrioriteNom" class="form-label">Nom de la priorité</label>
-            <input type="text" class="form-control" id="editPrioriteNom" name="nom" required>
+    <!-- Modal pour modifier une priorité -->
+    <div class="modal fade" id="editPrioriteModal" tabindex="-1" aria-labelledby="editPrioriteModalLabel"
+      aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title text-neon" id="editPrioriteModalLabel">✏️ Modifier une priorité</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
+          <div class="modal-body">
+            <form id="editPrioriteForm" method="post" action="{{ url_for('admin.edit_priorite') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <input type="hidden" id="editPrioriteId" name="id">
 
-          <div class="mb-3">
-            <label for="editPrioriteCouleur" class="form-label">Couleur</label>
-            <div class="input-group">
-              <input type="color" class="form-control form-control-color" id="editPrioriteCouleur" name="couleur"
-                required>
-              <input type="text" class="form-control" id="editPrioriteCouleurText" placeholder="#000000" readonly>
-            </div>
+              <div class="mb-3">
+                <label for="editPrioriteNom" class="form-label">Nom de la priorité</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="editPrioriteNom"
+                  name="nom" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="editPrioriteCouleur" class="form-label">Couleur</label>
+                <div class="input-group">
+                  <input type="color" class="form-control form-control-color bg-dark border-secondary"
+                    id="editPrioriteCouleur" name="couleur" required>
+                  <input type="text" class="form-control bg-dark text-white border-secondary"
+                    id="editPrioriteCouleurText" placeholder="#000000" readonly>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="editPrioriteNiveau" class="form-label">Niveau (1-10)</label>
+                <input type="number" class="form-control bg-dark text-white border-secondary" id="editPrioriteNiveau"
+                  name="niveau" min="1" max="10" required>
+              </div>
+            </form>
           </div>
-
-          <div class="mb-3">
-            <label for="editPrioriteNiveau" class="form-label">Niveau (1-10)</label>
-            <input type="number" class="form-control" id="editPrioriteNiveau" name="niveau" min="1" max="10" required>
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" form="editPrioriteForm" class="btn btn-primary">💾 Enregistrer</button>
           </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="submit" form="editPrioriteForm" class="btn btn-primary">💾 Enregistrer les modifications</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal pour modifier un site -->
-<div class="modal fade" id="editSiteModal" tabindex="-1" aria-labelledby="editSiteModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editSiteModalLabel">✏️ Modifier un site</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editSiteForm" method="post" action="{{ url_for('admin.edit_site') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <input type="hidden" id="editSiteId" name="id">
-
-          <div class="mb-3">
-            <label for="editSiteNom" class="form-label">Nom du site</label>
-            <input type="text" class="form-control" id="editSiteNom" name="nom" required>
-          </div>
-
-          <div class="mb-3">
-            <label for="editSiteCouleur" class="form-label">Couleur</label>
-            <div class="input-group">
-              <input type="color" class="form-control form-control-color" id="editSiteCouleur" name="couleur" required>
-              <input type="text" class="form-control" id="editSiteCouleurText" placeholder="#000000" readonly>
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="submit" form="editSiteForm" class="btn btn-primary">💾 Enregistrer les modifications</button>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Modal pour modifier un statut -->
-<div class="modal fade" id="editStatutModal" tabindex="-1" aria-labelledby="editStatutModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editStatutModalLabel">✏️ Modifier un statut</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editStatutForm" method="post" action="{{ url_for('admin.edit_statut') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-          <input type="hidden" id="editStatutId" name="id">
-
-          <div class="mb-3">
-            <label for="editStatutNom" class="form-label">Nom du statut</label>
-            <input type="text" class="form-control" id="editStatutNom" name="nom" required>
+    <!-- Modal pour modifier un site -->
+    <div class="modal fade" id="editSiteModal" tabindex="-1" aria-labelledby="editSiteModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title text-neon" id="editSiteModalLabel">✏️ Modifier un site</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
+          <div class="modal-body">
+            <form id="editSiteForm" method="post" action="{{ url_for('admin.edit_site') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <input type="hidden" id="editSiteId" name="id">
 
-          <div class="mb-3">
-            <label for="editStatutCouleur" class="form-label">Couleur</label>
-            <div class="input-group">
-              <input type="color" class="form-control form-control-color" id="editStatutCouleur" name="couleur"
-                required>
-              <input type="text" class="form-control" id="editStatutCouleurText" placeholder="#000000" readonly>
-            </div>
-          </div>
+              <div class="mb-3">
+                <label for="editSiteNom" class="form-label">Nom du site</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="editSiteNom" name="nom"
+                  required>
+              </div>
 
-          <div class="mb-3">
-            <label for="editStatutCategory" class="form-label">Catégorie</label>
-            <select class="form-select" id="editStatutCategory" name="category" required>
-              <option value="">Sélectionner une catégorie</option>
-              <option value="en_cours">🔄 En cours</option>
-              <option value="suspendu">⏸️ Suspendu</option>
-              <option value="transfere">➡️ Transféré</option>
-              <option value="traite">✅ Traité</option>
-            </select>
-            <div class="form-text mt-2">
-              <small class="text-muted">
-                <strong>Catégories :</strong><br>
-                • <strong>En cours</strong> : Affecté, En préparation, En intervention<br>
-                • <strong>Suspendu</strong> : Suspendu, Intervention programmée<br>
-                • <strong>Transféré</strong> : Transféré, En réservation<br>
-                • <strong>Traité</strong> : Traité
-              </small>
-            </div>
+              <div class="mb-3">
+                <label for="editSiteCouleur" class="form-label">Couleur</label>
+                <div class="input-group">
+                  <input type="color" class="form-control form-control-color bg-dark border-secondary"
+                    id="editSiteCouleur" name="couleur" required>
+                  <input type="text" class="form-control bg-dark text-white border-secondary" id="editSiteCouleurText"
+                    placeholder="#000000" readonly>
+                </div>
+              </div>
+            </form>
           </div>
-
-          <!-- Options de fonctionnalités -->
-          <div class="mb-3 border rounded p-3 bg-light">
-            <label class="form-label fw-bold">📋 Fonctionnalités du statut</label>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="has_relances" id="editHasRelances" value="1">
-              <label class="form-check-label" for="editHasRelances">
-                📧 Compteur de relances <small class="text-muted">(Mail, Relance 1, Relance 2, Clôture)</small>
-              </label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="has_rdv" id="editHasRdv" value="1">
-              <label class="form-check-label" for="editHasRdv">
-                📅 Date de rendez-vous
-              </label>
-            </div>
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" form="editSiteForm" class="btn btn-primary">💾 Enregistrer</button>
           </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="submit" form="editStatutForm" class="btn btn-primary">💾 Enregistrer les modifications</button>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-  // Gérer le modal d'édition de sujet
-  const editSujetModal = document.getElementById('editSujetModal');
+    <!-- Modal pour modifier un statut -->
+    <div class="modal fade" id="editStatutModal" tabindex="-1" aria-labelledby="editStatutModalLabel"
+      aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title text-neon" id="editStatutModalLabel">✏️ Modifier un statut</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editStatutForm" method="post" action="{{ url_for('admin.edit_statut') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <input type="hidden" id="editStatutId" name="id">
 
-  if (editSujetModal) {
-    editSujetModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const id = button.getAttribute('data-id');
-      const nom = button.getAttribute('data-nom');
+              <div class="mb-3">
+                <label for="editStatutNom" class="form-label">Nom du statut</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="editStatutNom"
+                  name="nom" required>
+              </div>
 
-      document.getElementById('editSujetId').value = id;
-      document.getElementById('editSujetNom').value = nom;
-    });
-  }
+              <div class="mb-3">
+                <label for="editStatutCouleur" class="form-label">Couleur</label>
+                <div class="input-group">
+                  <input type="color" class="form-control form-control-color bg-dark border-secondary"
+                    id="editStatutCouleur" name="couleur" required>
+                  <input type="text" class="form-control bg-dark text-white border-secondary" id="editStatutCouleurText"
+                    placeholder="#000000" readonly>
+                </div>
+              </div>
 
-  // Gérer le modal d'édition de priorité
-  const editPrioriteModal = document.getElementById('editPrioriteModal');
+              <div class="mb-3">
+                <label for="editStatutCategory" class="form-label">Catégorie</label>
+                <select class="form-select bg-dark text-white border-secondary" id="editStatutCategory" name="category"
+                  required>
+                  <option value="">Sélectionner une catégorie</option>
+                  <option value="en_cours">🔄 En cours</option>
+                  <option value="suspendu">⏸️ Suspendu</option>
+                  <option value="transfere">➡️ Transféré</option>
+                  <option value="traite">✅ Traité</option>
+                </select>
+                <div class="form-text mt-2 text-white text-opacity-50">
+                  <small>
+                    <strong>Catégories :</strong><br>
+                    • <strong>En cours</strong> : Affecté, En préparation, En intervention<br>
+                    • <strong>Suspendu</strong> : Suspendu, Intervention programmée<br>
+                    • <strong>Transféré</strong> : Transféré, En réservation<br>
+                    • <strong>Traité</strong> : Traité
+                  </small>
+                </div>
+              </div>
 
-  if (editPrioriteModal) {
-    editPrioriteModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const id = button.getAttribute('data-id');
-      const nom = button.getAttribute('data-nom');
-      const couleur = button.getAttribute('data-couleur');
-      const niveau = button.getAttribute('data-niveau');
+              <!-- Options de fonctionnalités -->
+              <div class="mb-3 border border-secondary rounded p-3 bg-dark bg-opacity-25">
+                <label class="form-label fw-bold text-neon">📋 Fonctionnalités du statut</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="has_relances" id="editHasRelances" value="1">
+                  <label class="form-check-label text-white" for="editHasRelances">
+                    📧 Compteur de relances <small class="text-white text-opacity-50">(Mail, Relance 1, Relance 2,
+                      Clôture)</small>
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="has_rdv" id="editHasRdv" value="1">
+                  <label class="form-check-label text-white" for="editHasRdv">
+                    📅 Date de rendez-vous
+                  </label>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" form="editStatutForm" class="btn btn-primary">💾 Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endblock %}
 
-      document.getElementById('editPrioriteId').value = id;
-      document.getElementById('editPrioriteNom').value = nom;
-      document.getElementById('editPrioriteCouleur').value = couleur;
-      document.getElementById('editPrioriteCouleurText').value = couleur;
-      document.getElementById('editPrioriteNiveau').value = niveau;
-    });
-  }
+    {% block scripts %}
+    <script>
+      // Gérer le modal d'édition de sujet
+      const editSujetModal = document.getElementById('editSujetModal');
 
-  // Gérer le modal d'édition de site
-  const editSiteModal = document.getElementById('editSiteModal');
+      if (editSujetModal) {
+        editSujetModal.addEventListener('show.bs.modal', function (event) {
+          const button = event.relatedTarget;
+          const id = button.getAttribute('data-id');
+          const nom = button.getAttribute('data-nom');
 
-  if (editSiteModal) {
-    editSiteModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const id = button.getAttribute('data-id');
-      const nom = button.getAttribute('data-nom');
-      const couleur = button.getAttribute('data-couleur');
-
-      document.getElementById('editSiteId').value = id;
-      document.getElementById('editSiteNom').value = nom;
-      document.getElementById('editSiteCouleur').value = couleur;
-      document.getElementById('editSiteCouleurText').value = couleur;
-    });
-  }
-
-  // Gérer le modal d'édition de statut
-  const editStatutModal = document.getElementById('editStatutModal');
-
-  if (editStatutModal) {
-    editStatutModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const id = button.getAttribute('data-id');
-      const nom = button.getAttribute('data-nom');
-      const couleur = button.getAttribute('data-couleur');
-      const category = button.getAttribute('data-category');
-      const hasRelances = button.getAttribute('data-has-relances') === 'true';
-      const hasRdv = button.getAttribute('data-has-rdv') === 'true';
-
-      document.getElementById('editStatutId').value = id;
-      document.getElementById('editStatutNom').value = nom;
-      document.getElementById('editStatutCouleur').value = couleur;
-      document.getElementById('editStatutCouleurText').value = couleur;
-      document.getElementById('editStatutCategory').value = category;
-      document.getElementById('editHasRelances').checked = hasRelances;
-      document.getElementById('editHasRdv').checked = hasRdv;
-    });
-  }
-
-  // Synchroniser les sélecteurs de couleur avec les champs texte
-  const colorInputs = [
-    { picker: 'editPrioriteCouleur', text: 'editPrioriteCouleurText' },
-    { picker: 'editSiteCouleur', text: 'editSiteCouleurText' },
-    { picker: 'editStatutCouleur', text: 'editStatutCouleurText' }
-  ];
-
-  colorInputs.forEach(input => {
-    const picker = document.getElementById(input.picker);
-    const text = document.getElementById(input.text);
-    if (picker && text) {
-      picker.addEventListener('input', function (e) {
-        text.value = e.target.value;
-      });
-    }
-  });
-
-  // Appliquer les styles depuis les data attributes (pour éviter les erreurs CSS lint)
-  function applyDataAttributesStyles() {
-    // Appliquer les styles aux badges de priorité, site et statut
-    document.querySelectorAll('.priority-badge, .site-badge, .status-badge').forEach(badge => {
-      const bgColor = badge.dataset.bgColor;
-      if (bgColor) badge.style.backgroundColor = bgColor;
-
-      // Calculer le contraste pour la couleur du texte (blanc ou noir)
-      if (bgColor) {
-        const r = parseInt(bgColor.substr(1, 2), 16);
-        const g = parseInt(bgColor.substr(3, 2), 16);
-        const b = parseInt(bgColor.substr(5, 2), 16);
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        badge.style.color = (yiq >= 128) ? 'black' : 'white';
+          document.getElementById('editSujetId').value = id;
+          document.getElementById('editSujetNom').value = nom;
+        });
       }
-    });
-  }
 
-  // Gestion de l'import de base de données
-  const importForm = document.getElementById('importForm');
-  if (importForm) {
-    importForm.addEventListener('submit', function (e) {
-      e.preventDefault();
+      // Gérer le modal d'édition de priorité
+      const editPrioriteModal = document.getElementById('editPrioriteModal');
 
-      const formData = new FormData(this);
-      const previewBtn = document.getElementById('previewBtn');
-      const resultsDiv = document.getElementById('importResults');
+      if (editPrioriteModal) {
+        editPrioriteModal.addEventListener('show.bs.modal', function (event) {
+          const button = event.relatedTarget;
+          const id = button.getAttribute('data-id');
+          const nom = button.getAttribute('data-nom');
+          const couleur = button.getAttribute('data-couleur');
+          const niveau = button.getAttribute('data-niveau');
 
-      // Désactiver le bouton et montrer le chargement
-      previewBtn.disabled = true;
-      previewBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
-      resultsDiv.style.display = 'none';
+          document.getElementById('editPrioriteId').value = id;
+          document.getElementById('editPrioriteNom').value = nom;
+          document.getElementById('editPrioriteCouleur').value = couleur;
+          document.getElementById('editPrioriteCouleurText').value = couleur;
+          document.getElementById('editPrioriteNiveau').value = niveau;
+        });
+      }
 
-      fetch('/import_database_preview', {
-        method: 'POST',
-        body: formData
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.error) {
-            resultsDiv.innerHTML = `
+      // Gérer le modal d'édition de site
+      const editSiteModal = document.getElementById('editSiteModal');
+
+      if (editSiteModal) {
+        editSiteModal.addEventListener('show.bs.modal', function (event) {
+          const button = event.relatedTarget;
+          const id = button.getAttribute('data-id');
+          const nom = button.getAttribute('data-nom');
+          const couleur = button.getAttribute('data-couleur');
+
+          document.getElementById('editSiteId').value = id;
+          document.getElementById('editSiteNom').value = nom;
+          document.getElementById('editSiteCouleur').value = couleur;
+          document.getElementById('editSiteCouleurText').value = couleur;
+        });
+      }
+
+      // Gérer le modal d'édition de statut
+      const editStatutModal = document.getElementById('editStatutModal');
+
+      if (editStatutModal) {
+        editStatutModal.addEventListener('show.bs.modal', function (event) {
+          const button = event.relatedTarget;
+          const id = button.getAttribute('data-id');
+          const nom = button.getAttribute('data-nom');
+          const couleur = button.getAttribute('data-couleur');
+          const category = button.getAttribute('data-category');
+          const hasRelances = button.getAttribute('data-has-relances') === 'true';
+          const hasRdv = button.getAttribute('data-has-rdv') === 'true';
+
+          document.getElementById('editStatutId').value = id;
+          document.getElementById('editStatutNom').value = nom;
+          document.getElementById('editStatutCouleur').value = couleur;
+          document.getElementById('editStatutCouleurText').value = couleur;
+          document.getElementById('editStatutCategory').value = category;
+          document.getElementById('editHasRelances').checked = hasRelances;
+          document.getElementById('editHasRdv').checked = hasRdv;
+        });
+      }
+
+      // Synchroniser les sélecteurs de couleur avec les champs texte
+      const colorInputs = [
+        { picker: 'editPrioriteCouleur', text: 'editPrioriteCouleurText' },
+        { picker: 'editSiteCouleur', text: 'editSiteCouleurText' },
+        { picker: 'editStatutCouleur', text: 'editStatutCouleurText' }
+      ];
+
+      colorInputs.forEach(input => {
+        const picker = document.getElementById(input.picker);
+        const text = document.getElementById(input.text);
+        if (picker && text) {
+          picker.addEventListener('input', function (e) {
+            text.value = e.target.value;
+          });
+        }
+      });
+
+      // Appliquer les styles depuis les data attributes (pour éviter les erreurs CSS lint)
+      function applyDataAttributesStyles() {
+        // Appliquer les styles aux badges de priorité, site et statut
+        document.querySelectorAll('.priority-badge, .site-badge, .status-badge').forEach(badge => {
+          const bgColor = badge.dataset.bgColor;
+          if (bgColor) badge.style.backgroundColor = bgColor;
+
+          // Calculer le contraste pour la couleur du texte (blanc ou noir)
+          if (bgColor) {
+            const r = parseInt(bgColor.substr(1, 2), 16);
+            const g = parseInt(bgColor.substr(3, 2), 16);
+            const b = parseInt(bgColor.substr(5, 2), 16);
+            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+            badge.style.color = (yiq >= 128) ? 'black' : 'white';
+          }
+        });
+      }
+
+      // Gestion de l'import de base de données
+      const importForm = document.getElementById('importForm');
+      if (importForm) {
+        importForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+
+          const formData = new FormData(this);
+          const previewBtn = document.getElementById('previewBtn');
+          const resultsDiv = document.getElementById('importResults');
+
+          // Désactiver le bouton et montrer le chargement
+          previewBtn.disabled = true;
+          previewBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
+          resultsDiv.style.display = 'none';
+
+          fetch('/import_database_preview', {
+            method: 'POST',
+            body: formData
+          })
+            .then(response => response.json())
+            .then(data => {
+              if (data.error) {
+                resultsDiv.innerHTML = `
                         <div class="alert alert-danger">
                             <strong>❌ Erreur:</strong> ${data.error}
                         </div>
                     `;
-            resultsDiv.style.display = 'block';
-          } else {
-            // Afficher l'aperçu
-            let html = '<div class="card">';
+                resultsDiv.style.display = 'block';
+              } else {
+                // Afficher l'aperçu
+                let html = '<div class="card">';
 
-            if (data.valid) {
-              html += '<div class="card-header bg-success text-white"><h6 class="mb-0">✅ Fichier valide</h6></div>';
-            } else {
-              html += '<div class="card-header bg-warning text-dark"><h6 class="mb-0">⚠️ Fichier incomplet</h6></div>';
-            }
+                if (data.valid) {
+                  html += '<div class="card-header bg-success text-white"><h6 class="mb-0">✅ Fichier valide</h6></div>';
+                } else {
+                  html += '<div class="card-header bg-warning text-dark"><h6 class="mb-0">⚠️ Fichier incomplet</h6></div>';
+                }
 
-            html += '<div class="card-body">';
+                html += '<div class="card-body">';
 
-            // Tables trouvées
-            html += '<h6>📊 Contenu du fichier:</h6>';
-            html += '<div class="row">';
-            for (const [table, count] of Object.entries(data.table_counts)) {
-              html += `
+                // Tables trouvées
+                html += '<h6>📊 Contenu du fichier:</h6>';
+                html += '<div class="row">';
+                for (const [table, count] of Object.entries(data.table_counts)) {
+                  html += `
                             <div class="col-md-3 mb-2">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-secondary">${table}</span>
@@ -655,26 +697,26 @@
                                 </div>
                             </div>
                         `;
-            }
-            html += '</div>';
+                }
+                html += '</div>';
 
-            // Tables manquantes
-            if (data.missing_tables.length > 0) {
-              html += '<div class="alert alert-warning mt-3">';
-              html += '<strong>Tables manquantes:</strong> ' + data.missing_tables.join(', ');
-              html += '</div>';
-            }
+                // Tables manquantes
+                if (data.missing_tables.length > 0) {
+                  html += '<div class="alert alert-warning mt-3">';
+                  html += '<strong>Tables manquantes:</strong> ' + data.missing_tables.join(', ');
+                  html += '</div>';
+                }
 
-            // Tables supplémentaires
-            if (data.extra_tables.length > 0) {
-              html += '<div class="alert alert-info mt-3">';
-              html += '<strong>Tables supplémentaires:</strong> ' + data.extra_tables.join(', ');
-              html += '</div>';
-            }
+                // Tables supplémentaires
+                if (data.extra_tables.length > 0) {
+                  html += '<div class="alert alert-info mt-3">';
+                  html += '<strong>Tables supplémentaires:</strong> ' + data.extra_tables.join(', ');
+                  html += '</div>';
+                }
 
-            // Bouton de confirmation si valide
-            if (data.valid) {
-              html += `
+                // Bouton de confirmation si valide
+                if (data.valid) {
+                  html += `
                             <div class="alert alert-danger mt-3">
                                 <strong>⚠️ Confirmation requise:</strong> 
                                 Cette action remplacera complètement la base de données PostgreSQL actuelle.
@@ -684,41 +726,41 @@
                                 🔄 Exécuter la migration
                             </button>
                         `;
-            } else {
-              html += `
+                } else {
+                  html += `
                             <div class="alert alert-danger mt-3">
                                 <strong>❌ Migration impossible:</strong> 
                                 Le fichier ne contient pas toutes les tables requises.
                             </div>
                         `;
-            }
+                }
 
-            html += '</div></div>';
-            resultsDiv.innerHTML = html;
-            resultsDiv.style.display = 'block';
-          }
-        })
-        .catch(error => {
-          resultsDiv.innerHTML = `
+                html += '</div></div>';
+                resultsDiv.innerHTML = html;
+                resultsDiv.style.display = 'block';
+              }
+            })
+            .catch(error => {
+              resultsDiv.innerHTML = `
                     <div class="alert alert-danger">
                         <strong>❌ Erreur technique:</strong> ${error.message}
                     </div>
                 `;
-          resultsDiv.style.display = 'block';
-        })
-        .finally(() => {
-          // Réactiver le bouton
-          previewBtn.disabled = false;
-          previewBtn.innerHTML = '📋 Analyser le fichier';
+              resultsDiv.style.display = 'block';
+            })
+            .finally(() => {
+              // Réactiver le bouton
+              previewBtn.disabled = false;
+              previewBtn.innerHTML = '📋 Analyser le fichier';
+            });
         });
-    });
-  }
+      }
 
-  function executeMigration() {
-    const formData = new FormData(document.getElementById('importForm'));
-    const resultsDiv = document.getElementById('importResults');
+      function executeMigration() {
+        const formData = new FormData(document.getElementById('importForm'));
+        const resultsDiv = document.getElementById('importResults');
 
-    resultsDiv.innerHTML = `
+        resultsDiv.innerHTML = `
             <div class="alert alert-info">
                 <strong>⏳ Migration en cours...</strong>
                 <div class="progress mt-2">
@@ -727,14 +769,14 @@
             </div>
         `;
 
-    fetch('/import_database_execute', {
-      method: 'POST',
-      body: formData
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          resultsDiv.innerHTML = `
+        fetch('/import_database_execute', {
+          method: 'POST',
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              resultsDiv.innerHTML = `
                     <div class="alert alert-success">
                         <strong>✅ Migration réussie!</strong>
                         <p><strong>Backup créé:</strong> ${data.backup_file}</p>
@@ -743,26 +785,26 @@
                         </button>
                     </div>
                 `;
-        } else {
-          resultsDiv.innerHTML = `
+            } else {
+              resultsDiv.innerHTML = `
                     <div class="alert alert-danger">
                         <strong>❌ Migration échouée:</strong> ${data.error}
                     </div>
                 `;
-        }
-      })
-      .catch(error => {
-        resultsDiv.innerHTML = `
+            }
+          })
+          .catch(error => {
+            resultsDiv.innerHTML = `
                 <div class="alert alert-danger">
                     <strong>❌ Erreur technique:</strong> ${error.message}
                 </div>
             `;
-      });
-  }
+          });
+      }
 
-  // Appliquer les styles au chargement de la page
-  document.addEventListener('DOMContentLoaded', function () {
-    applyDataAttributesStyles();
-  });
-</script>
-{% endblock %}
+      // Appliquer les styles au chargement de la page
+      document.addEventListener('DOMContentLoaded', function () {
+        applyDataAttributesStyles();
+      });
+    </script>
+    {% endblock %}

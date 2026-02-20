@@ -1,0 +1,115 @@
+/* ============================================
+   MODERN ANIMATIONS - KEYFRAMES & UTILS
+   ============================================ */
+
+/* FADE IN UP */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 20px, 0);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fadeInUp var(--duration-normal) var(--ease-smooth) forwards;
+}
+
+/* FADE IN SCALE */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fade-in-scale {
+    animation: fadeInScale var(--duration-fast) var(--ease-elastic) forwards;
+}
+
+/* SLIDE IN RIGHT (Sidebar/Panels) */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* GLOW PULSE (Status Indicators) */
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    }
+}
+
+.animate-pulse-glow {
+    animation: pulseGlow 2s infinite;
+}
+
+/* HOVER UTILS */
+.hover-lift {
+    transition: transform var(--duration-fast) var(--ease-smooth), box-shadow var(--duration-fast) var(--ease-smooth);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.hover-glow {
+    transition: box-shadow var(--duration-fast) var(--ease-smooth);
+}
+
+.hover-glow:hover {
+    box-shadow: var(--shadow-glow-primary);
+    border-color: var(--primary);
+}
+
+.hover-scale {
+    transition: transform var(--duration-fast) var(--ease-elastic);
+}
+
+.hover-scale:hover {
+    transform: scale(1.02);
+}
+
+/* STAGGERED ANIMATIONS (For Lists) */
+.stagger-1 {
+    animation-delay: 50ms;
+}
+
+.stagger-2 {
+    animation-delay: 100ms;
+}
+
+.stagger-3 {
+    animation-delay: 150ms;
+}
+
+.stagger-4 {
+    animation-delay: 200ms;
+}
+
+.stagger-5 {
+    animation-delay: 250ms;
+}

@@ -1,38 +1,23 @@
 ﻿/**
- * theme.js - Handles Dark/Light theme application and toggling
+ * theme.js - Handles Dark/Light theme toggling
+ * Theme is applied EARLY via inline script in <head> (base.html).
+ * This file only handles the toggle button interaction.
  */
-(function () {
-  // Apply theme on load
-  try {
-    var theme = localStorage.getItem('theme');
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      if (document.body) {
-        document.body.classList.add('dark');
-      } else {
-        document.addEventListener('DOMContentLoaded', function () {
-          document.body.classList.add('dark');
-        });
-      }
-    }
-  } catch (e) {
-    console.error('Theme storage error:', e);
-  }
+document.addEventListener('DOMContentLoaded', function () {
+  const toggleBtn = document.getElementById('themeToggle');
+  if (!toggleBtn) return;
 
-  // Handle Toggle Button
-  document.addEventListener('DOMContentLoaded', function () {
-    const toggleBtn = document.getElementById('themeToggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        document.body.classList.toggle('dark');
-        document.documentElement.classList.toggle('dark'); // Ensure html tag is also toggled for Tailwind/tokens compatibility
-        const isDark = document.body.classList.contains('dark');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  // Set initial icon based on current state
+  const isLight = document.documentElement.classList.contains('light-mode');
+  toggleBtn.textContent = isLight ? '☀️' : '🌙';
 
-        // Optional: Update icon if needed (if using specific icons for states)
-        // toggleBtn.textContent = isDark ? '☀️' : '🌙'; 
-      });
-    }
+  toggleBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    document.documentElement.classList.toggle('light-mode');
+    document.body.classList.toggle('light-mode');
+
+    const nowLight = document.documentElement.classList.contains('light-mode');
+    localStorage.setItem('theme', nowLight ? 'light' : 'dark');
+    toggleBtn.textContent = nowLight ? '☀️' : '🌙';
   });
-})();
+});

@@ -1044,7 +1044,7 @@ def submit_wiki_feedback(id):
 
 @wiki_bp.route("/wiki/admin")
 def wiki_admin_dashboard():
-    if "user" not in session or session.get("role") != "admin":
+    if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
         flash("Accès réservé aux administrateurs", "error")
         return redirect(url_for("wiki.wiki"))
     
