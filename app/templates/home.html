@@ -175,20 +175,19 @@
 
   const socket = window.socket;
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  const pendingCardReloads = new Map();
-  let bulkRefreshTimer = null;
+  window._pendingCardReloads = window._pendingCardReloads || new Map();
 
   function scheduleIncidentReload(incidentId, delayMs = 120) {
     if (!incidentId) return;
     const key = String(incidentId);
-    if (pendingCardReloads.has(key)) {
-      clearTimeout(pendingCardReloads.get(key));
+    if (window._pendingCardReloads.has(key)) {
+      clearTimeout(window._pendingCardReloads.get(key));
     }
     const timer = setTimeout(() => {
-      pendingCardReloads.delete(key);
+      window._pendingCardReloads.delete(key);
       reloadIncidentCard(key);
     }, delayMs);
-    pendingCardReloads.set(key, timer);
+    window._pendingCardReloads.set(key, timer);
   }
   window.scheduleIncidentReload = scheduleIncidentReload;
 
@@ -221,96 +220,173 @@
     window.socketConnected = false;
   });
 
-  // Fonction pour recharger uniquement une carte d'incident
-  function reloadIncidentCard(incidentId) {
-    // Trouver toutes les cartes existantes avec cet ID pour déterminer le type
-    const existingCards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+  window._reloadingIncidents = window._reloadingIncidents || new Map();
+  window._pendingCardReloads = window._pendingCardReloads || new Map();
 
-    if (existingCards.length === 0) {
-      console.warn('⚠️ Aucune carte trouvée pour l\'incident', incidentId);
+  // Fonction pour recharger uniquement une carte d'incident
+  window.reloadIncidentCard = function (rawIncidentId) {
+    const incidentId = String(rawIncidentId);
+
+    // Annuler tout rechargement planifié en attente pour éviter les doublons avec ce rechargement manuel
+    if (window._pendingCardReloads.has(incidentId)) {
+      clearTimeout(window._pendingCardReloads.get(incidentId));
+      window._pendingCardReloads.delete(incidentId);
+    }
+
+    const now = Date.now();
+    const lastReload = window._reloadingIncidents.get(incidentId) || 0;
+
+    // Augmenter le délai anti-doublon à 2000ms car l'animation prend au moins 500ms
+    if (now - lastReload < 2000) {
+      console.log(`⏳ Ignoré: reloadIncidentCard(${incidentId}) a déjà été appelé récemment (anti-doublon).`);
       return;
     }
+    window._reloadingIncidents.set(incidentId, now);
 
-    // Déterminer le type de vue (kanban, grouped, list ou tech)
-    const firstCard = existingCards[0];
-    let viewType = 'kanban';
-    if (firstCard.classList.contains('incident-card-grouped')) {
-      viewType = 'grouped';
-    } else if (firstCard.classList.contains('incident-row-list')) {
-      viewType = 'list';
-    } else if (firstCard.classList.contains('small-card')) {
-      viewType = 'tech';
+    const viewsToUpdate = [
+      { viewType: 'kanban', selector: `.incident-card-col[data-incident-id="${incidentId}"]` },
+      { viewType: 'grouped', selector: `.incident-card-grouped[data-incident-id="${incidentId}"]` },
+      { viewType: 'list', selector: `.incident-row-list[data-incident-id="${incidentId}"]` },
+      { viewType: 'table', selector: `.incident-row-table[data-incident-id="${incidentId}"]` },
+      { viewType: 'tech', selector: `#userView [data-incident-id="${incidentId}"]` }
+    ];
+
+    const currentView = window.currentView || 'kanban';
+
+    viewsToUpdate.forEach(v => {
+      const oldCard = document.querySelector(v.selector);
+      const isActiveView = currentView === v.viewType;
+
+      // Seulement fetch si la carte existe déjà, ou si c'est la vue active (pour permettre l'ajout)
+      if (oldCard || isActiveView) {
+        fetch(`/api/incident/${incidentId}?view=${v.viewType}`)
+          .then(response => {
+            if (response.status === 404 || response.status === 403) {
+              if (oldCard) {
+                console.log(`🗑️ Suppression de la carte ${incidentId} (Vue: ${v.viewType})`);
+                oldCard.style.transition = 'opacity 0.3s, transform 0.3s';
+                oldCard.style.opacity = '0';
+                oldCard.style.transform = 'scale(0.8)';
+                setTimeout(() => {
+                  const parent = oldCard.parentElement;
+                  oldCard.remove();
+                  if (v.viewType === 'grouped' && parent && parent.classList.contains('col') && parent.children.length === 0) {
+                    parent.remove();
+                  }
+                  updateCounters();
+                }, 300);
+              }
+              return null;
+            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+          })
+          .then(html => {
+            if (!html) return;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html.trim();
+            const newCard = tempDiv.firstElementChild;
+            if (!newCard) return;
+
+            const newTech = newCard.dataset.technicien || "";
+            const cleanNewTech = newTech.trim();
+
+            if (oldCard) {
+              const oldTech = (oldCard.dataset.technicien || "").trim();
+              if (oldTech !== cleanNewTech && (v.viewType === 'kanban' || v.viewType === 'grouped')) {
+                // MOVE
+                console.log(`📦 Déplacement ${incidentId}: "${oldTech}" -> "${cleanNewTech}" (Vue: ${v.viewType})`);
+                let targetList = null;
+                if (v.viewType === 'kanban') targetList = document.querySelector(`.incident-list-col[data-technicien="${cleanNewTech}"]`);
+                else if (v.viewType === 'grouped') targetList = document.querySelector(`.incident-list-grouped[data-technicien="${cleanNewTech}"]`);
+
+                if (targetList) {
+                  oldCard.style.opacity = '0';
+                  setTimeout(() => {
+                    const parent = oldCard.parentElement;
+                    oldCard.remove();
+                    if (v.viewType === 'grouped' && parent && parent.classList.contains('col') && parent.children.length === 0) parent.remove();
+
+                    const finalCard = newCard.cloneNode(true);
+                    finalCard.style.opacity = '0';
+                    if (v.viewType === 'grouped') {
+                      const colWrapper = document.createElement('div');
+                      colWrapper.className = 'col';
+                      colWrapper.appendChild(finalCard);
+                      targetList.prepend(colWrapper);
+                    } else {
+                      targetList.prepend(finalCard);
+                    }
+                    requestAnimationFrame(() => {
+                      finalCard.style.transition = 'opacity 0.3s';
+                      finalCard.style.opacity = '1';
+                    });
+                    updateCounters();
+                  }, 200);
+                } else {
+                  console.warn(`⚠️ Liste cible introuvable pour "${cleanNewTech}" (Vue: ${v.viewType})`);
+                  oldCard.replaceWith(newCard.cloneNode(true));
+                }
+              } else {
+                // UPDATE simple
+                oldCard.replaceWith(newCard.cloneNode(true));
+              }
+            } else if (isActiveView) {
+              // ADD
+              console.log(`✨ Ajout d'une nouvelle carte ${incidentId} (Vue courante: ${currentView})`);
+              let container = null;
+              if (v.viewType === 'tech') container = document.getElementById('userView');
+              else if (v.viewType === 'kanban') container = document.querySelector(`.incident-list-col[data-technicien="${cleanNewTech}"]`);
+              else if (v.viewType === 'list') container = document.querySelector('#list-view .list-group');
+              else if (v.viewType === 'grouped') { window.location.reload(); return; }
+
+              if (container) {
+                const finalCard = newCard.cloneNode(true);
+                finalCard.style.opacity = '0';
+                container.prepend(finalCard);
+                const emptyMsg = container.querySelector('.text-muted.fst-italic');
+                if (emptyMsg) emptyMsg.remove();
+                requestAnimationFrame(() => {
+                  finalCard.style.transition = 'opacity 0.5s';
+                  finalCard.style.opacity = '1';
+                });
+                updateCounters();
+              }
+            }
+          })
+          .catch(err => console.error(`❌ Erreur reload view ${v.viewType}:`, err));
+      }
+    });
+  };
+
+  // Initialise les handlers pour une nouvelle carte ou une carte rechargée
+  function initCardHandlers(card) {
+    if (window.enableDragDrop) window.enableDragDrop();
+    if (window.applyBadgeContrast) window.applyBadgeContrast();
+    if (window.applyDataAttributesStyles) window.applyDataAttributesStyles();
+    if (window.initTechView) window.initTechView();
+    if (window.checkNoteOverflow) {
+      card.querySelectorAll('.note-wrapper').forEach(w => window.checkNoteOverflow(w));
     }
+  }
 
-    fetch(`/api/incident/${incidentId}?view=${viewType}`)
-      .then(response => {
-        if (response.status === 404) {
-          // Incident supprimé, supprimer toutes les cartes
-          existingCards.forEach(card => {
-            card.style.transition = 'opacity 0.3s, transform 0.3s';
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.8)';
-            setTimeout(() => card.remove(), 300);
-          });
-          return;
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        return response.text();
-      })
-      .then(html => {
-        if (!html) return;
+  // Met à jour les compteurs de l'interface
+  function updateCounters() {
+    // Compteur par technicien (Kanban)
+    document.querySelectorAll('.tech-column').forEach(col => {
+      const tech = col.dataset.technicien;
+      const countBadge = col.querySelector('.badge');
+      const cards = col.querySelectorAll('.incident-card-col');
+      if (countBadge) countBadge.textContent = cards.length;
+    });
 
-        // Créer un conteneur temporaire pour parser le HTML
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html.trim();
+    // Compteurs globaux
+    const total = document.querySelectorAll('.incident-card-col, .incident-card-grouped, .incident-row-list, .small-card').length;
+    const totalCount = document.getElementById('totalCount');
+    if (totalCount) totalCount.textContent = total;
 
-        existingCards.forEach(oldCard => {
-          if (viewType === 'grouped') {
-            // Vue grouped : remplacer le div
-            const newCardDiv = tempDiv.querySelector('div.incident-card-grouped');
-            if (newCardDiv) {
-              oldCard.replaceWith(newCardDiv.cloneNode(true));
-            }
-          } else if (viewType === 'list') {
-            // Vue liste : remplacer le div
-            const newCardDiv = tempDiv.querySelector('div.incident-row-list');
-            if (newCardDiv) {
-              oldCard.replaceWith(newCardDiv.cloneNode(true));
-            }
-          } else if (viewType === 'tech') {
-            // Vue technicien : remplacer le div.small-card
-            const newCardDiv = tempDiv.querySelector('div.small-card');
-            if (newCardDiv) {
-              oldCard.replaceWith(newCardDiv.cloneNode(true));
-            }
-          } else {
-            // Vue kanban : remplacer le li
-            const newCardLi = tempDiv.querySelector('li');
-            if (newCardLi) {
-              oldCard.replaceWith(newCardLi.cloneNode(true));
-            }
-          }
-        });
-
-        // Réinitialiser les event listeners pour la nouvelle carte
-        if (window.enableDragDrop) {
-          window.enableDragDrop();
-        }
-        if (window.applyBadgeContrast) {
-          window.applyBadgeContrast();
-        }
-        if (window.applyDataAttributesStyles) {
-          window.applyDataAttributesStyles();
-        }
-        if (window.initTechView) {
-          window.initTechView();
-        }
-      })
-      .catch(error => {
-        console.error('❌ Erreur lors du rechargement de la carte:', error);
-      });
+    // Les autres compteurs (en cours, suspendus) nécessitent plus de calcul ou un refresh léger
+    // On pourrait les recalculer ici si besoin
   }
 
   // Handler pour les changements d'état - RECHARGEMENT PARTIEL
@@ -520,8 +596,18 @@
       }
     }
   });
+  socket.on('incident_added', (data) => {
+    if (data && data.incident_id) {
+      console.log('✨ Nouvel incident détecté:', data.incident_id);
+      scheduleIncidentReload(data.incident_id);
+    } else {
+      requestBulkRefresh('incident_added');
+    }
+  });
+
   socket.on('new_assignment', (data) => {
     if (data && data.incident_id) {
+      console.log('📦 Réassignation détectée:', data.incident_id);
       scheduleIncidentReload(data.incident_id);
     } else {
       requestBulkRefresh('new_assignment');

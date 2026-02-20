@@ -64,7 +64,8 @@ def api_incident(id):
     statuts = ref_data['statuts']
     
     if session.get("role") in ["admin", "superadmin"]:
-        techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
+        techniciens_rows = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
+        techniciens = [dict(row) for row in techniciens_rows]
     else:
         techniciens = []
     

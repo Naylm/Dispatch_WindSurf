@@ -94,7 +94,7 @@
             {{ tech_incidents|length }}
           </span>
         </div>
-        <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="{{ tech.prenom }}">
+        <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="{{ tech.prenom|trim }}">
           {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
           {% if tech_incidents|length > 0 %}
           {% for i in tech_incidents %}
@@ -108,11 +108,11 @@
     </div>
     {% endfor %}
     <!-- Colonne pour les incidents non assignés -->
-    <div class="tech-column" data-technicien="Non assigné">
+    <div class="tech-column" data-technicien="Non affecté">
       <div class="card shadow-sm h-100 incident-col-card border-warning">
         <div class="card-header text-center fw-bold bg-warning text-dark">
-          Non assigné
-          <span class="badge bg-dark text-warning ms-1" id="tech-count-unassigned">
+          Non affecté
+          <span class="badge bg-dark text-warning ms-1" id="tech-count-non-affecte">
             {% set unassigned_incidents = [] %}
             {% for i in incidents %}
             {% set ns = namespace(found=false) %}
@@ -125,7 +125,7 @@
             {{ unassigned_incidents|length }}
           </span>
         </div>
-        <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="">
+        <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="Non affecté">
           {% if unassigned_incidents|length > 0 %}
           {% for i in unassigned_incidents %}
           {% include "incident_card_partial.html" %}
@@ -146,7 +146,8 @@
   <div class="accordion" id="groupedAccordion">
     {% for tech in techniciens %}
     {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
-    <div class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden" style="background: var(--bg-surface);">
+    <div class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden tech-group-container"
+      data-technicien="{{ tech.prenom }}" style="background: var(--bg-surface);">
       <h2 class="accordion-header" id="heading-{{ loop.index }}">
         <button class="accordion-button {% if tech_incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-white"
           type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}"
@@ -161,7 +162,8 @@
         aria-labelledby="heading-{{ loop.index }}">
         <div class="accordion-body p-3">
           {% if tech_incidents|length > 0 %}
-          <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3">
+          <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3 incident-list-grouped"
+            data-technicien="{{ tech.prenom|trim }}">
             {% for i in tech_incidents %}
             <div class="col">
               {% include "incident_card_grouped_partial.html" %}
@@ -179,16 +181,17 @@
     </div>
     {% endfor %}
 
-    <!-- Accordéon pour les non assignés -->
-    <div class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden border border-warning"
-      style="background: var(--bg-surface);">
+    <!-- Accordéon pour les non affectés -->
+    <div
+      class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden border border-warning tech-group-container"
+      data-technicien="Non affecté" style="background: var(--bg-surface);">
       <h2 class="accordion-header" id="heading-unassigned">
         <button
           class="accordion-button {% if unassigned_incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-warning"
           type="button" data-bs-toggle="collapse" data-bs-target="#collapse-unassigned"
           aria-expanded="{% if unassigned_incidents|length > 0 %}true{% else %}false{% endif %}"
           aria-controls="collapse-unassigned" style="background: rgba(255, 193, 7, 0.1);">
-          Non assigné
+          Non affecté
           <span class="badge bg-warning text-dark ms-3 fs-6">{{ unassigned_incidents|length }} incident(s)</span>
         </button>
       </h2>
@@ -197,7 +200,8 @@
         aria-labelledby="heading-unassigned">
         <div class="accordion-body p-3">
           {% if unassigned_incidents|length > 0 %}
-          <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3">
+          <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3 incident-list-grouped"
+            data-technicien="Non affecté">
             {% for i in unassigned_incidents %}
             <div class="col">
               {% include "incident_card_grouped_partial.html" %}

@@ -2,7 +2,8 @@
 <div class="card incident-card-grouped mb-3 hover-lift border-0 shadow-sm"
   style="background: var(--bg-panel); backdrop-filter: blur(10px);" data-id="{{ i.id }}" data-incident-id="{{ i.id }}"
   data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}" data-sujet="{{ i.sujet|lower }}"
-  data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}">
+  data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}"
+  data-technicien="{{ (i.collaborateur|trim if i.collaborateur else 'Non affecté') }}">
 
   <div class="card-body p-3">
     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -83,6 +84,9 @@
           {% if note_dispatch_content %}{{ note_dispatch_content | e }}{% else %}<span
             class="text-muted fst-italic">Vide</span>{% endif %}
         </div>
+        {% if note_dispatch_content %}
+        <button class="note-toggle-btn" onclick="toggleNoteExpansion(this, event)">Afficher plus</button>
+        {% endif %}
       </div>
 
       {% if is_admin(session.role) %}
@@ -111,6 +115,9 @@
           {% if note_tech_content %}{{ note_tech_content | e }}{% else %}<span
             class="text-muted fst-italic">Vide</span>{% endif %}
         </div>
+        {% if note_tech_content %}
+        <button class="note-toggle-btn" onclick="toggleNoteExpansion(this, event)">Afficher plus</button>
+        {% endif %}
       </div>
 
       <div class="note-edit-mode" style="display: none;">
@@ -136,6 +143,8 @@
       {% if is_admin(session.role) %}
       <select class="form-select form-select-sm bg-dark text-white border-secondary tech-selector-col"
         data-incident-id="{{ i.id }}">
+        <option value="Non affecté" class="text-muted" {% if not i.collaborateur or i.collaborateur=='Non affecté'
+          %}selected{% endif %}>--</option>
         {% for t in techniciens %}
         <option value="{{ t.prenom }}" {% if i.collaborateur==t.prenom %}selected{% endif %}>{{ t.prenom }}</option>
         {% endfor %}

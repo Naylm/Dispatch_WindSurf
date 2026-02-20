@@ -45,6 +45,32 @@ async function fetchWithRetry(url, options = {}, retries = CONFIG.RETRY_ATTEMPTS
 }
 
 function showNotification(message, type = 'info', duration = CONFIG.TOAST_DURATION) {
+    // Redirection vers le système de notifications centralisé si disponible
+    if (window.notificationSystem) {
+        const priorityMap = {
+            success: 'info',
+            danger: 'urgent',
+            warning: 'urgent',
+            info: 'info'
+        };
+        
+        const titleMap = {
+            success: '✅ Succès',
+            danger: '❌ Erreur',
+            warning: '⚠️ Attention',
+            info: 'ℹ️ Info'
+        };
+
+        window.notificationSystem.addNotification({
+            type: 'system',
+            priority: priorityMap[type] || 'info',
+            title: titleMap[type] || 'Info',
+            message: message
+        });
+        return;
+    }
+
+    // Fallback sur l'ancien système de toasts si non initialisé
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
@@ -58,14 +84,14 @@ function showNotification(message, type = 'info', duration = CONFIG.TOAST_DURATI
     const icon = icons[type] || icons.info;
 
     const toast = document.createElement('div');
-    toast.className = \`toast align-items-center text-white bg-\${type} border-0\`;
+    toast.className = `toast align - items - center text - white bg - ${ type } border - 0`;
     toast.setAttribute('role', 'alert');
-    toast.innerHTML = \`
-        <div class="d-flex">
-            <div class="toast-body"><strong>\${icon}</strong> \${escapeHtml(message)}</div>
+    toast.innerHTML = `
+                < div class= "d-flex" >
+            <div class="toast-body"><strong>${icon}</strong> ${escapeHtml(message)}</div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    \`;
+        </div >
+                    `;
 
     container.appendChild(toast);
     const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: duration });

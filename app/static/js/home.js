@@ -378,6 +378,52 @@ window.updateViewMode = function (wrapper, newText, noteType) {
   textarea.value = newText;
   editMode.style.display = 'none';
   viewMode.style.display = 'block';
+
+  // Re-check overflow after update
+  setTimeout(() => window.checkNoteOverflow(wrapper), 10);
+};
+
+// --- Show More / Less Logic ---
+window.toggleNoteExpansion = function (btn, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const wrapper = btn.closest('.note-wrapper');
+  const content = wrapper.querySelector('.note-content');
+  if (!content) return;
+
+  const isExpanded = content.classList.toggle('expanded');
+  btn.textContent = isExpanded ? 'Réduire' : 'Afficher plus';
+
+  // If we just collapsed, scroll back to the top of the card if it's out of view
+  if (!isExpanded) {
+    const card = wrapper.closest('.incident-card-col, .small-card, .incident-card-grouped');
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      if (rect.top < 0) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }
+};
+
+window.checkNoteOverflow = function (wrapper) {
+  const content = wrapper.querySelector('.note-content');
+  const btn = wrapper.querySelector('.note-toggle-btn');
+  if (!content || !btn) return;
+
+  // Reset to measure real scrollHeight
+  const wasExpanded = content.classList.contains('expanded');
+  content.classList.remove('expanded');
+
+  // Check if it overflows (scrollHeight > clientHeight + 5px margin of error)
+  const isOverflowing = content.scrollHeight > content.clientHeight + 5;
+
+  btn.style.display = isOverflowing ? 'block' : 'none';
+
+  // Restore state
+  if (wasExpanded) content.classList.add('expanded');
 };
 
 // ==========================================
@@ -868,21 +914,36 @@ window.initTechView = function () {
       const currentTech = select.dataset.current || '';
 
       if (confirm(`Affecter le ticket à ${newTech} ?`)) {
+        console.log(`📡 Tentative d'affectation: Incident=${incidentId}, NouveauTech=${newTech}`);
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) console.warn('⚠️ CSRF Token manquant !');
+
         fetch('/incidents/assign', {
           method: 'POST',
           headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ id: incidentId, collaborateur: newTech })
-        }).then(r => r.json()).then(d => {
+        }).then(r => {
+          console.log(`📥 Réponse serveur: Status=${r.status}`);
+          return r.json();
+        }).then(d => {
           if (d.status === 'ok') {
+            console.log('✅ Affectation réussie côté serveur');
             select.dataset.current = newTech;
-            // Reload page to reflect column change
-            window.location.reload();
+            // Seamless reload instead of page refresh
+            if (window.reloadIncidentCard) {
+              console.log('🔄 Déclenchement reloadIncidentCard...');
+              window.reloadIncidentCard(incidentId);
+            } else {
+              console.warn('⚠️ reloadIncidentCard non trouvé, refresh global...');
+              window.location.reload();
+            }
           } else {
+            console.error('❌ Erreur serveur:', d.message);
             alert('Erreur: ' + (d.message || 'Échec de la réaffectation'));
             select.value = currentTech;
           }
-        }).catch(() => {
+        }).catch(err => {
+          console.error('❌ Erreur réseau/JS:', err);
           alert('Erreur réseau');
           select.value = currentTech;
         });
@@ -891,6 +952,11 @@ window.initTechView = function () {
       }
     }
   });
+
+  // Run initial overflow check for all notes
+  setTimeout(() => {
+    document.querySelectorAll('.note-wrapper').forEach(window.checkNoteOverflow);
+  }, 500);
 
 })();
 

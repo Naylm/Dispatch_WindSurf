@@ -1,8 +1,7 @@
-import os
 import eventlet
-# Monkey-patch eventlet FIRST to avoid DNS and other issues, similar to original app.py
 eventlet.monkey_patch()
 
+import os
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_wtf import CSRFProtect
@@ -113,5 +112,9 @@ def create_app(debug=False):
             ensure_database_integrity()
         except Exception as e:
             print(f"Error ensuring database integrity: {e}")
+
+    # Register Socket.IO event handlers
+    from app.sockets import register_socket_handlers
+    register_socket_handlers(socketio)
 
     return app

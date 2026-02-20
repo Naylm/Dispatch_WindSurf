@@ -2,7 +2,8 @@
 <div class="list-group-item incident-row-list border-0 mb-1 hover-lift shadow-sm"
   style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-md);"
   data-id="{{ i.id }}" data-incident-id="{{ i.id }}" data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}"
-  data-sujet="{{ i.sujet|lower }}" data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}">
+  data-sujet="{{ i.sujet|lower }}" data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}"
+  data-technicien="{{ i.collaborateur }}">
 
   <div class="d-flex justify-content-between align-items-center">
     <div class="flex-grow-1">
@@ -76,6 +77,8 @@
         {% if is_admin(session.role) %}
         <select class="form-select form-select-sm bg-dark text-white border-secondary tech-selector-list py-0"
           data-incident-id="{{ i.id }}" style="width: 120px; height: 24px; font-size: 0.8rem;">
+          <option value="Non affecté" class="text-muted" {% if not i.collaborateur or i.collaborateur=='Non affecté'
+            %}selected{% endif %}>--</option>
           {% for t in techniciens %}
           <option value="{{ t.prenom }}" {% if i.collaborateur==t.prenom %}selected{% endif %}>{{ t.prenom }}</option>
           {% endfor %}

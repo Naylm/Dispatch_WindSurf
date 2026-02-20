@@ -75,6 +75,7 @@ def login():
                 session["user"] = tech["username"]
                 session["role"] = tech["role"] or "technicien"
                 session["user_type"] = "technicien"
+                session["prenom"] = tech["prenom"]
                 session["user_display_name"] = f"{tech['prenom']} {tech['nom']}".strip()
                 session.permanent = True
                 current_app.logger.info(f"Technician login success: {tech['username']}")

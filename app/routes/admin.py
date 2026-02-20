@@ -414,16 +414,22 @@ def assign_incident():
 
         old_collab = incident["collaborateur"]
 
-        tech_row = db.execute(
-            "SELECT id, prenom FROM techniciens WHERE prenom=%s AND actif=1",
-            (new_collab,),
-        ).fetchone()
-        if not tech_row:
-            return jsonify({"status": "error", "message": "Technicien introuvable"}), 404
+        clean_collab = new_collab.strip()
+        tech_id = None
+        if clean_collab not in ("Non affecté", "Client", "--", ""):
+            tech_row = db.execute(
+                "SELECT id, prenom FROM techniciens WHERE (TRIM(prenom)=%s OR TRIM(username)=%s) AND actif=1",
+                (clean_collab, clean_collab),
+            ).fetchone()
+            if not tech_row:
+                return jsonify({"status": "error", "message": f"Technicien '{clean_collab}' introuvable"}), 404
+            tech_id = tech_row["id"]
+            # Important: utiliser le prenom officiel de la DB pour uniformité
+            clean_collab = tech_row["prenom"].strip()
 
         db.execute(
             "UPDATE incidents SET collaborateur=%s, technicien_id=%s WHERE id=%s",
-            (new_collab, tech_row["id"], incident_id),
+            (clean_collab, tech_id, incident_id),
         )
         db.commit()
 
@@ -439,10 +445,10 @@ def assign_incident():
         }
 
         # Émettre la notification de réaffectation
-        emit_reassignment_notification(socketio, incident_data, old_collab, new_collab)
+        emit_reassignment_notification(socketio, incident_data, old_collab, clean_collab)
         
         # Surcharger l'événement pour mettre à jour les cartes (tech + admin)
-        _emit_incident_event("new_assignment", incident_id, db=db, technician_names=[old_collab, new_collab])
+        _emit_incident_event("new_assignment", incident_id, db=db, technician_names=[old_collab, clean_collab])
         
         return jsonify({"status": "ok", "message": "Réaffectation réussie"})
     except Exception as e:

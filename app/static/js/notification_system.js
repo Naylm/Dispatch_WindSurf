@@ -262,7 +262,7 @@ class NotificationSystem {
             type: 'wiki_update_requested',
             priority: 'info',
             title: `📝 ${reason}`,
-            message: `${title || 'Article'} — par ${requested_by || 'quelqu\\'un'}`,
+            message: `${title || 'Article'} — par ${requested_by || 'quelqu\'un'}`,
             action: article_id ? {
                 label: "Voir l'article",
                 onClick: () => { window.location.href = `/wiki/article/${article_id}`; }
@@ -558,65 +558,131 @@ class NotificationSystem {
             console.error('Erreur lors du chargement des notifications:', e);
         }
     }
+
+    /**
+     * Connecte le système aux événements Socket.IO globaux
+     */
+    connectSocket(socket) {
+        if (!socket) return;
+
+        console.log('🔗 Connexion du système de notifications au Socket.IO');
+
+        socket.on('new_assignment', (data) => {
+            console.log('🔔 Notification reçue: new_assignment', data);
+            this.notifyNewAssignment(data);
+        });
+
+        socket.on('incident_etat_changed', (data) => {
+            console.log('🔔 Notification reçue: status_change', data);
+            this.notifyStatusChange(data);
+        });
+
+        socket.on('urgent_update', (data) => {
+            console.log('🔔 Notification reçue: urgent_update', data);
+            this.notifyUrgentUpdate(data);
+        });
+
+        socket.on('wiki_update_requested', (data) => {
+            console.log('🔔 Notification reçue: wiki_update_requested', data);
+            this.notifyWikiUpdateRequested(data);
+        });
+    }
 }
 
-// Styles CSS pour le système de notifications
+// Styles CSS modernisés (Glassmorphism + Dark Mode support)
 const notificationStyles = document.createElement('style');
 notificationStyles.textContent = `
     .notification-panel {
         position: fixed;
         width: 400px;
         max-height: 600px;
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 9998;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        z-index: 10001;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        animation: slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .light-mode .notification-panel {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Dark mode override */
+    body:not(.light-mode) .notification-panel {
+        background: rgba(30, 30, 45, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e1e1e6;
     }
 
     .notification-panel-header {
-        padding: 12px 16px;
-        border-bottom: 1px solid #dee2e6;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: #f8f9fa;
-        border-radius: 8px 8px 0 0;
+        background: rgba(255, 255, 255, 0.05);
     }
 
     .notification-panel-body {
         overflow-y: auto;
         max-height: 500px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     }
 
     .notification-item {
-        padding: 12px 16px;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.2s ease;
         display: flex;
-        gap: 8px;
+        gap: 12px;
+        position: relative;
     }
 
     .notification-item:hover {
-        background: #f8f9fa;
+        background: rgba(255, 255, 255, 0.08);
     }
 
     .notification-item.unread {
-        background: #e7f3ff;
-        border-left: 3px solid #0d6efd;
+        background: rgba(13, 110, 253, 0.1);
+    }
+
+    .notification-item.unread::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #0d6efd;
     }
 
     .notification-item.urgent {
-        border-left: 3px solid #dc3545;
-        background: #fff5f5;
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .notification-item.urgent::before {
+        background: #dc3545;
+        width: 4px;
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
     }
 
     .notification-item.urgent.unread {
-        background: #ffe0e0;
-        animation: urgentPulse 2s ease-in-out infinite;
+        background: rgba(220, 53, 69, 0.15);
+        animation: urgentGlow 2s infinite;
     }
 
     .notification-content {
@@ -625,50 +691,78 @@ notificationStyles.textContent = `
 
     .notification-title {
         font-weight: 600;
-        font-size: 0.9rem;
-        margin-bottom: 4px;
-        color: #212529;
+        font-size: 0.95rem;
+        margin-bottom: 3px;
     }
 
     .notification-message {
         font-size: 0.85rem;
-        color: #495057;
-        margin-bottom: 4px;
+        opacity: 0.9;
+        margin-bottom: 6px;
+        line-height: 1.4;
     }
 
     .notification-details {
-        font-size: 0.75rem;
-        color: #6c757d;
+        font-size: 0.8rem;
+        opacity: 0.7;
         font-style: italic;
-        margin-top: 4px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        margin-bottom: 8px;
     }
 
     .notification-time {
-        font-size: 0.7rem;
-        color: #adb5bd;
-        margin-top: 4px;
+        font-size: 0.75rem;
+        opacity: 0.5;
     }
 
     .notification-actions {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        align-items: flex-end;
+        gap: 6px;
+        justify-content: center;
     }
 
-    .notif-action-btn, .notif-dismiss-btn {
+    .notif-action-btn {
         font-size: 0.75rem;
-        padding: 2px 8px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
     }
 
-    @keyframes urgentPulse {
-        0%, 100% { background: #ffe0e0; }
-        50% { background: #ffcccc; }
+    .notif-dismiss-btn {
+        background: none;
+        border: none;
+        color: inherit;
+        opacity: 0.4;
+        transition: opacity 0.2s;
+        padding: 4px;
+        font-size: 1rem;
     }
 
-    @keyframes highlightPulse {
-        0%, 100% { background: inherit; transform: scale(1); }
-        50% { background: #fff3cd; transform: scale(1.02); }
+    .notif-dismiss-btn:hover {
+        opacity: 1;
+    }
+
+    @keyframes urgentGlow {
+        0%, 100% { box-shadow: inset 0 0 0 rgba(220, 53, 69, 0); }
+        50% { box-shadow: inset 0 0 15px rgba(220, 53, 69, 0.3); }
+    }
+
+    @keyframes slideInDown {
+        from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    #notificationBadge {
+        font-size: 0.65rem;
+        padding: 0.35em 0.5em;
+        border: 2px solid var(--bg-panel, #222);
+    }
+
+    .light-mode #notificationBadge {
+        border-color: #fff;
     }
 
     @media (max-width: 768px) {
@@ -682,11 +776,19 @@ notificationStyles.textContent = `
 `;
 document.head.appendChild(notificationStyles);
 
-// Pattern singleton pour éviter double initialisation
+// Pattern singleton avec connexion socket retardée pour s'assurer que window.socket existe
 if (!window.notificationSystem) {
     window.notificationSystem = new NotificationSystem();
     window.notificationSystem.loadNotifications();
     console.log('✅ Système de notifications initialisé');
+
+    // Attendre que le socket soit prêt
+    const checkSocket = setInterval(() => {
+        if (window.socket) {
+            window.notificationSystem.connectSocket(window.socket);
+            clearInterval(checkSocket);
+        }
+    }, 500);
 } else {
     console.log('ℹ️ Système de notifications déjà actif');
 }
