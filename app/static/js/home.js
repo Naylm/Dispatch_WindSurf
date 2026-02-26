@@ -431,7 +431,9 @@ window.checkNoteOverflow = function (wrapper) {
 // ==========================================
 
 window.initTechView = function () {
+  console.log('👷 Initializing Tech View...');
   const config = window.dispatchConfig || {};
+  console.log('📦 Config:', config);
   const TECH_USERNAME = config.username;
   const SITE_ORDER_LIST = config.siteOrder || [];
   const STATUT_ORDER_LIST = config.statutOrder || [];
@@ -711,6 +713,11 @@ window.initTechView = function () {
 
   // Init View Preference
   window.initializeView();
+
+  // Initialize Technician View if applicable
+  if (typeof window.initTechView === 'function') {
+    window.initTechView();
+  }
 
   // Listeners for Note System (delegated)
   document.body.addEventListener('click', function (e) {

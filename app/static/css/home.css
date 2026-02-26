@@ -58,13 +58,13 @@
   transition: opacity 0.3s ease;
 }
 
-.sidebar-backdrop.active {
-  display: block;
-  opacity: 1;
-}
-
 /* Afficher le backdrop seulement sur mobile quand sidebar ouverte */
 @media (max-width: 768px) {
+  .sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+  }
+
   .sidebar.open~.sidebar-backdrop {
     display: block;
     opacity: 1;
@@ -321,8 +321,8 @@
   /* Robust CSS Grid - No Overlap, Auto-filling columns */
   .tech-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
-    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)) !important;
+    gap: 0.75rem;
     align-items: start;
     /* Align cards to top */
   }
@@ -336,6 +336,18 @@
     width: 100%;
     height: auto;
     /* Match height of neighbors in same row if wanted, or use align-items: start for natural height */
+  }
+
+  .tech-view-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)) !important;
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .tech-filters {
+    grid-column: 1 / -1;
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -353,5 +365,11 @@
 
   .tech-column {
     width: 100%;
+  }
+
+  .tech-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 }

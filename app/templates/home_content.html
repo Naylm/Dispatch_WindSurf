@@ -245,13 +245,13 @@
 <div id="userView" class="tech-view-container">
   <!-- Filtres Technicien -->
   <div
-    class="tech-filters mb-3 w-100 d-flex gap-2 flex-wrap align-items-center p-2 rounded border border-white border-opacity-10 shadow-sm"
+    class="tech-filters mb-2 w-100 d-flex gap-1 flex-wrap align-items-center p-1 rounded border border-white border-opacity-10 shadow-sm"
     style="background: var(--bg-surface); backdrop-filter: blur(10px);">
     <input type="text" id="searchInputTech" class="form-control form-control-sm bg-dark text-white border-secondary"
-      style="max-width: 200px;" placeholder="🔍 Recherche...">
+      style="max-width: 140px; font-size: 0.8rem;" placeholder="🔍 Recherche...">
 
     <select id="filterSiteTech" class="form-select form-select-sm bg-dark text-white border-secondary"
-      style="max-width: 150px;">
+      style="max-width: 120px; font-size: 0.8rem;">
       <option value="">📍 Tous sites</option>
       {% for s in sites %}
       <option value="{{ s.nom }}">{{ s.nom }}</option>
@@ -259,7 +259,7 @@
     </select>
 
     <select id="filterUrgenceTech" class="form-select form-select-sm bg-dark text-white border-secondary"
-      style="max-width: 150px;">
+      style="max-width: 130px; font-size: 0.8rem;">
       <option value="">⚡ Toutes urgences</option>
       {% for p in priorites %}
       <option value="{{ p.nom }}">{{ p.nom }}</option>
@@ -267,7 +267,7 @@
     </select>
 
     <select id="sortByTech" class="form-select form-select-sm bg-dark text-white border-secondary"
-      style="max-width: 150px;">
+      style="max-width: 125px; font-size: 0.8rem;">
       <option value="">🔄 Trier par...</option>
       <option value="site-asc">📍 Site (A-Z)</option>
       <option value="urgence-desc">⚡ Urgence (Haute > Basse)</option>
@@ -276,7 +276,8 @@
       <option value="date-desc">📅 Date (Récent > Ancien)</option>
     </select>
 
-    <button id="clearFiltersTechBtn" class="btn btn-outline-secondary btn-sm">✕ Réinit</button>
+    <button id="clearFiltersTechBtn" class="btn btn-outline-secondary btn-sm px-2 py-0" style="font-size: 0.8rem;">✕
+      R.A.Z</button>
   </div>
 
   {% for i in incidents %}
@@ -289,9 +290,16 @@
 <!-- Inject Configuration for JS -->
 <script>
   window.dispatchConfig = {
-    username: {{ username | tojson }},
+    username: {{ username | default ('') | tojson }},
   siteOrder: { { sites | map(attribute = 'nom') | list | tojson } },
   statutOrder: { { statuts | map(attribute = 'nom') | list | tojson } },
   priorities: { { priorites | tojson } }
   };
+  {% if not is_admin(role) %}
+  window.currentView = 'tech';
+  // Initialize technician view logic if on the right view
+  if (typeof window.initTechView === 'function') {
+    window.initTechView();
+  }
+  {% endif %}
 </script>
