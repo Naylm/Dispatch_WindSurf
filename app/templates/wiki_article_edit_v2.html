@@ -3,9 +3,10 @@
 {% block title %}{% if article %}Modifier{% else %}Créer{% endif %} un article - Base de connaissances{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
-<link href="{{ url_for('static', filename='css/wiki_editor_v2.css') }}?v=1.2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/wiki_editor_v2.css') }}" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 <style>
     .wiki-editor-page {
         /* Specific overrides if needed, though most should be in wiki_editor_v2.css */
@@ -50,7 +51,28 @@
                             value="{% if article and article.icon %}{{ article.icon }}{% else %}📝{% endif %}"
                             maxlength="4" readonly>
                         <button type="button" class="btn btn-primary" id="emojiPickerToggle">Choisir</button>
-                        <div class="emoji-picker" id="emojiPicker"></div>
+                        <div class="emoji-picker" id="emojiPicker">
+                            <div class="emoji-picker-header">
+                                <input type="text" id="emojiSearch" class="emoji-search form-control form-control-sm"
+                                    placeholder="Rechercher...">
+                                <div class="emoji-categories">
+                                    <button type="button" class="category-btn active" data-category="recent"
+                                        title="Récents">🕒</button>
+                                    <button type="button" class="category-btn" data-category="smileys"
+                                        title="Sourires">😀</button>
+                                    <button type="button" class="category-btn" data-category="gestures"
+                                        title="Gestes">👍</button>
+                                    <button type="button" class="category-btn" data-category="it" title="IT">💻</button>
+                                    <button type="button" class="category-btn" data-category="objects"
+                                        title="Objets">📦</button>
+                                    <button type="button" class="category-btn" data-category="nature"
+                                        title="Nature">🌿</button>
+                                    <button type="button" class="category-btn" data-category="symbols"
+                                        title="Symboles">❗</button>
+                                </div>
+                            </div>
+                            <div class="emoji-grid" id="emojiGrid"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -93,49 +115,20 @@
             </div>
         </div>
 
-        <div class="form-section">
-            <h5 class="mb-3">Upload d'images</h5>
-            <div class="upload-zone" id="uploadZone">
-                <div>
-                    <div class="upload-icon">Image</div>
-                    <p class="mb-1">Cliquez ou glissez-déposez vos images ici</p>
-                    <small class="text-muted">PNG, JPG, GIF, WEBP - max 5MB</small>
-                </div>
-                <input type="file" id="fileInput" accept="image/*" multiple hidden>
-            </div>
-            <div id="uploadedImages" class="d-grid gap-2"></div>
-        </div>
+
 
         <div class="form-section">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                 <h5 class="mb-0">Contenu de l'article</h5>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <small class="text-muted">Ctrl+S pour sauvegarder</small>
-                    <div class="btn-group btn-group-sm editor-view-controls" role="group" aria-label="Mode d'affichage">
-                        <button type="button" class="btn btn-outline-secondary active" data-editor-view="split">
-                            Mixte
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-editor-view="edit">
-                            Édition
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-editor-view="preview">
-                            Aperçu grand
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            <div class="editor-layout view-split" id="editorLayout">
-                <div id="toastEditor" class="toast-editor-host d-none"></div>
-                <textarea id="contentFallback" name="content" class="form-control fallback-editor"
-                    placeholder="Écrivez votre contenu en Markdown..."
-                    required>{% if article and article.content %}{{ article.content }}{% endif %}</textarea>
+            <div class="editor-layout" id="editorLayout">
+                <textarea id="tinymceEditor"></textarea>
             </div>
 
-            <div class="editor-hints text-muted small mt-2">
-                Le mode moderne Markdown + visuel est chargé automatiquement.
-                Si indisponible, la zone de texte reste active en mode secours.
-            </div>
             <div id="autosaveStatus" class="autosave-status text-muted small mt-2">Aucun brouillon local</div>
         </div>
 
@@ -157,56 +150,39 @@
     </form>
 </div>
 
-<div class="modal fade" id="imageCropModal" tabindex="-1" aria-labelledby="imageCropModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="imageCropModalLabel">Recadrer l'image</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-            </div>
-            <div class="modal-body">
-                <div class="cropper-wrap">
-                    <img id="cropperImage" alt="Prévisualisation du recadrage">
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button type="button" class="btn btn-outline-secondary btn-sm"
-                        data-crop-aspect="free">Libre</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="1:1">1:1</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="4:3">4:3</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-crop-aspect="16:9">16:9</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="cropperRotateLeft">Rotation
-                        -90°</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="cropperRotateRight">Rotation
-                        +90°</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm"
-                        id="cropperReset">Réinitialiser</button>
-                </div>
-                <small class="text-muted d-block mt-2">
-                    Astuce: glissez pour déplacer l'image, utilisez la molette pour zoomer.
-                </small>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary" id="cropperApplyBtn">Utiliser l'image recadrée</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block scripts %}
+<div id="wiki-config-container" style="display:none;" data-mode="{% if article %}edit{% else %}create{% endif %}"
+    data-article-id="{% if article %}{{ article.id }}{% endif %}"
+    data-subcategory-id="{% if article and article.subcategory_id %}{{ article.subcategory_id }}{% endif %}"
+    data-draft-key="wiki-editor-v2:{% if article %}{{ article.id }}{% else %}new{% endif %}:{{ user }}"
+    data-upload-url="{{ url_for('wiki.upload_wiki_image') }}">
+    {{ subcategories | tojson | safe }}
+</div>
 <script>
+    const configContainer = document.getElementById('wiki-config-container');
+
+    // Decode HTML entities to get valid JSON
+    const decodedJSON = configContainer.innerHTML.trim()
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+
     window.wikiEditorV2Config = {
-        mode: {{ ('edit' if article else 'create')| tojson }},
-    articleId: { { (article.id if article else None)| tojson } },
-    articleSubcategoryId: { { (article.subcategory_id if article and article.subcategory_id else None)| tojson } },
-    draftKey: { { ('wiki-editor-v2:' ~(article.id if article else 'new') ~ ':' ~user)| tojson } },
-    uploadUrl: { { url_for('wiki.upload_wiki_image') | tojson } },
-    subcategories: { { subcategories | tojson | safe } }
-        };
+        mode: configContainer.dataset.mode,
+        articleId: configContainer.dataset.articleId ? parseInt(configContainer.dataset.articleId) : null,
+        articleSubcategoryId: configContainer.dataset.subcategoryId ? parseInt(configContainer.dataset.subcategoryId) : null,
+        draftKey: configContainer.dataset.draftKey,
+        uploadUrl: configContainer.dataset.uploadUrl,
+        subcategories: JSON.parse(decodedJSON)
+    };
 </script>
 <script src="{{ url_for('static', filename='js/vendor/dompurify.min.js') }}"></script>
-<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
-<script src="{{ url_for('static', filename='js/wiki_editor_v2.js') }}?v=1.2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{{ url_for('static', filename='js/vendor/tinymce/tinymce.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/wiki_editor_v2.js') }}?v=1.6"></script>
 {% endblock %}

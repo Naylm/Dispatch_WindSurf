@@ -1,14 +1,14 @@
 {# Template partiel pour une carte d'incident - Réutilisable dans toutes les vues #}
-<div class="card incident-card-col mb-3 hover-lift border-0 shadow-sm"
+<div class="card incident-card-col mb-2 hover-lift border-0 shadow-sm"
   style="background: var(--bg-panel); backdrop-filter: blur(10px);" data-id="{{ i.id }}" data-incident-id="{{ i.id }}"
   data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}" data-sujet="{{ i.sujet|lower }}"
   data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}"
   data-technicien="{{ (i.collaborateur|trim if i.collaborateur else 'Non affecté') }}">
 
-  <div class="card-body p-2 d-flex flex-column">
+  <div class="card-body p-1 px-2 d-flex flex-column">
     <!-- Header: Numero + Actions -->
     <div class="d-flex justify-content-between align-items-center mb-1">
-      <strong class="text-neon fw-bold" style="font-size: 1.1rem; letter-spacing: 0.5px;">{{ i.numero }}</strong>
+      <strong class="text-neon fw-bold" style="font-size: 1rem; letter-spacing: 0.5px;">{{ i.numero }}</strong>
       <div class="d-flex gap-1">
         <button class="btn btn-sm btn-link p-0 text-white copy-btn opacity-75 hover-opacity-100"
           data-numero="{{ i.numero }}" title="Copier le numéro">📋</button>
@@ -30,7 +30,7 @@
       <div class="d-flex align-items-center flex-wrap gap-1 mb-1">
         {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
         {% if site_info %}
-        <span class="badge rounded-pill border border-white border-opacity-25"
+        <span class="badge rounded-pill border border-white border-opacity-25 site-badge" data-site-name="{{ i.site }}"
           style="background-color: {{ site_info.couleur }}; color: {{ site_info.couleur|contrast_color }}; font-weight: 600;">
           {{ i.site }}
         </span>
@@ -55,7 +55,7 @@
       <!-- Priorité -->
       {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
       {% if priorite_info %}
-      <span class="badge rounded-pill"
+      <span class="badge rounded-pill priority-badge" data-priority-name="{{ i.urgence }}"
         style="background-color: {{ priorite_info.couleur }}; color: {{ priorite_info.couleur|contrast_color }}; font-size: 0.75rem;">
         {{ i.urgence }}
       </span>
@@ -65,6 +65,17 @@
       {% endif %}
 
 
+
+      <!-- Status -->
+      {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
+      {% if statut_info %}
+      <span class="badge status-badge rounded-pill" data-status-name="{{ i.etat }}"
+        style="background-color: {{ statut_info.couleur }}; color: {{ statut_info.couleur|contrast_color }}; font-size: 0.75rem;">
+        {{ i.etat }}
+      </span>
+      {% else %}
+      <span class="badge bg-secondary rounded-pill" style="font-size: 0.75rem;">{{ i.etat }}</span>
+      {% endif %}
 
       <!-- Date -->
       <span class="badge bg-dark bg-opacity-50 text-muted border border-secondary border-opacity-25 rounded-pill"
@@ -98,7 +109,7 @@
       data-incident-id="{{ i.id }}">
       <div class="d-flex align-items-center justify-content-between">
         <small class="text-info fw-bold me-2" style="font-size: 0.7rem; white-space: nowrap;">📧 Relances</small>
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center flex-wrap gap-2">
           <div class="form-check m-0 p-0 d-flex align-items-center gap-1" title="Mail envoyé">
             <input class="form-check-input relance-checkbox m-0" type="checkbox" data-incident-id="{{ i.id }}"
               data-field="relance_mail" {% if i.relance_mail %}checked{% endif %} onchange="updateRelance(this)"
@@ -136,7 +147,7 @@
     {% set note_dispatch = i.note_dispatch.strip() if i.note_dispatch else '' %}
     <div class="note-wrapper mb-1" data-incident-id="{{ i.id }}" data-note-type="dispatch">
       <div
-        class="note-view-mode p-1 px-2 rounded bg-dark bg-opacity-50 border border-white border-opacity-10 {% if is_admin(session.role) %}pointer-cursor{% endif %}"
+        class="note-view-mode p-1 rounded bg-dark bg-opacity-50 border border-white border-opacity-10 {% if is_admin(session.role) %}pointer-cursor{% endif %}"
         {% if is_admin(session.role) %}onclick="enterEditMode(this.querySelector('.note-edit-btn') || this)" {% endif
         %}>
         <div class="d-flex justify-content-between align-items-center">
@@ -163,7 +174,7 @@
           <button class="btn btn-xs btn-outline-secondary py-0 px-2 note-cancel-btn"
             style="font-size: 0.7rem;">Annuler</button>
           <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="dispatch" style="font-size: 0.7rem;">OK</button>
+            data-note-type="dispatch" style="font-size: 0.7rem;">✔️</button>
         </div>
       </div>
       {% endif %}
@@ -172,8 +183,7 @@
     <!-- Note Tech (Collapsible/Compact) -->
     {% set note_tech = i.notes.strip() if i.notes else '' %}
     <div class="note-wrapper mb-2" data-incident-id="{{ i.id }}" data-note-type="tech">
-      <div
-        class="note-view-mode p-1 px-2 rounded bg-dark bg-opacity-50 border border-white border-opacity-10 pointer-cursor"
+      <div class="note-view-mode p-1 rounded bg-dark bg-opacity-50 border border-white border-opacity-10 pointer-cursor"
         onclick="enterEditMode(this.querySelector('.note-edit-btn') || this)">
         <div class="d-flex justify-content-between align-items-center">
           <span class="text-warning fw-bold" style="font-size: 0.7rem;">Note Tech</span>
@@ -195,7 +205,7 @@
           <button class="btn btn-xs btn-outline-secondary py-0 px-2 note-cancel-btn"
             style="font-size: 0.7rem;">Annuler</button>
           <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="tech" style="font-size: 0.7rem;">OK</button>
+            data-note-type="tech" style="font-size: 0.7rem;">✔️</button>
         </div>
       </div>
     </div>
@@ -207,8 +217,8 @@
         <!-- Status Select -->
         <div class="flex-grow-1">
           <select
-            class="form-select form-select-sm bg-dark text-white border-secondary shadow-none status-selector-col py-1"
-            style="font-size: 0.8rem; height: auto;" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+            class="form-select form-select-sm bg-dark text-white border-secondary shadow-none status-selector-col py-0 ps-1"
+            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
             {% for st in statuts %}
             <option value="{{ st.nom }}" {% if i.etat==st.nom %}selected{% endif %}>{{ st.nom }}</option>
             {% endfor %}
@@ -219,8 +229,8 @@
         <!-- Tech Select -->
         <div style="width: 40%;">
           <select
-            class="form-select form-select-sm bg-dark text-white border-secondary shadow-none tech-selector-col py-1"
-            style="font-size: 0.8rem; height: auto;" data-incident-id="{{ i.id }}">
+            class="form-select form-select-sm bg-dark text-white border-secondary shadow-none tech-selector-col py-0 ps-1"
+            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}">
             <option value="Non affecté" class="text-muted" {% if not i.collaborateur or i.collaborateur=='Non affecté'
               %}selected{% endif %}>--</option>
             {% for t in techniciens %}

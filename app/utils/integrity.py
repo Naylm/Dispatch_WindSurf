@@ -562,22 +562,33 @@ def ensure_database_integrity():
                 id SERIAL PRIMARY KEY,
                 nom VARCHAR(255) UNIQUE NOT NULL,
                 couleur VARCHAR(50) NOT NULL,
-                niveau INTEGER NOT NULL
+                niveau INTEGER NOT NULL,
+                is_urgent BOOLEAN DEFAULT FALSE
             )
         """)
         # Insérer des priorités par défaut
         default_priorites = [
-            ('Basse', '#28a745', 1),
-            ('Moyenne', '#ffc107', 2),
-            ('Haute', '#fd7e14', 3),
-            ('Critique', '#dc3545', 4)
+            ('Basse', '#28a745', 1, False),
+            ('Moyenne', '#ffc107', 2, False),
+            ('Haute', '#fd7e14', 3, True),
+            ('Critique', '#dc3545', 4, True)
         ]
-        for nom, couleur, niveau in default_priorites:
-            cursor.execute("INSERT INTO priorites (nom, couleur, niveau) VALUES (%s, %s, %s)", 
-                         (nom, couleur, niveau))
+        for nom, couleur, niveau, is_urgent in default_priorites:
+            cursor.execute("INSERT INTO priorites (nom, couleur, niveau, is_urgent) VALUES (%s, %s, %s, %s)", 
+                         (nom, couleur, niveau, is_urgent))
         tables_created.append("priorites")
     else:
         tables_verified.append("priorites")
+        # Migration: s'assurer que la colonne is_urgent existe
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='priorites' AND column_name='is_urgent'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE priorites ADD COLUMN is_urgent BOOLEAN DEFAULT FALSE")
+            cursor.execute("UPDATE priorites SET is_urgent=TRUE WHERE nom IN ('Haute', 'Critique', 'Immédiate')")
+            print("   - Colonne is_urgent ajoutee a la table priorites")
     
     # ========== TABLE: sites ==========
     cursor.execute("""

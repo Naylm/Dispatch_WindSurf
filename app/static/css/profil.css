@@ -13,11 +13,11 @@ body {
 
 /* Header Section */
 .profile-header {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.8) 0%, rgba(168, 85, 247, 0.8) 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     backdrop-filter: blur(10px);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     padding: 3rem 2rem;
-    color: white;
+    color: #ffffff !important;
     text-align: center;
     position: relative;
     border: var(--glass-border);
@@ -86,6 +86,7 @@ body {
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
+    color: #ffffff !important;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -93,6 +94,7 @@ body {
     opacity: 0.9;
     font-size: 1.1rem;
     font-weight: 500;
+    color: #ffffff !important;
     text-transform: uppercase;
     letter-spacing: 1px;
 }

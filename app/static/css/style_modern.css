@@ -209,8 +209,8 @@ h6 {
 }
 
 .tech-column {
-  min-width: 350px;
-  max-width: 350px;
+  min-width: 290px;
+  max-width: 290px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -242,28 +242,30 @@ h6 {
   border: var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  color: var(--text-main);
+  /* FIX: Force text color to adapt to theme */
   transition: transform var(--duration-fast) var(--ease-smooth),
     box-shadow var(--duration-fast) var(--ease-smooth);
 }
 
 .card-body {
-  padding: 1.25rem;
+  padding: 0.75rem;
 }
 
 /* === INCIDENT CARD OVERRIDES (Admin Kanban) === */
 .incident-card-col {
   border-radius: var(--radius-md) !important;
-  min-height: 240px;
+  min-height: 140px;
 }
 
 .incident-card-col .card-body {
-  padding: 1.25rem !important;
-  font-size: 1rem !important;
+  padding: 0.75rem !important;
+  font-size: 0.85rem !important;
 }
 
 .incident-card-col .card-body .badge {
-  font-size: 0.8rem !important;
-  padding: 0.35rem 0.65rem !important;
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.4rem !important;
 }
 
 .incident-card-col .card-body strong,
@@ -291,17 +293,17 @@ h6 {
 /* === TECHNICIAN SMALL-CARD OVERRIDES === */
 .small-card {
   border-radius: var(--radius-md) !important;
-  min-height: 220px;
+  min-height: 140px;
 }
 
 .small-card .card-body {
-  padding: 1.25rem !important;
-  font-size: 1rem !important;
+  padding: 0.75rem !important;
+  font-size: 0.85rem !important;
 }
 
 .small-card .card-body .badge {
-  font-size: 0.8rem !important;
-  padding: 0.35rem 0.65rem !important;
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.4rem !important;
 }
 
 .small-card .card-body .fw-medium {
@@ -410,9 +412,19 @@ h6 {
   text-shadow: 0 0 10px var(--primary-glow);
 }
 
-/* Override Bootstrap .text-muted for dark glass backgrounds */
-.text-muted {
+/* Override Bootstrap .text-muted and <small> for dark glass backgrounds */
+.text-muted,
+small,
+.small {
   color: var(--text-secondary) !important;
+}
+
+/* Base Modal Styling */
+.modal-content {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border: var(--glass-border);
+  backdrop-filter: var(--glass-blur);
 }
 
 /* ==============================

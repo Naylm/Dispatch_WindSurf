@@ -68,37 +68,43 @@ def wiki():
         SELECT * FROM wiki_categories ORDER BY position, name
     """).fetchall()
     
-    # Pour chaque catégorie, récupérer ses sous-catégories
+    subcategories = db.execute("""
+        SELECT * FROM wiki_subcategories ORDER BY position, name
+    """).fetchall()
+    
+    articles = db.execute("""
+        SELECT id, title, icon, created_by, created_at, 
+               likes_count, dislikes_count, views_count, subcategory_id
+        FROM wiki_articles 
+        ORDER BY title
+    """).fetchall()
+    
+    # Grouper les articles par subcategory_id
+    articles_by_subcat = {}
+    for art in articles:
+        subcat_id = art['subcategory_id']
+        if subcat_id not in articles_by_subcat:
+            articles_by_subcat[subcat_id] = []
+        articles_by_subcat[subcat_id].append(dict(art))
+        
+    # Grouper les sous-catégories par category_id
+    subcats_by_cat = {}
+    for subcat in subcategories:
+        cat_id = subcat['category_id']
+        if cat_id not in subcats_by_cat:
+            subcats_by_cat[cat_id] = []
+            
+        subcat_dict = dict(subcat)
+        subcat_dict['articles'] = articles_by_subcat.get(subcat['id'], [])
+        subcat_dict['article_count'] = len(subcat_dict['articles'])
+        
+        subcats_by_cat[cat_id].append(subcat_dict)
+        
     wiki_structure = []
     for cat in categories:
         cat_dict = dict(cat)
-        
-        # Récupérer les sous-catégories
-        subcategories = db.execute("""
-            SELECT * FROM wiki_subcategories 
-            WHERE category_id = %s 
-            ORDER BY position, name
-        """, (cat['id'],)).fetchall()
-        
-        subcat_list = []
-        for subcat in subcategories:
-            subcat_dict = dict(subcat)
-            
-            # Récupérer les articles de cette sous-catégorie
-            articles = db.execute("""
-                SELECT id, title, icon, created_by, created_at, 
-                       likes_count, dislikes_count, views_count
-                FROM wiki_articles 
-                WHERE subcategory_id = %s 
-                ORDER BY title
-            """, (subcat['id'],)).fetchall()
-            
-            subcat_dict['articles'] = [dict(art) for art in articles]
-            subcat_dict['article_count'] = len(articles)
-            subcat_list.append(subcat_dict)
-        
-        cat_dict['subcategories'] = subcat_list
-        cat_dict['total_articles'] = sum(s['article_count'] for s in subcat_list)
+        cat_dict['subcategories'] = subcats_by_cat.get(cat['id'], [])
+        cat_dict['total_articles'] = sum(s['article_count'] for s in cat_dict['subcategories'])
         wiki_structure.append(cat_dict)
     
     # Récupérer les articles récents

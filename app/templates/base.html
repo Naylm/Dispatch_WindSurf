@@ -56,6 +56,11 @@
         })();
     </script>
 
+    <!-- Pass Flask user session to JS globally -->
+    <script>
+        window.CURRENT_USER = {{ session.get('user', '') | tojson }};
+    </script>
+
     {% block content %}{% endblock %}
 
     <!-- Scripts -->

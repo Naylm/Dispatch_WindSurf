@@ -142,11 +142,20 @@
                     placeholder="Nom de la priorité" required>
                   <div class="input-group mb-2">
                     <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
-                    <input type="color" name="couleur" class="form-control form-control-color bg-dark border-secondary"
-                      value="#ffc107" required>
+                    <input type="color" id="addPrioriteCouleur" name="couleur"
+                      class="form-control form-control-color bg-dark border-secondary" value="#ffc107" required>
+                    <input type="text" id="addPrioriteCouleurText"
+                      class="form-control bg-dark text-white border-secondary hex-color-input" placeholder="#FFC107"
+                      value="#ffc107">
                   </div>
                   <input type="number" name="niveau" class="form-control bg-dark text-white border-secondary mb-2"
                     placeholder="Niveau (1-10)" min="1" max="10" required>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="is_urgent" id="addPrioriteUrgent" value="1">
+                    <label class="form-check-label text-white small" for="addPrioriteUrgent">
+                      Alerte push (Urgent)
+                    </label>
+                  </div>
                   <button type="submit" class="btn btn-warning w-100">Ajouter</button>
                 </div>
               </form>
@@ -160,12 +169,15 @@
                       style="background-color: {{ priorite.couleur }}; color: {{ priorite.couleur|contrast_color }}">{{
                       priorite.nom }}</span>
                     <small class="text-muted ms-2">(Niveau {{ priorite.niveau }})</small>
+                    {% if priorite.is_urgent %}
+                    <span class="badge bg-danger ms-1" title="Alerte Push (Urgent)"><i class="fas fa-bell"></i></span>
+                    {% endif %}
                   </div>
                   <div class="btn-group btn-group-sm" role="group">
                     <button type="button" class="btn btn-outline-primary border-0" data-bs-toggle="modal"
                       data-bs-target="#editPrioriteModal" data-id="{{ priorite.id }}" data-nom="{{ priorite.nom }}"
                       data-couleur="{{ priorite.couleur }}" data-niveau="{{ priorite.niveau }}"
-                      title="Modifier la priorité">
+                      data-is-urgent="{{ 'true' if priorite.is_urgent else 'false' }}" title="Modifier la priorité">
                       ✏️
                     </button>
                     <form method="post" action="{{ url_for('admin.delete_priorite', id=priorite.id) }}"
@@ -197,8 +209,11 @@
                     placeholder="Nom du site" required>
                   <div class="input-group mb-2">
                     <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
-                    <input type="color" name="couleur" class="form-control form-control-color bg-dark border-secondary"
-                      value="#007bff" required>
+                    <input type="color" id="addSiteCouleur" name="couleur"
+                      class="form-control form-control-color bg-dark border-secondary" value="#007bff" required>
+                    <input type="text" id="addSiteCouleurText"
+                      class="form-control bg-dark text-white border-secondary hex-color-input" placeholder="#007BFF"
+                      value="#007bff">
                   </div>
                   <button type="submit" class="btn btn-info w-100">Ajouter</button>
                 </div>
@@ -249,8 +264,11 @@
 
                       <div class="input-group mb-2">
                         <span class="input-group-text bg-dark text-white border-secondary">Couleur</span>
-                        <input type="color" name="couleur"
+                        <input type="color" id="addStatutCouleur" name="couleur"
                           class="form-control form-control-color bg-dark border-secondary" value="#28a745" required>
+                        <input type="text" id="addStatutCouleurText"
+                          class="form-control bg-dark text-white border-secondary hex-color-input" placeholder="#28A745"
+                          value="#28a745">
                       </div>
 
                       <select name="category" class="form-select bg-dark text-white border-secondary mb-2" required>
@@ -398,8 +416,8 @@
                 <div class="input-group">
                   <input type="color" class="form-control form-control-color bg-dark border-secondary"
                     id="editPrioriteCouleur" name="couleur" required>
-                  <input type="text" class="form-control bg-dark text-white border-secondary"
-                    id="editPrioriteCouleurText" placeholder="#000000" readonly>
+                  <input type="text" class="form-control bg-dark text-white border-secondary hex-color-input"
+                    id="editPrioriteCouleurText" placeholder="#000000">
                 </div>
               </div>
 
@@ -407,6 +425,17 @@
                 <label for="editPrioriteNiveau" class="form-label">Niveau (1-10)</label>
                 <input type="number" class="form-control bg-dark text-white border-secondary" id="editPrioriteNiveau"
                   name="niveau" min="1" max="10" required>
+              </div>
+
+              <div class="mb-3 border border-secondary rounded p-3 bg-dark bg-opacity-25">
+                <label class="form-label fw-bold text-neon">📋 Options</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_urgent" id="editPrioriteUrgent" value="1">
+                  <label class="form-check-label text-white" for="editPrioriteUrgent">
+                    Alerte push (Urgent) <small class="text-white text-opacity-50">(Déclenche une notification sonore
+                      pour ce ticket)</small>
+                  </label>
+                </div>
               </div>
             </form>
           </div>
@@ -442,8 +471,8 @@
                 <div class="input-group">
                   <input type="color" class="form-control form-control-color bg-dark border-secondary"
                     id="editSiteCouleur" name="couleur" required>
-                  <input type="text" class="form-control bg-dark text-white border-secondary" id="editSiteCouleurText"
-                    placeholder="#000000" readonly>
+                  <input type="text" class="form-control bg-dark text-white border-secondary hex-color-input"
+                    id="editSiteCouleurText" placeholder="#000000">
                 </div>
               </div>
             </form>
@@ -481,8 +510,8 @@
                 <div class="input-group">
                   <input type="color" class="form-control form-control-color bg-dark border-secondary"
                     id="editStatutCouleur" name="couleur" required>
-                  <input type="text" class="form-control bg-dark text-white border-secondary" id="editStatutCouleurText"
-                    placeholder="#000000" readonly>
+                  <input type="text" class="form-control bg-dark text-white border-secondary hex-color-input"
+                    id="editStatutCouleurText" placeholder="#000000">
                 </div>
               </div>
 
@@ -561,12 +590,14 @@
           const nom = button.getAttribute('data-nom');
           const couleur = button.getAttribute('data-couleur');
           const niveau = button.getAttribute('data-niveau');
+          const isUrgent = button.getAttribute('data-is-urgent') === 'true';
 
           document.getElementById('editPrioriteId').value = id;
           document.getElementById('editPrioriteNom').value = nom;
           document.getElementById('editPrioriteCouleur').value = couleur;
           document.getElementById('editPrioriteCouleurText').value = couleur;
           document.getElementById('editPrioriteNiveau').value = niveau;
+          document.getElementById('editPrioriteUrgent').checked = isUrgent;
         });
       }
 
@@ -610,19 +641,52 @@
         });
       }
 
-      // Synchroniser les sélecteurs de couleur avec les champs texte
-      const colorInputs = [
+      // Synchroniser les sélecteurs de couleur avec les champs texte (bi-directionnel)
+      const colorInputGroups = [
+        { picker: 'addPrioriteCouleur', text: 'addPrioriteCouleurText' },
+        { picker: 'addSiteCouleur', text: 'addSiteCouleurText' },
+        { picker: 'addStatutCouleur', text: 'addStatutCouleurText' },
         { picker: 'editPrioriteCouleur', text: 'editPrioriteCouleurText' },
         { picker: 'editSiteCouleur', text: 'editSiteCouleurText' },
         { picker: 'editStatutCouleur', text: 'editStatutCouleurText' }
       ];
 
-      colorInputs.forEach(input => {
-        const picker = document.getElementById(input.picker);
-        const text = document.getElementById(input.text);
+      function isValidHex(hex) {
+        return /^#?([0-9A-F]{3}){1,2}$/i.test(hex);
+      }
+
+      function formatHex(hex) {
+        if (hex.charAt(0) !== '#') return '#' + hex;
+        return hex;
+      }
+
+      colorInputGroups.forEach(group => {
+        const picker = document.getElementById(group.picker);
+        const text = document.getElementById(group.text);
+
         if (picker && text) {
+          // Picker -> Text
           picker.addEventListener('input', function (e) {
-            text.value = e.target.value;
+            text.value = e.target.value.toUpperCase();
+          });
+
+          // Text -> Picker (avec validation)
+          text.addEventListener('input', function (e) {
+            let val = e.target.value;
+            if (isValidHex(val)) {
+              const formatted = formatHex(val);
+              picker.value = formatted;
+              // On peut forcer le formatage dans le champ texte aussi
+              // e.target.value = formatted.toUpperCase(); 
+            }
+          });
+
+          // Formatage au focus out
+          text.addEventListener('blur', function (e) {
+            let val = e.target.value;
+            if (isValidHex(val)) {
+              e.target.value = formatHex(val).toUpperCase();
+            }
           });
         }
       });

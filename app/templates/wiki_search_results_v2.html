@@ -219,13 +219,6 @@
 
 {% block scripts %}
 <script>
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-
-    themeToggle.onclick = () => {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    };
     // Initial state set by base.html / theme.js
 </script>
 {% endblock %}

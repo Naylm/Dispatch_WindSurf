@@ -273,44 +273,52 @@ def _close_connection_pool():
 atexit.register(_close_connection_pool)
 
 
+from flask import g
+
 def get_db():
     """
-    Récupère une connexion depuis le pool PostgreSQL avec wrapper compatible SQLite
-    Retourne un objet qui émule l'interface sqlite3.Connection
-
-    Note: N'utilise PAS RealDictCursor pour être compatible avec fetchone()[0]
-
-    ⚠️ IMPORTANT:
-    - Utilisez TOUJOURS get_db_context() (context manager) pour gestion automatique
-    - Si vous utilisez get_db() directement, VOUS DEVEZ appeler db.close()
-      pour restituer la connexion au pool
-    - Ne PAS fermer = fuite de connexions = épuisement du pool !
-
-    Recommandé:
-        with get_db_context() as db:
-            result = db.execute("SELECT ...").fetchall()
-
-    Déconseillé (mais fonctionnel si db.close() est garanti):
-        db = get_db()
-        try:
-            result = db.execute("SELECT ...").fetchall()
-        finally:
-            db.close()  # OBLIGATOIRE !
+    Récupère une connexion depuis le pool PostgreSQL avec wrapper compatible SQLite.
+    Optimisé pour utiliser flask.g pendant le cycle de vie d'une requête, évitant
+    tout épuisement du pool de connexions (Auto-close à l'instar d'une context manager).
     """
-    # Initialiser le pool si nécessaire
-    pool = _init_connection_pool()
-
-    # Récupérer une connexion depuis le pool
     try:
-        conn = pool.getconn()
-        if conn is None:
-            raise Exception("Pool de connexions épuisé - toutes les connexions sont utilisées")
+        from flask import current_app, has_app_context
+        can_use_g = has_app_context()
+    except Exception:
+        can_use_g = False
 
-        # Wrapper la connexion pour compatibilité SQLite
-        return PostgresConnection(conn, pool)
-    except psycopg2.pool.PoolError as e:
-        print(f"✗ Erreur récupération connexion depuis pool: {e}")
-        raise
+    if can_use_g:
+        if '_database' not in g:
+            pool = _init_connection_pool()
+            try:
+                conn = pool.getconn()
+                if conn is None:
+                    raise Exception("Pool de connexions épuisé - toutes les connexions sont utilisées")
+                g._database = PostgresConnection(conn, pool)
+            except psycopg2.pool.PoolError as e:
+                print(f"✗ Erreur récupération connexion depuis pool (g): {e}")
+                raise
+        return g._database
+    else:
+        # Fallback pour scripts background ou usage orphelin hors contexte
+        pool = _init_connection_pool()
+        try:
+            conn = pool.getconn()
+            if conn is None:
+                raise Exception("Pool de connexions épuisé - fallback")
+            return PostgresConnection(conn, pool)
+        except psycopg2.pool.PoolError as e:
+            print(f"✗ Erreur récupération connexion depuis pool (fallback): {e}")
+            raise
+
+def close_db_connection(e=None):
+    """
+    Teardown context function pour fermer la connexion stockée dans g.
+    À utiliser avec app.teardown_appcontext
+    """
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
 
 
 @contextmanager

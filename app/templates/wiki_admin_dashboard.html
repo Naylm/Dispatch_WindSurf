@@ -220,14 +220,4 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Theme toggle handled by base.html
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.onclick = () => {
-            document.body.classList.toggle('dark');
-            localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-        };
-    }
-</script>
 {% endblock %}

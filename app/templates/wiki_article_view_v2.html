@@ -4,20 +4,60 @@
 
 {% block styles %}
 <style>
+    :root {
+        /* Bridge legacy variables to new tokens */
+        --color-primary: var(--primary, #6366f1);
+        --color-primary-hover: var(--primary-hover, #818cf8);
+        --color-bg-elevated: var(--bg-surface, #ffffff);
+        --color-bg-base: var(--bg-app, #f1f5f9);
+        --color-border: var(--input-border, #cbd5e1);
+        --color-text-primary: var(--text-main, #0f172a);
+        --color-text-secondary: var(--text-secondary, #475569);
+        --color-success: var(--success, #22c55e);
+        --color-danger: var(--danger, #ef4444);
+        --color-warning: var(--warning, #f59e0b);
+        --color-info: var(--info, #3b82f6);
+    }
+
+    body.dark {
+        --color-bg-elevated: var(--bg-panel, rgba(30, 41, 59, 0.7));
+        --color-bg-base: var(--bg-app, #0f172a);
+        --color-border: var(--input-border, #475569);
+        --color-text-primary: var(--text-main, #f1f5f9);
+        --color-text-secondary: var(--text-secondary, #94a3b8);
+    }
+
     .article-header {
         background: linear-gradient(135deg, var(--color-primary), #0a58ca);
         /* Fallback/Adjustment */
-        color: white;
+        color: white !important;
         padding: 2rem;
         border-radius: var(--radius-lg);
         margin-bottom: 2rem;
     }
 
+    div.article-header h1,
+    .article-header h1.mb-3 {
+        color: #ffffff !important;
+    }
+
+    .article-header span {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
     body.dark .article-header {
         background: linear-gradient(135deg, rgba(59, 130, 246, 0.28), rgba(15, 23, 42, 0.95));
-        color: var(--color-text-primary);
+        color: var(--color-text-primary) !important;
         border: 1px solid var(--color-border);
         box-shadow: var(--shadow-sm);
+    }
+
+    body.dark .article-header h1 {
+        color: var(--color-text-primary) !important;
+    }
+
+    body.dark .article-header span {
+        color: var(--color-text-secondary) !important;
     }
 
     body.dark .article-header .text-muted {
@@ -74,25 +114,25 @@
     }
 
     .kb-badge--owner {
-        background: rgba(59, 130, 246, 0.12);
-        color: #2563eb;
-        border-color: rgba(59, 130, 246, 0.35);
+        background: rgba(59, 130, 246, 0.12) !important;
+        color: #2563eb !important;
+        border-color: rgba(59, 130, 246, 0.35) !important;
     }
 
     .kb-badge--update {
-        background: rgba(245, 158, 11, 0.15);
-        color: #92400e;
-        border-color: rgba(245, 158, 11, 0.35);
+        background: rgba(245, 158, 11, 0.15) !important;
+        color: #92400e !important;
+        border-color: rgba(245, 158, 11, 0.35) !important;
     }
 
     body.dark .kb-badge--owner {
-        background: rgba(59, 130, 246, 0.2);
-        color: #93c5fd;
+        background: rgba(59, 130, 246, 0.2) !important;
+        color: #93c5fd !important;
     }
 
     body.dark .kb-badge--update {
-        background: rgba(245, 158, 11, 0.2);
-        color: #fcd34d;
+        background: rgba(245, 158, 11, 0.2) !important;
+        color: #fcd34d !important;
     }
 
     .kb-badge-action {
@@ -349,10 +389,11 @@
 
     <!-- En-tête de l'article -->
     <div class="article-header">
-        <h1 class="mb-3">{{ article.icon or '📝' }} {{ article.title or 'Sans titre' }}</h1>
+        <h1 class="mb-3" style="color: white !important;">{{ article.icon or '📝' }} {{ article.title or 'Sans titre' }}
+        </h1>
         <div class="d-flex gap-3 flex-wrap">
-            <span>✍️ Par {{ article.created_by or 'Inconnu' }}</span>
-            <span>
+            <span style="color: white !important;">✍️ Par {{ article.created_by or 'Inconnu' }}</span>
+            <span style="color: white !important;">
                 📅
                 {% if article.created_at %}
                 {% if article.created_at is string %}
@@ -365,7 +406,7 @@
                 {% endif %}
             </span>
             {% if article.last_modified_by %}
-            <span>🔄 Modifié par {{ article.last_modified_by }}</span>
+            <span style="color: white !important;">🔄 Modifié par {{ article.last_modified_by }}</span>
             {% endif %}
         </div>
     </div>
@@ -391,7 +432,7 @@
             <a href="{{ url_for('wiki.edit_wiki_article', id=article.id) }}" class="btn btn-sm btn-outline-primary">
                 ✏️ Modifier
             </a>
-            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#moveArticleModal">
+            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#moveArticleModal">
                 📦 Déplacer
             </button>
             <form method="POST" action="{{ url_for('wiki.delete_wiki_article', id=article.id) }}" class="d-inline"
@@ -778,12 +819,6 @@
     // Générer le sommaire après le rendu Markdown
     setTimeout(generateTableOfContents, 100);
 
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-
-    themeToggle.onclick = () => {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    };
+    // Initial state set by base.html / theme.js
 </script>
 {% endblock %}

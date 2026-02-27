@@ -44,7 +44,7 @@
                     <div class="col-md-6">
                       <label class="form-label fw-bold">Numéro Incident</label>
                       <input name="numero" class="form-control" required autocomplete="off"
-                        placeholder="Ex: INC-2025-001">
+                        placeholder="Ex: I251113_0270">
                     </div>
                     <div class="col-md-6">
                       <label class="form-label fw-bold">Site</label>
@@ -90,6 +90,7 @@
                     <div class="col-md-6">
                       <label class="form-label fw-bold">Collaborateur</label>
                       <select name="technicien_id" class="form-select" required>
+                        <option value="">-- Sélectionner un collaborateur --</option>
                         {% for tech in techniciens %}
                         <option value="{{ tech.id }}">{{ tech.prenom }}{% if tech.nom %} {{ tech.nom }}{% endif %}
                         </option>

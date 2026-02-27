@@ -1,14 +1,15 @@
 ﻿.wiki-editor-page {
-    background: var(--bg-main, #f5f7fb);
+    background: var(--bg-app, #f5f7fb);
 }
 
 .form-section {
-    background: var(--bg-card, #ffffff);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-panel, #ffffff);
+    border: 1px solid var(--input-border, #e5e7eb);
     border-radius: 12px;
     padding: 1rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+    color: var(--text-main, #333);
 }
 
 .icon-input-group {
@@ -17,6 +18,7 @@
 
 #iconInput {
     font-size: 1.7rem;
+    font-family: 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif;
 }
 
 .emoji-picker {
@@ -25,19 +27,75 @@
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    max-height: 260px;
-    overflow-y: auto;
-    background: var(--bg-card, #ffffff);
-    border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 8px;
-    padding: 0.6rem;
-    z-index: 30;
+    min-width: 320px;
+    max-height: 400px;
+    background: var(--bg-panel, #ffffff);
+    border: 1px solid var(--input-border, #d1d5db);
+    border-radius: 12px;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    flex-direction: column;
+    font-family: 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif;
 }
 
 .emoji-picker.show {
+    display: flex;
+}
+
+.emoji-picker-header {
+    padding: 0.8rem;
+    border-bottom: 1px solid var(--input-border, #e5e7eb);
+    background: var(--bg-app, #f9fafb);
+    border-radius: 12px 12px 0 0;
+}
+
+.emoji-search {
+    margin-bottom: 0.8rem;
+}
+
+.emoji-categories {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    /* Hide scrollbar for category tabs */
+}
+
+.emoji-categories::-webkit-scrollbar {
+    display: none;
+}
+
+.category-btn {
+    border: 0;
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.category-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    opacity: 1;
+}
+
+.category-btn.active {
+    background: var(--primary-color, #3b82f6);
+    opacity: 1;
+    color: white;
+}
+
+.emoji-grid {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 0.3rem;
+    gap: 4px;
+    padding: 0.8rem;
+    overflow-y: auto;
+    max-height: 280px;
 }
 
 .emoji-btn {
@@ -51,188 +109,6 @@
 
 .emoji-btn:hover {
     background: #eef2ff;
-}
-
-.upload-zone {
-    border: 2px dashed #93c5fd;
-    border-radius: 10px;
-    padding: 1rem;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: #f8fbff;
-}
-
-.upload-zone:hover,
-.upload-zone.dragover {
-    border-color: #2563eb;
-    background: #eff6ff;
-}
-
-.upload-icon {
-    font-weight: 700;
-    color: #1d4ed8;
-    margin-bottom: 0.25rem;
-}
-
-.upload-result {
-    border: 1px solid #c7d2fe;
-    border-radius: 10px;
-    background: #f5f3ff;
-    padding: 0.7rem;
-    display: grid;
-    gap: 0.65rem;
-}
-
-.upload-result-header {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-}
-
-.upload-preview-thumb {
-    width: 56px;
-    height: 56px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    flex: 0 0 auto;
-}
-
-.upload-meta {
-    min-width: 0;
-    display: grid;
-    gap: 0.1rem;
-}
-
-.upload-meta strong {
-    font-size: 0.92rem;
-}
-
-.upload-meta small {
-    font-size: 0.75rem;
-    color: #4b5563;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.upload-controls {
-    display: grid;
-    gap: 0.45rem;
-    grid-template-columns: minmax(160px, 1fr) 130px auto auto;
-    align-items: center;
-}
-
-.editor-view-controls .btn {
-    min-width: 96px;
-}
-
-.editor-view-controls .btn.active {
-    color: #ffffff;
-}
-
-.editor-layout {
-    position: relative;
-}
-
-.toast-editor-host {
-    min-height: 560px;
-    border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.fallback-editor {
-    min-height: 560px;
-    font-family: Consolas, Monaco, monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    caret-color: #111827 !important;
-}
-
-/* Main override against global anti-caret and anti-selection rules */
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container *,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container * {
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    -webkit-user-modify: read-write !important;
-}
-
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container textarea,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container .toastui-editor-md-textarea,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"],
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"] *,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"],
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"] *,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror * {
-    caret-color: #111827 !important;
-    color: #111827 !important;
-    cursor: text !important;
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    -webkit-user-modify: read-write !important;
-}
-
-.wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection,
-.wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection * {
-    caret-color: #111827 !important;
-}
-
-.wiki-editor-page .toast-editor-host .toastui-editor-md-preview,
-.wiki-editor-page .toast-editor-host .toastui-editor-md-preview * {
-    color: #111827 !important;
-}
-
-/* View modes */
-.editor-layout.view-edit .toast-editor-host .toastui-editor-md-preview {
-    display: none !important;
-    width: 0 !important;
-    border-left: 0 !important;
-}
-
-.editor-layout.view-edit .toast-editor-host .toastui-editor-md-container {
-    width: 100% !important;
-    flex: 1 1 100% !important;
-}
-
-.editor-layout.view-preview .toast-editor-host .toastui-editor-md-container {
-    display: none !important;
-    width: 0 !important;
-}
-
-.editor-layout.view-preview .toast-editor-host .toastui-editor-md-preview {
-    width: 100% !important;
-    flex: 1 1 100% !important;
-    border-left: 0 !important;
-}
-
-.editor-layout.view-preview .toast-editor-host .toastui-editor-main,
-.editor-layout.view-preview .toast-editor-host .toastui-editor-main-container,
-.editor-layout.view-preview .toast-editor-host .toastui-editor-md-preview {
-    min-height: 650px;
-}
-
-.editor-layout.view-split .toast-editor-host .toastui-editor-md-container,
-.editor-layout.view-split .toast-editor-host .toastui-editor-md-preview {
-    min-height: 560px;
-}
-
-.cropper-wrap {
-    max-height: 70vh;
-    min-height: 360px;
-    overflow: hidden;
-    background: #111827;
-    border-radius: 10px;
-}
-
-#cropperImage {
-    display: block;
-    max-width: 100%;
 }
 
 .autosave-status {
@@ -251,206 +127,9 @@
     color: #b91c1c !important;
 }
 
-body.dark.wiki-editor-page .form-section,
-body.dark .wiki-editor-page .form-section {
-    background: #111827;
-    border-color: #374151;
-}
-
-body.dark.wiki-editor-page .upload-zone,
-body.dark .wiki-editor-page .upload-zone {
-    border-color: #3b82f6;
-    background: #0f172a;
-}
-
-body.dark.wiki-editor-page .upload-zone:hover,
-body.dark.wiki-editor-page .upload-zone.dragover,
-body.dark .wiki-editor-page .upload-zone:hover,
-body.dark .wiki-editor-page .upload-zone.dragover {
-    background: #111e33;
-}
-
-body.dark.wiki-editor-page .upload-result,
-body.dark .wiki-editor-page .upload-result {
-    background: #1f2937;
-    border-color: #4b5563;
-    color: #e5e7eb;
-}
-
-body.dark.wiki-editor-page .upload-preview-thumb,
-body.dark .wiki-editor-page .upload-preview-thumb {
-    border-color: #4b5563;
-    background: #0f172a;
-}
-
-body.dark.wiki-editor-page .upload-meta small,
-body.dark .wiki-editor-page .upload-meta small {
-    color: #cbd5e1;
-}
-
-body.dark.wiki-editor-page .fallback-editor,
-body.dark.wiki-editor-page #titleInput,
-body.dark.wiki-editor-page #iconInput,
-body.dark.wiki-editor-page #tagsInput,
-body.dark.wiki-editor-page #subcategorySelect,
-body.dark.wiki-editor-page #categorySelect,
-body.dark.wiki-editor-page #statusSelect,
-body.dark.wiki-editor-page #changeDescriptionInput,
-body.dark .wiki-editor-page .fallback-editor,
-body.dark .wiki-editor-page #titleInput,
-body.dark .wiki-editor-page #iconInput,
-body.dark .wiki-editor-page #tagsInput,
-body.dark .wiki-editor-page #subcategorySelect,
-body.dark .wiki-editor-page #categorySelect,
-body.dark .wiki-editor-page #statusSelect,
-body.dark .wiki-editor-page #changeDescriptionInput {
-    background: #1f2937 !important;
-    color: #f3f4f6 !important;
-    border-color: #4b5563 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-defaultUI,
-body.dark .wiki-editor-page .toastui-editor-defaultUI {
-    border-color: #4b5563 !important;
-    background: #111827 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-defaultUI-toolbar,
-body.dark .wiki-editor-page .toastui-editor-defaultUI-toolbar {
-    background: #111827 !important;
-    border-bottom-color: #374151 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-defaultUI-toolbar button,
-body.dark.wiki-editor-page .toastui-editor-mode-switch .tab-item,
-body.dark .wiki-editor-page .toastui-editor-defaultUI-toolbar button,
-body.dark .wiki-editor-page .toastui-editor-mode-switch .tab-item {
-    color: #e5e7eb !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-container,
-body.dark.wiki-editor-page .toastui-editor-ww-container,
-body.dark .wiki-editor-page .toastui-editor-md-container,
-body.dark .wiki-editor-page .toastui-editor-ww-container {
-    background: #1f2937 !important;
-}
-
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container textarea,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container .toastui-editor-md-textarea,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"],
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"] *,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"],
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"] *,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror *,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container textarea,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container .toastui-editor-md-textarea,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"],
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-md-container [contenteditable="true"] *,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"],
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container [contenteditable="true"] *,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .toastui-editor-ww-container .ProseMirror * {
-    color: #f3f4f6 !important;
-    caret-color: #f9fafb !important;
-}
-
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection,
-body.dark.wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection *,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection,
-body.dark .wiki-editor-page .toast-editor-host .toastui-editor-main .ProseMirror-hideselection * {
-    caret-color: #f9fafb !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview,
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents,
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents *,
-body.dark .wiki-editor-page .toastui-editor-md-preview,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents * {
-    background: #111827 !important;
-    color: #f3f4f6 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview,
-body.dark .wiki-editor-page .toastui-editor-md-preview {
-    border-left-color: #374151 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents a,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents a {
-    color: #93c5fd !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents code,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents code {
-    background: #1f2937 !important;
-    color: #f9fafb !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents pre,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents pre {
-    background: #0b1220 !important;
-    border-color: #374151 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents blockquote,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents blockquote {
-    color: #d1d5db !important;
-    border-left-color: #4b5563 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents table th,
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents table td,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents table th,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents table td {
-    border-color: #4b5563 !important;
-}
-
-body.dark.wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents hr,
-body.dark .wiki-editor-page .toastui-editor-md-preview .toastui-editor-contents hr {
-    border-color: #4b5563 !important;
-}
-
-body.dark.wiki-editor-page .modal-content,
-body.dark .wiki-editor-page .modal-content {
-    background: #111827;
-    color: #f3f4f6;
-    border-color: #374151;
-}
-
-body.dark.wiki-editor-page .modal-header,
-body.dark.wiki-editor-page .modal-footer,
-body.dark .wiki-editor-page .modal-header,
-body.dark .wiki-editor-page .modal-footer {
-    border-color: #374151;
-}
-
-body.dark.wiki-editor-page .cropper-wrap,
-body.dark .wiki-editor-page .cropper-wrap {
-    background: #030712;
-}
-
-@media (max-width: 992px) {
-    .upload-controls {
-        grid-template-columns: 1fr;
-    }
-
-    .editor-view-controls .btn {
-        min-width: 78px;
-    }
-}
-
-@media (max-width: 768px) {
-    .toast-editor-host,
-    .fallback-editor,
-    .editor-layout.view-preview .toast-editor-host .toastui-editor-main,
-    .editor-layout.view-preview .toast-editor-host .toastui-editor-main-container,
-    .editor-layout.view-preview .toast-editor-host .toastui-editor-md-preview {
-        min-height: 420px;
-    }
-
-    .cropper-wrap {
-        min-height: 260px;
-    }
+/* TinyMCE Dark Mode integration for the outer wrapper */
+.tox-tinymce {
+    border: 1px solid var(--input-border, #e5e7eb) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
 }

@@ -193,16 +193,20 @@ class NotificationSystem {
      * Notification pour un nouveau ticket assigné
      */
     notifyNewAssignment(data) {
-        const { incident_id, numero, site, sujet, urgence, technicien, note_dispatch } = data;
+        const { incident_id, numero, site, sujet, urgence, technicien, note_dispatch, is_urgent } = data;
 
-        const isUrgent = ['Critique', 'Immédiate', 'Haute'].includes(urgence);
+        const isUrgent = is_urgent === true;
         const priority = isUrgent ? 'urgent' : 'normal';
+
+        const displayNumero = numero || 'N/A';
+        const displaySite = site || 'Site inconnu';
+        const displaySujet = sujet || 'Sans sujet';
 
         this.addNotification({
             type: 'new_assignment',
             priority: priority,
             title: isUrgent ? '🚨 URGENT - Nouveau ticket' : '📋 Nouveau ticket assigné',
-            message: `${numero} - ${site} / ${sujet}`,
+            message: `${displayNumero} - ${displaySite} / ${displaySujet}`,
             details: note_dispatch || '',
             urgence: urgence,
             incident_id: incident_id,
@@ -489,16 +493,20 @@ class NotificationSystem {
      */
     scrollToIncident(incidentId) {
         // Chercher la carte par data-incident-id (utilisé dans tous les templates)
-        const card = document.querySelector(`[data-incident-id="${incidentId}"]`);
-        if (card) {
+        const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+        if (cards.length > 0) {
+            // Scroll au premier élément visible trouvé
+            const card = Array.from(cards).find(c => c.offsetParent !== null) || cards[0];
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // Animation de mise en évidence
-            card.style.animation = 'highlightPulse 1s ease';
-            card.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.8)';
+            // Remove any specific existing transition to ensure animation runs immediately
+            const oldAnimation = card.style.animation;
+
+            // Animation de mise en évidence jaune répétée 2 fois
+            card.style.animation = 'highlightPulse 1s ease 2';
+
             setTimeout(() => {
-                card.style.animation = '';
-                card.style.boxShadow = '';
+                card.style.animation = oldAnimation;
             }, 2000);
         } else {
             console.warn('Carte incident non trouvée pour ID:', incidentId);
@@ -531,7 +539,8 @@ class NotificationSystem {
                 notifications: this.notifications.slice(0, 20), // Garder seulement les 20 dernières
                 timestamp: Date.now()
             };
-            localStorage.setItem('dispatch_notifications', JSON.stringify(data));
+            const storageKey = `dispatch_notifications_${window.CURRENT_USER || 'guest'}`;
+            localStorage.setItem(storageKey, JSON.stringify(data));
         } catch (e) {
             console.error('Erreur lors de la sauvegarde des notifications:', e);
         }
@@ -542,7 +551,8 @@ class NotificationSystem {
      */
     loadNotifications() {
         try {
-            const data = localStorage.getItem('dispatch_notifications');
+            const storageKey = `dispatch_notifications_${window.CURRENT_USER || 'guest'}`;
+            const data = localStorage.getItem(storageKey);
             if (data) {
                 const parsed = JSON.parse(data);
 
@@ -560,6 +570,82 @@ class NotificationSystem {
     }
 
     /**
+     * Gère les mises à jour de configuration en temps réel (couleurs, etc.)
+     */
+    handleConfigUpdate(data) {
+        const { config_type, item } = data;
+
+        // Si pas d'item précis (ex: suppression), on peut proposer un refresh léger
+        if (!item || !item.nom) {
+            console.log(`🔄 Refresh suggéré pour type config: ${config_type}`);
+            // Si on est sur une page qui supporte le refresh auto (home)
+            if (window.loadIncidents) {
+                window.loadIncidents();
+            }
+            return;
+        }
+
+        console.log(`🎨 Mise à jour dynamique des styles pour: ${config_type} (${item.nom} -> ${item.couleur || 'N/A'})`);
+
+        let selector = '';
+        let dataAttr = '';
+
+        if (config_type === 'site') {
+            selector = '.site-badge';
+            dataAttr = 'data-site-name';
+        } else if (config_type === 'priorite') {
+            selector = '.priority-badge';
+            dataAttr = 'data-priority-name';
+        } else if (config_type === 'statut') {
+            selector = '.status-badge';
+            dataAttr = 'data-status-name';
+        }
+
+        if (selector && item.couleur) {
+            const badges = document.querySelectorAll(`${selector}[${dataAttr}="${item.nom}"]`);
+            const contrastColor = this.getContrastColor(item.couleur);
+
+            badges.forEach(badge => {
+                badge.style.setProperty('background-color', item.couleur, 'important');
+                badge.style.setProperty('color', contrastColor, 'important');
+
+                // Petit effet visuel pour montrer que ça a changé
+                badge.style.transition = 'all 0.5s ease';
+                badge.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    badge.style.transform = 'scale(1)';
+                }, 500);
+            });
+        }
+    }
+
+    /**
+     * Calcule une couleur de contraste (noir ou blanc) pour une couleur hex
+     */
+    getContrastColor(hexcolor) {
+        if (!hexcolor || hexcolor.length < 3) return '#ffffff';
+
+        let r, g, b;
+        let hex = hexcolor.replace('#', '');
+
+        if (hex.length === 3) {
+            r = parseInt(hex[0] + hex[0], 16);
+            g = parseInt(hex[1] + hex[1], 16);
+            b = parseInt(hex[2] + hex[2], 16);
+        } else if (hex.length === 6) {
+            r = parseInt(hex.slice(0, 2), 16);
+            g = parseInt(hex.slice(2, 4), 16);
+            b = parseInt(hex.slice(4, 6), 16);
+        } else {
+            return '#ffffff';
+        }
+
+        // Formule YIQ pour la luminosité perçue
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+
+    /**
      * Connecte le système aux événements Socket.IO globaux
      */
     connectSocket(socket) {
@@ -567,24 +653,29 @@ class NotificationSystem {
 
         console.log('🔗 Connexion du système de notifications au Socket.IO');
 
-        socket.on('new_assignment', (data) => {
-            console.log('🔔 Notification reçue: new_assignment', data);
-            this.notifyNewAssignment(data);
-        });
+        socket.on('notification', (data) => {
+            console.log('🔔 Notification reçue:', data.type, data);
 
-        socket.on('incident_etat_changed', (data) => {
-            console.log('🔔 Notification reçue: status_change', data);
-            this.notifyStatusChange(data);
-        });
-
-        socket.on('urgent_update', (data) => {
-            console.log('🔔 Notification reçue: urgent_update', data);
-            this.notifyUrgentUpdate(data);
-        });
-
-        socket.on('wiki_update_requested', (data) => {
-            console.log('🔔 Notification reçue: wiki_update_requested', data);
-            this.notifyWikiUpdateRequested(data);
+            switch (data.type) {
+                case 'new_assignment':
+                case 'reassignment_new':
+                    this.notifyNewAssignment(data);
+                    break;
+                case 'status_change':
+                    this.notifyStatusChange(data);
+                    break;
+                case 'urgent_update':
+                    this.notifyUrgentUpdate(data);
+                    break;
+                case 'wiki_update_requested':
+                    this.notifyWikiUpdateRequested(data);
+                    break;
+                case 'config_updated':
+                    this.handleConfigUpdate(data);
+                    break;
+                default:
+                    console.log('Type de notification non géré:', data.type);
+            }
         });
     }
 }
@@ -748,6 +839,12 @@ notificationStyles.textContent = `
     @keyframes urgentGlow {
         0%, 100% { box-shadow: inset 0 0 0 rgba(220, 53, 69, 0); }
         50% { box-shadow: inset 0 0 15px rgba(220, 53, 69, 0.3); }
+    }
+
+    @keyframes highlightPulse {
+        0% { box-shadow: 0 0 0px rgba(255, 193, 7, 0); background-color: transparent; }
+        50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.8); background-color: rgba(255, 193, 7, 0.2); }
+        100% { box-shadow: 0 0 0px rgba(255, 193, 7, 0); background-color: transparent; }
     }
 
     @keyframes slideInDown {

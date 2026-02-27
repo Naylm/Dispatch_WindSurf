@@ -113,6 +113,10 @@ def create_app(debug=False):
         except Exception as e:
             print(f"Error ensuring database integrity: {e}")
 
+    # Register automatic DB connection teardown
+    from app.utils.db_config import close_db_connection
+    app.teardown_appcontext(close_db_connection)
+
     # Register Socket.IO event handlers
     from app.sockets import register_socket_handlers
     register_socket_handlers(socketio)

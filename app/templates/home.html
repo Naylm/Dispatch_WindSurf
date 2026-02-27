@@ -12,7 +12,7 @@
 {% block content %}
 <!-- Sidebar - Floating Glass Panel -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-header text-center pb-2">
+  <div class="sidebar-header text-center pb-2" style="padding-right: 2.5rem; padding-left: 2.5rem;">
     <h3 class="text-neon" style="font-size: 1.5rem; letter-spacing: 1px;">{% if is_admin(role) %}Menu Admin{% else
       %}Outils rapides{% endif %}</h3>
     <button class="sidebar-close-btn text-white d-lg-none" id="sidebarClose"
@@ -259,26 +259,25 @@
 
       // Seulement fetch si la carte existe déjà, ou si c'est la vue active (pour permettre l'ajout)
       if (oldCard || isActiveView) {
-        fetch(`/api/incident/${incidentId}?view=${v.viewType}`)
+        // Ajout d'un cache-buster pour empêcher le navigateur de réutiliser un ancien 404 ou 500
+        const noCache = new Date().getTime();
+        fetch(`/api/incident/${incidentId}?view=${v.viewType}&_cb=${noCache}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache"
+          }
+        })
           .then(response => {
             if (response.status === 404 || response.status === 403) {
-              if (oldCard) {
-                console.log(`🗑️ Suppression de la carte ${incidentId} (Vue: ${v.viewType})`);
-                oldCard.style.transition = 'opacity 0.3s, transform 0.3s';
-                oldCard.style.opacity = '0';
-                oldCard.style.transform = 'scale(0.8)';
-                setTimeout(() => {
-                  const parent = oldCard.parentElement;
-                  oldCard.remove();
-                  if (v.viewType === 'grouped' && parent && parent.classList.contains('col') && parent.children.length === 0) {
-                    parent.remove();
-                  }
-                  updateCounters();
-                }, 300);
-              }
+              console.warn(`⚠️ Serveur a retourné ${response.status} pour ${incidentId} (Vue: ${v.viewType}). Faux 404 ? On ignore la suppression !`);
+              // Ne SURTOUT PAS supprimer la carte. On garde l'ancienne.
               return null;
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+              console.error(`HTTP Error ${response.status}`);
+              return null;
+            }
             return response.text();
           })
           .then(html => {
@@ -292,13 +291,15 @@
             const cleanNewTech = newTech.trim();
 
             if (oldCard) {
-              const oldTech = (oldCard.dataset.technicien || "").trim();
-              if (oldTech !== cleanNewTech && (v.viewType === 'kanban' || v.viewType === 'grouped')) {
+              const oldTech = (oldCard.dataset.technicien || "Non affecté").trim();
+              if (oldTech !== cleanNewTech && cleanNewTech && (v.viewType === 'kanban' || v.viewType === 'grouped')) {
                 // MOVE
                 console.log(`📦 Déplacement ${incidentId}: "${oldTech}" -> "${cleanNewTech}" (Vue: ${v.viewType})`);
                 let targetList = null;
-                if (v.viewType === 'kanban') targetList = document.querySelector(`.incident-list-col[data-technicien="${cleanNewTech}"]`);
-                else if (v.viewType === 'grouped') targetList = document.querySelector(`.incident-list-grouped[data-technicien="${cleanNewTech}"]`);
+                try {
+                  if (v.viewType === 'kanban') targetList = document.querySelector(`.incident-list-col[data-technicien="${cleanNewTech}"]`);
+                  else if (v.viewType === 'grouped') targetList = document.querySelector(`.incident-list-grouped[data-technicien="${cleanNewTech}"]`);
+                } catch (e) { console.error("Selector error: ", e); }
 
                 if (targetList) {
                   oldCard.style.opacity = '0';
@@ -322,14 +323,28 @@
                       finalCard.style.opacity = '1';
                     });
                     updateCounters();
+
+                    // Réinitialiser les événements de la carte après déplacement
+                    if (window.initCardHandlers) {
+                      window.initCardHandlers(finalCard);
+                    }
                   }, 200);
                 } else {
                   console.warn(`⚠️ Liste cible introuvable pour "${cleanNewTech}" (Vue: ${v.viewType})`);
-                  oldCard.replaceWith(newCard.cloneNode(true));
+                  const finalCard = newCard.cloneNode(true);
+                  oldCard.replaceWith(finalCard);
+                  // Réinitialiser les événements de la carte après mise à jour statique
+                  if (window.initCardHandlers) {
+                    window.initCardHandlers(finalCard);
+                  }
                 }
               } else {
                 // UPDATE simple
-                oldCard.replaceWith(newCard.cloneNode(true));
+                const finalCard = newCard.cloneNode(true);
+                oldCard.replaceWith(finalCard);
+                if (window.initCardHandlers) {
+                  window.initCardHandlers(finalCard);
+                }
               }
             } else if (isActiveView) {
               // ADD
@@ -346,6 +361,12 @@
                 container.prepend(finalCard);
                 const emptyMsg = container.querySelector('.text-muted.fst-italic');
                 if (emptyMsg) emptyMsg.remove();
+
+                // Réinitialiser les événements/styles pour la NOUVELLE carte issue du WebSocket
+                if (window.initCardHandlers) {
+                  window.initCardHandlers(finalCard);
+                }
+
                 requestAnimationFrame(() => {
                   finalCard.style.transition = 'opacity 0.5s';
                   finalCard.style.opacity = '1';

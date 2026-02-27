@@ -143,7 +143,7 @@ def edit_incident(id):
             flash(f"Erreur de modification: {e}", "warning")
             return redirect(url_for("incident.edit_incident", id=id))
 
-    techniciens = db.execute("SELECT * FROM techniciens").fetchall()
+    techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     ref_data = get_reference_data()
     return render_template(
         "edit_incident.html", 

@@ -15,7 +15,7 @@ def get_reference_data():
     db = get_db()
     
     priorites_rows = db.execute(
-        "SELECT id, nom, couleur, niveau FROM priorites ORDER BY nom"
+        "SELECT id, nom, couleur, niveau, is_urgent FROM priorites ORDER BY niveau DESC"
     ).fetchall()
     sites_rows = db.execute(
         "SELECT id, nom, couleur FROM sites ORDER BY nom"

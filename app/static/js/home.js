@@ -580,18 +580,18 @@ window.initTechView = function () {
     const selectedSite = filters.selectedSite;
     const selectedUrgence = filters.selectedUrgence;
 
-    const numero = (card.dataset.numero || '');
-    const site = (card.dataset.site || '');
-    const localisation = (card.dataset.localisation || '');
-    const sujet = (card.dataset.sujet || '');
-    const urgence = (card.dataset.urgence || '');
+    const numero = (card.dataset.numero || '').toLowerCase();
+    const site = (card.dataset.site || '').toLowerCase();
+    const localisation = (card.dataset.localisation || '').toLowerCase();
+    const sujet = (card.dataset.sujet || '').toLowerCase();
+    const urgence = (card.dataset.urgence || '').toLowerCase();
 
     if (searchText !== '') {
       const matchesSearch = numero.includes(searchText) || site.includes(searchText) || localisation.includes(searchText) || sujet.includes(searchText);
       if (!matchesSearch) return false;
     }
-    if (selectedSite !== '' && site !== selectedSite) return false;
-    if (selectedUrgence !== '' && urgence !== selectedUrgence) return false;
+    if (selectedSite !== '' && site !== selectedSite.toLowerCase()) return false;
+    if (selectedUrgence !== '' && urgence !== selectedUrgence.toLowerCase()) return false;
 
     return true;
   }

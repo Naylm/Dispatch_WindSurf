@@ -5,6 +5,7 @@ Notifications are emitted only to authorized Socket.IO rooms.
 
 from datetime import datetime
 import logging
+from app.utils.references import get_reference_data
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def emit_new_assignment_notification(socketio, incident_data, technicien):
         "site": incident_data.get("site"),
         "sujet": incident_data.get("sujet"),
         "urgence": incident_data.get("urgence"),
+        "is_urgent": is_urgent(incident_data.get("urgence")),
         "technicien": technicien,
         "note_dispatch": incident_data.get("note_dispatch", ""),
         "timestamp": datetime.now().isoformat(),
@@ -115,6 +117,7 @@ def emit_reassignment_notification(socketio, incident_data, old_technicien, new_
         "site": incident_data.get("site"),
         "sujet": incident_data.get("sujet"),
         "urgence": incident_data.get("urgence"),
+        "is_urgent": is_urgent(incident_data.get("urgence")),
         "technicien": new_technicien,
         "from_technicien": old_technicien,
         "note_dispatch": incident_data.get("note_dispatch", ""),
@@ -151,8 +154,13 @@ def emit_wiki_update_requested_notification(socketio, article_id, title, request
 
 
 def is_urgent(urgence):
-    """Return True if urgency level is considered high priority."""
-    return urgence in ["Critique", "Immédiate", "Haute"]
+    """Return True if urgency level is configured as high priority."""
+    refs = get_reference_data()
+    priorites = refs.get('priorites', [])
+    for p in priorites:
+        if p.get('nom') == urgence:
+            return bool(p.get('is_urgent', False))
+    return False
 
 
 def format_notification_message(incident_data):
@@ -171,3 +179,22 @@ def format_notification_message(incident_data):
         parts.insert(0, f"URGENT ({urgence})")
 
     return " | ".join(parts)
+    
+
+def emit_config_updated(socketio, config_type, item_data=None):
+    """
+    Emit a notification that configuration has changed.
+    All connected clients (admin and techs) should probably know about this
+    to update their UI styles/colors.
+    """
+    notification = {
+        "type": "config_updated",
+        "config_type": config_type, # 'site', 'priorite', 'statut'
+        "item": item_data,
+        "timestamp": datetime.now().isoformat(),
+    }
+    
+    logger.info("Emit notification config_updated: %s", notification)
+    # Broadcast to everyone
+    socketio.emit("notification", notification)
+

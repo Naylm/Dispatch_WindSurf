@@ -4,7 +4,7 @@ from app.utils.db_config import get_db
 from app.utils.references import invalidate_reference_cache
 from app.utils.incidents import _log_historique, update_relance_schedule, _emit_incident_event, _emit_bulk_refresh
 from app.utils.references import get_reference_data, invalidate_reference_cache
-from app.utils.notifications import emit_new_assignment_notification, emit_reassignment_notification
+from app.utils.notifications import emit_new_assignment_notification, emit_reassignment_notification, emit_config_updated
 from app import socketio
 from datetime import datetime
 
@@ -300,7 +300,7 @@ def configuration():
 @admin_required
 def add_incident():
     db = get_db()
-    techniciens = db.execute("SELECT * FROM techniciens").fetchall()
+    techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     sujets = db.execute("SELECT * FROM sujets ORDER BY nom").fetchall()
     priorites = db.execute("SELECT * FROM priorites ORDER BY niveau").fetchall()
     sites = db.execute("SELECT * FROM sites ORDER BY nom").fetchall()
@@ -468,6 +468,7 @@ def add_sujet():
     db.execute("INSERT INTO sujets (nom) VALUES (%s)", (nom,))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'sujet')
     flash("Sujet ajouté", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -480,6 +481,7 @@ def edit_sujet():
     db.execute("UPDATE sujets SET nom=%s WHERE id=%s", (nom, id))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'sujet')
     flash("Sujet modifié", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -490,6 +492,7 @@ def delete_sujet(id):
     db.execute("DELETE FROM sujets WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'sujet')
     flash("Sujet supprimé", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -499,10 +502,12 @@ def add_priorite():
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     niveau = request.form["niveau"].strip()
+    is_urgent = request.form.get("is_urgent") == "1"
     db = get_db()
-    db.execute("INSERT INTO priorites (nom, couleur, niveau) VALUES (%s, %s, %s)", (nom, couleur, niveau))
+    db.execute("INSERT INTO priorites (nom, couleur, niveau, is_urgent) VALUES (%s, %s, %s, %s)", (nom, couleur, niveau, is_urgent))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'priorite', {'nom': nom, 'couleur': couleur, 'is_urgent': is_urgent})
     flash("Priorité ajoutée", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -513,10 +518,12 @@ def edit_priorite():
     nom = request.form["nom"].strip()
     couleur = request.form["couleur"].strip()
     niveau = request.form["niveau"].strip()
+    is_urgent = request.form.get("is_urgent") == "1"
     db = get_db()
-    db.execute("UPDATE priorites SET nom=%s, couleur=%s, niveau=%s WHERE id=%s", (nom, couleur, niveau, id))
+    db.execute("UPDATE priorites SET nom=%s, couleur=%s, niveau=%s, is_urgent=%s WHERE id=%s", (nom, couleur, niveau, is_urgent, id))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'priorite', {'nom': nom, 'couleur': couleur, 'is_urgent': is_urgent})
     flash("Priorité modifiée", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -527,6 +534,7 @@ def delete_priorite(id):
     db.execute("DELETE FROM priorites WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'priorite')
     flash("Priorité supprimée", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -539,6 +547,7 @@ def add_site():
     db.execute("INSERT INTO sites (nom, couleur) VALUES (%s, %s)", (nom, couleur))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'site', {'nom': nom, 'couleur': couleur})
     flash("Site ajouté", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -552,6 +561,7 @@ def edit_site():
     db.execute("UPDATE sites SET nom=%s, couleur=%s WHERE id=%s", (nom, couleur, id))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'site', {'nom': nom, 'couleur': couleur})
     flash("Site modifié", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -562,6 +572,7 @@ def delete_site(id):
     db.execute("DELETE FROM sites WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'site')
     flash("Site supprimé", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -580,6 +591,7 @@ def add_statut():
     )
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'statut', {'nom': nom, 'couleur': couleur})
     flash("Statut ajouté", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -599,6 +611,7 @@ def edit_statut():
     )
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'statut', {'nom': nom, 'couleur': couleur})
     flash("Statut modifié", "success")
     return redirect(url_for("admin.configuration"))
 
@@ -609,5 +622,6 @@ def delete_statut(id):
     db.execute("DELETE FROM statuts WHERE id=%s", (id,))
     db.commit()
     invalidate_reference_cache()
+    emit_config_updated(socketio, 'statut')
     flash("Statut supprimé", "success")
     return redirect(url_for("admin.configuration"))

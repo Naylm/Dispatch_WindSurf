@@ -14,7 +14,7 @@
 
         {% set site_info = sites|selectattr("nom", "equalto", i.site)|first %}
         {% if site_info %}
-        <span class="badge rounded-pill"
+        <span class="badge rounded-pill site-badge" data-site-name="{{ i.site }}"
           style="background-color: {{ site_info.couleur }}; color: {{ site_info.couleur|contrast_color }}">{{ i.site
           }}</span>
         {% else %}
@@ -23,7 +23,7 @@
 
         {% set priorite_info = priorites|selectattr("nom", "equalto", i.urgence)|first %}
         {% if priorite_info %}
-        <span class="badge rounded-pill"
+        <span class="badge rounded-pill priority-badge" data-priority-name="{{ i.urgence }}"
           style="background-color: {{ priorite_info.couleur }}; color: {{ priorite_info.couleur|contrast_color }}">{{
           i.urgence }}</span>
         {% else %}
@@ -32,7 +32,7 @@
 
         {% set statut_info = statuts|selectattr("nom", "equalto", i.etat)|first %}
         {% if statut_info %}
-        <span class="badge status-badge rounded-pill"
+        <span class="badge status-badge rounded-pill" data-status-name="{{ i.etat }}"
           style="background-color: {{ statut_info.couleur }}; color: {{ statut_info.couleur|contrast_color }}">{{ i.etat
           }}</span>
         {% else %}

@@ -67,6 +67,21 @@
     --radius-xl: 24px;
     --radius-pill: 9999px;
 
+    /* Variable Bridge (Legacy V1 to V2) */
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-bg-base: var(--bg-app);
+    --color-bg-elevated: var(--bg-panel);
+    --color-input-bg: var(--input-bg);
+    --color-input-text: var(--input-text);
+    --color-border: var(--input-border);
+    --color-text-primary: var(--text-main);
+    --color-text-secondary: var(--text-secondary);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-danger: var(--danger);
+    --color-info: var(--info);
+
     /* Shadows (Colored Glows) */
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
