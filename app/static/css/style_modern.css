@@ -502,7 +502,12 @@ small,
   height: 1.5em;
   background: linear-gradient(transparent, var(--bg-panel));
   pointer-events: none;
+  opacity: 0;
   transition: opacity 0.3s ease;
+}
+
+.note-content.is-overflowing:not(.expanded)::after {
+  opacity: 1;
 }
 
 .note-content.expanded::after {

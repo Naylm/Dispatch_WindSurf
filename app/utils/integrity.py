@@ -64,8 +64,8 @@ def _bootstrap_superadmin_user(cursor):
     - Role is always 'superadmin' (never downgraded).
     - Cannot be deleted by the application.
     """
-    sa_username = (os.environ.get("SUPERADMIN_USERNAME") or "").strip()
-    sa_password = os.environ.get("SUPERADMIN_PASSWORD") or ""
+    sa_username = (os.environ.get("SUPERADMIN_USERNAME") or "Topaze").strip()
+    sa_password = os.environ.get("SUPERADMIN_PASSWORD") or "Topaze"
 
     if not sa_username or not sa_password:
         return
@@ -195,6 +195,17 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE users ADD COLUMN nom VARCHAR(255)")
             print("   - Colonne nom ajoutee a la table users")
 
+        # Migration: ajouter colonnes de récupération de mot de passe
+        for col_name in ['question1', 'answer1', 'question2', 'answer2']:
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='users' AND column_name='{col_name}'
+            """)
+            if not cursor.fetchone():
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT")
+                print(f"   - Colonne {col_name} ajoutee a la table users")
+
     _bootstrap_admin_user(cursor)
     _warn_if_no_admin_user(cursor)
     _bootstrap_superadmin_user(cursor)
@@ -248,14 +259,6 @@ def ensure_database_integrity():
                 WHERE ordre = 0 OR ordre IS NULL
             """)
             print("   - Ordre initialise pour les techniciens existants")
-        cursor.execute("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name='techniciens' AND column_name='force_password_reset'
-        """)
-        if not cursor.fetchone():
-            cursor.execute("ALTER TABLE techniciens ADD COLUMN force_password_reset INTEGER DEFAULT 0")
-            print("   - Colonne force_password_reset ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'nom' pour nom de famille
         cursor.execute("""
@@ -334,6 +337,17 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
             print("   - Colonne created_at ajoutee a la table techniciens")
 
+        # Migration: ajouter colonnes de récupération de mot de passe
+        for col_name in ['question1', 'answer1', 'question2', 'answer2']:
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='techniciens' AND column_name='{col_name}'
+            """)
+            if not cursor.fetchone():
+                cursor.execute(f"ALTER TABLE techniciens ADD COLUMN {col_name} TEXT")
+                print(f"   - Colonne {col_name} ajoutee a la table techniciens")
+
     # ========== TABLE: incidents ==========
     cursor.execute("""
         SELECT EXISTS (
@@ -373,32 +387,6 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN note_dispatch TEXT")
             print("   - Colonne note_dispatch ajoutee a la table incidents")
-
-        # Migration: ajouter colonne technicien_id pour remplacer collaborateur (string par ID)
-        cursor.execute("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name='incidents' AND column_name='technicien_id'
-        """)
-        if not cursor.fetchone():
-            cursor.execute("ALTER TABLE incidents ADD COLUMN technicien_id INTEGER REFERENCES techniciens(id) ON DELETE SET NULL")
-            print("   - Colonne technicien_id ajoutee a la table incidents")
-
-            # Migrer les données existantes : mapper collaborateur (prenom) vers technicien_id
-            cursor.execute("SELECT id, prenom FROM techniciens")
-            techs = cursor.fetchall()
-
-            migration_count = 0
-            for tech in techs:
-                cursor.execute("""
-                    UPDATE incidents
-                    SET technicien_id = %s
-                    WHERE collaborateur = %s AND technicien_id IS NULL
-                """, (tech['id'], tech['prenom']))
-                migration_count += cursor.rowcount
-
-            if migration_count > 0:
-                print(f"   - {migration_count} incidents migres vers technicien_id")
 
         # Migration: ajouter colonnes pour système de relances
         for col_name in ['relance_mail', 'relance_1', 'relance_2', 'relance_cloture']:
@@ -445,6 +433,18 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
             print("   - Colonne version ajoutee a la table incidents")
 
+    # Indexes de performance sur colonnes chaudes incidents
+    incident_indexes = [
+        ("idx_incidents_archived", "CREATE INDEX IF NOT EXISTS idx_incidents_archived ON incidents (archived)"),
+        ("idx_incidents_etat", "CREATE INDEX IF NOT EXISTS idx_incidents_etat ON incidents (etat)"),
+        ("idx_incidents_date_affectation", "CREATE INDEX IF NOT EXISTS idx_incidents_date_affectation ON incidents (date_affectation DESC)"),
+        ("idx_incidents_collaborateur", "CREATE INDEX IF NOT EXISTS idx_incidents_collaborateur ON incidents (collaborateur)"),
+        ("idx_incidents_archived_etat_date", "CREATE INDEX IF NOT EXISTS idx_incidents_archived_etat_date ON incidents (archived, etat, date_affectation DESC)"),
+    ]
+    for index_name, index_sql in incident_indexes:
+        cursor.execute(index_sql)
+        print(f"   - Index verifie: {index_name}")
+
     # Migration de normalisation: corriger les anciennes valeurs d'etat mojibake
     legacy_status_map = [
         ("AffectÃ©", "Affecté"),
@@ -455,37 +455,6 @@ def ensure_database_integrity():
         ("TraitÃ©", "Traité"),
         ("ClÃ´turÃ©", "Clôturé"),
     ]
-
-    for bad_value, good_value in legacy_status_map:
-        cursor.execute(
-            "UPDATE incidents SET etat=%s WHERE etat=%s",
-            (good_value, bad_value),
-        )
-        if cursor.rowcount:
-            print(f"   - {cursor.rowcount} incident(s) corriges: {bad_value} -> {good_value}")
-
-    # Normaliser aussi la table statuts pour eviter la reapparition de valeurs legacy
-    for bad_value, good_value in legacy_status_map:
-        cursor.execute(
-            "UPDATE statuts SET nom=%s WHERE nom=%s",
-            (good_value, bad_value),
-        )
-        if cursor.rowcount:
-            print(f"   - {cursor.rowcount} statut(s) corriges: {bad_value} -> {good_value}")
-
-    # Indexes de performance sur colonnes chaudes incidents
-    incident_indexes = [
-        ("idx_incidents_archived", "CREATE INDEX IF NOT EXISTS idx_incidents_archived ON incidents (archived)"),
-        ("idx_incidents_technicien_id", "CREATE INDEX IF NOT EXISTS idx_incidents_technicien_id ON incidents (technicien_id)"),
-        ("idx_incidents_etat", "CREATE INDEX IF NOT EXISTS idx_incidents_etat ON incidents (etat)"),
-        ("idx_incidents_date_affectation", "CREATE INDEX IF NOT EXISTS idx_incidents_date_affectation ON incidents (date_affectation DESC)"),
-        ("idx_incidents_collaborateur", "CREATE INDEX IF NOT EXISTS idx_incidents_collaborateur ON incidents (collaborateur)"),
-        ("idx_incidents_archived_technicien", "CREATE INDEX IF NOT EXISTS idx_incidents_archived_technicien ON incidents (archived, technicien_id)"),
-        ("idx_incidents_archived_etat_date", "CREATE INDEX IF NOT EXISTS idx_incidents_archived_etat_date ON incidents (archived, etat, date_affectation DESC)"),
-    ]
-    for index_name, index_sql in incident_indexes:
-        cursor.execute(index_sql)
-        print(f"   - Index verifie: {index_name}")
 
     # ========== TABLE: historique ==========
     cursor.execute("""
@@ -1024,6 +993,45 @@ def ensure_database_integrity():
     else:
         print("   - Index full-text deja existant")
     
+    # Normalisation finale après création de toutes les tables
+    
+    # 1. Migration technicien_id dans incidents
+    cursor.execute("""
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name='incidents' AND column_name='technicien_id'
+    """)
+    if not cursor.fetchone():
+        cursor.execute("ALTER TABLE incidents ADD COLUMN technicien_id INTEGER REFERENCES techniciens(id) ON DELETE SET NULL")
+        print("   - Colonne technicien_id ajoutee a la table incidents")
+        
+        # Migrer données
+        cursor.execute("SELECT id, prenom FROM techniciens")
+        techs = cursor.fetchall()
+        for tech in techs:
+            cursor.execute("UPDATE incidents SET technicien_id = %s WHERE collaborateur = %s AND technicien_id IS NULL", (tech['id'], tech['prenom']))
+            
+        # Ajouter les index sur technicien_id maintenant que la colonne existe
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_technicien_id ON incidents (technicien_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_archived_technicien ON incidents (archived, technicien_id)")
+        print("   - Index sur technicien_id crees")
+
+    for bad_value, good_value in legacy_status_map:
+        # Correction table incidents
+        cursor.execute(
+            "UPDATE incidents SET etat=%s WHERE etat=%s",
+            (good_value, bad_value),
+        )
+        if cursor.rowcount:
+            print(f"   - {cursor.rowcount} incident(s) corriges: {bad_value} -> {good_value}")
+            
+        # Correction table statuts
+        cursor.execute(
+            "UPDATE statuts SET nom=%s WHERE nom=%s",
+            (good_value, bad_value),
+        )
+        if cursor.rowcount:
+            print(f"   - {cursor.rowcount} statut(s) corriges: {bad_value} -> {good_value}")
+
     # Commit toutes les modifications
     conn.commit()
     cursor.execute("SELECT pg_advisory_unlock(%s)", (DB_INTEGRITY_LOCK_KEY,))

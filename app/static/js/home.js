@@ -421,6 +421,11 @@ window.checkNoteOverflow = function (wrapper) {
   const isOverflowing = content.scrollHeight > content.clientHeight + 5;
 
   btn.style.display = isOverflowing ? 'block' : 'none';
+  if (isOverflowing) {
+    content.classList.add('is-overflowing');
+  } else {
+    content.classList.remove('is-overflowing');
+  }
 
   // Restore state
   if (wasExpanded) content.classList.add('expanded');
