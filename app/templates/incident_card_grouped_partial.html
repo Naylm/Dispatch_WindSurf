@@ -69,6 +69,59 @@
     </div>
 
     <!-- Notes Sections -->
+    <!-- SECTION RDV: Dynamic based on status config or if RDV exists -->
+    {% if (statut_info and statut_info.has_rdv) or i.date_rdv %}
+    <div class="rdv-wrapper mb-2 p-1 rounded border border-warning border-opacity-25 bg-warning bg-opacity-10"
+      data-incident-id="{{ i.id }}">
+      <div class="d-flex align-items-center gap-2">
+        <small class="text-warning fw-bold" style="font-size: 0.75rem;">📅 RDV&nbsp;:</small>
+        <input type="datetime-local" class="form-control form-control-xs bg-dark text-warning border-warning rdv-input"
+          style="font-size: 0.75rem; padding: 0.1rem 0.3rem; height: auto;" data-incident-id="{{ i.id }}"
+          value="{{ i.date_rdv|replace(' ', 'T') if i.date_rdv else '' }}" onchange="updateRdv(this)">
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION RELANCE: Dynamic based on status config or if any relance checked -->
+    {% if (statut_info and statut_info.has_relances) or i.relance_mail or i.relance_1 or i.relance_2 or
+    i.relance_cloture %}
+    <div class="relances-wrapper mb-2 p-1 px-2 rounded border border-info border-opacity-25 bg-info bg-opacity-10"
+      data-incident-id="{{ i.id }}">
+      <div class="d-flex align-items-center justify-content-between">
+        <small class="text-info fw-bold me-2" style="font-size: 0.7rem; white-space: nowrap;">📧 Relances</small>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+          <div class="form-check m-0 p-0 d-flex align-items-center gap-1" title="Mail envoyé">
+            <input class="form-check-input relance-checkbox m-0" type="checkbox" data-incident-id="{{ i.id }}"
+              data-field="relance_mail" {% if i.relance_mail %}checked{% endif %} onchange="updateRelance(this)"
+              style="width: 0.85rem; height: 0.85rem;">
+            <span style="font-size: 0.65rem; color: var(--text-secondary);">Mail</span>
+          </div>
+          <div class="form-check m-0 p-0 d-flex align-items-center gap-1" title="Relance 1">
+            <input class="form-check-input relance-checkbox m-0" type="checkbox" data-incident-id="{{ i.id }}"
+              data-field="relance_1" {% if i.relance_1 %}checked{% endif %} onchange="updateRelance(this)"
+              style="width: 0.85rem; height: 0.85rem;">
+            <label class="form-check-label m-0"
+              style="font-size: 0.65rem; color: var(--text-secondary); cursor: pointer;">1</label>
+          </div>
+          <div class="form-check m-0 p-0 d-flex align-items-center gap-1" title="Relance 2">
+            <input class="form-check-input relance-checkbox m-0" type="checkbox" data-incident-id="{{ i.id }}"
+              data-field="relance_2" {% if i.relance_2 %}checked{% endif %} onchange="updateRelance(this)"
+              style="width: 0.85rem; height: 0.85rem;">
+            <label class="form-check-label m-0"
+              style="font-size: 0.65rem; color: var(--text-secondary); cursor: pointer;">2</label>
+          </div>
+          <div class="form-check m-0 p-0 d-flex align-items-center gap-1" title="Clôture">
+            <input class="form-check-input relance-checkbox m-0" type="checkbox" data-incident-id="{{ i.id }}"
+              data-field="relance_cloture" {% if i.relance_cloture %}checked{% endif %} onchange="updateRelance(this)"
+              style="width: 0.85rem; height: 0.85rem;">
+            <label class="form-check-label m-0"
+              style="font-size: 0.65rem; color: var(--text-secondary); cursor: pointer;">Fin</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Note Dispatch -->
     {% set note_dispatch_content = i.note_dispatch.strip() if i.note_dispatch else '' %}
     {% if note_dispatch_content or session.role == 'admin' %}
@@ -94,9 +147,13 @@
         <textarea class="form-control form-control-sm mb-1 bg-dark text-white border-secondary"
           rows="2">{{ note_dispatch_content }}</textarea>
         <div class="d-flex gap-2">
-          <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="dispatch">Ok</button>
-          <button class="btn btn-xs btn-secondary py-0 px-2 note-cancel-btn">X</button>
+          <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="dispatch"
+            title="Enregistrer">
+            <i class="fa-solid fa-check"></i>
+          </button>
+          <button class="btn btn-xs note-cancel-btn" title="Annuler">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
       </div>
       {% endif %}
@@ -108,7 +165,7 @@
     <div class="note-wrapper mb-2" data-incident-id="{{ i.id }}" data-note-type="tech">
       <div class="note-view-mode p-2 rounded bg-dark bg-opacity-25 border border-white border-opacity-10">
         <div class="d-flex justify-content-between align-items-center mb-1">
-          <small class="text-warning fw-bold">Tech: {{ i.collaborateur }}</small>
+          <small class="text-warning fw-bold">Tech&nbsp;: {{ i.collaborateur }}</small>
           <button class="btn btn-sm btn-link p-0 text-muted note-edit-btn">✏️</button>
         </div>
         <div class="note-content small text-light text-opacity-75">
@@ -124,9 +181,13 @@
         <textarea class="form-control form-control-sm mb-1 bg-dark text-white border-secondary"
           rows="2">{{ note_tech_content }}</textarea>
         <div class="d-flex gap-2">
-          <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="tech">Ok</button>
-          <button class="btn btn-xs btn-secondary py-0 px-2 note-cancel-btn">X</button>
+          <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="tech"
+            title="Enregistrer">
+            <i class="fas fa-check"></i>
+          </button>
+          <button class="btn btn-xs note-cancel-btn" title="Annuler">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
       </div>
     </div>

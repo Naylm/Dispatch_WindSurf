@@ -4,6 +4,407 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=12.8">
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+  /* Floating Action Button (FAB) for Calendar - Modern Glassmorphism */
+  .calendar-fab {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    z-index: 1050;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .calendar-fab:hover {
+    transform: scale(1.15) translateY(-5px);
+    box-shadow: 0 15px 35px rgba(79, 70, 229, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, #818cf8, #6366f1);
+  }
+
+  .calendar-fab i {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  /* Modern FullCalendar Overrides */
+  .fc {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    --fc-border-color: rgba(255, 255, 255, 0.05);
+    --fc-page-bg-color: transparent;
+  }
+
+  /* Grid & Borders */
+  .fc-theme-standard td,
+  .fc-theme-standard th {
+    border-color: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .fc-theme-standard .fc-scrollgrid {
+    border: none !important;
+  }
+
+  .light-mode .fc-theme-standard td,
+  .light-mode .fc-theme-standard th {
+    border-color: rgba(0, 0, 0, 0.06) !important;
+  }
+
+  /* Headers */
+  .fc-col-header-cell {
+    padding: 16px 0 !important;
+    background: transparent !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .fc-col-header,
+  .fc-scrollgrid-section-header,
+  .fc-scrollgrid-section-header table,
+  .fc-scrollgrid-section-header td,
+  .fc-scrollgrid-section-header th,
+  .fc-scrollgrid-sync-inner,
+  .fc-scrollgrid-sync-table,
+  .fc-timegrid-axis-cushion,
+  .fc thead,
+  .fc-scrollgrid-section-sticky>* {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  .light-mode .fc-col-header,
+  .light-mode .fc-scrollgrid-section-header,
+  .light-mode .fc-scrollgrid-section-header table {
+    background: #ffffff !important;
+  }
+
+  .light-mode .fc-col-header-cell {
+    border-bottom-color: rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .fc-col-header-cell-cushion {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #ffffff !important;
+    /* Force white for dark mode */
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    opacity: 0.8;
+  }
+
+  .light-mode .fc-col-header-cell-cushion {
+    color: var(--text-main, #111827) !important;
+  }
+
+  /* Buttons - Apple Style Pill Buttons */
+  .fc .fc-button-primary {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-main) !important;
+    border-radius: 30px !important;
+    padding: 8px 18px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin: 0 4px !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .light-mode .fc .fc-button-primary {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #374151 !important;
+  }
+
+  .fc .fc-button-primary:not(:disabled):active,
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:hover {
+    background-color: var(--primary, #6366f1) !important;
+    border-color: var(--primary, #6366f1) !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3) !important;
+  }
+
+  .fc .fc-button-group>.fc-button {
+    border-radius: 30px !important;
+    margin: 0 4px !important;
+  }
+
+  /* Events - Flat & Clean Style */
+  .fc-event {
+    cursor: pointer;
+    border: none !important;
+    border-radius: 4px !important;
+    padding: 2px 4px !important;
+    margin: 1px 2px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+    border-left: 4px solid rgba(255, 255, 255, 0.4) !important;
+  }
+
+  .light-mode .fc-event {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .fc-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    z-index: 100 !important;
+    filter: brightness(1.05);
+  }
+
+
+  .fc-event-main {
+    font-weight: 600;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .light-mode .fc-event-main {
+    color: #111827 !important;
+  }
+
+  /* Time labels in day/week views */
+  .fc-timegrid-slot-label-cushion,
+  .fc-list-event-time {
+    font-size: 0.7rem !important;
+    font-weight: 500;
+    opacity: 0.5;
+    text-transform: lowercase;
+  }
+
+  /* Stacking overlapping events gracefully */
+  .fc-timegrid-event-harness {
+    margin-bottom: 4px;
+    padding-right: 2px;
+  }
+
+  /* Month View Improvements */
+  .fc-daygrid-event {
+    border-radius: 8px !important;
+    margin: 2px 6px !important;
+    padding: 3px 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .fc-daygrid-day-number {
+    font-weight: 700;
+    padding: 10px 14px !important;
+    opacity: 0.6;
+    font-size: 0.85rem;
+  }
+
+  .fc-day-today {
+    background: rgba(99, 102, 241, 0.04) !important;
+  }
+
+  .light-mode .fc-day-today {
+    background: rgba(99, 102, 241, 0.02) !important;
+  }
+
+  /* Current Time Indicator */
+  .fc-now-indicator-line {
+    border-color: #f43f5e !important;
+    border-width: 2px !important;
+  }
+
+  .fc-now-indicator-arrow {
+    border-color: #f43f5e !important;
+    border-width: 6px !important;
+  }
+
+  /* Calendar Container */
+  #calendarModal .modal-content {
+    background: var(--bg-surface, #1e1e2d);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+
+  .light-mode #calendarModal .modal-content {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  #calendarModal .modal-header {
+    background: rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1rem 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    #calendarModal .modal-header {
+      padding: 0.75rem 1rem;
+    }
+
+    #calendarModal .modal-title {
+      font-size: 1.1rem;
+    }
+
+    #calendarModal .modal-body {
+      padding: 0.5rem;
+    }
+
+    #calendar {
+      min-height: 500px !important;
+    }
+
+    .fc-header-toolbar {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .fc-toolbar-chunk {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .fc-toolbar-title {
+      font-size: 1.1rem !important;
+    }
+  }
+
+  .light-mode #calendarModal .modal-header {
+    background: #f8f9fa;
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+  }
+
+  #calendarModal .modal-title {
+    font-weight: 600;
+    font-size: 1.25rem;
+  }
+
+  #calendarModal .modal-body {
+    padding: 1.5rem;
+  }
+
+  #calendar {
+    min-height: 650px;
+  }
+
+  /* Business Hours */
+  .fc-non-business {
+    background: rgba(0, 0, 0, 0.15);
+  }
+
+  .light-mode .fc-non-business {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  /* List View in Calendar */
+  .fc-list-event {
+    transition: all 0.2s ease;
+  }
+
+  .fc-list-event:hover td {
+    background: rgba(99, 102, 241, 0.1) !important;
+    cursor: pointer;
+  }
+
+  .light-mode .fc-list-event:hover td {
+    background: rgba(99, 102, 241, 0.05) !important;
+  }
+
+  .fc-list-event-title,
+  .fc-list-event-time {
+    padding: 8px 14px !important;
+  }
+
+  /* Custom Tooltip Styling for Calendar */
+  .calendar-tooltip-lg .tooltip-inner {
+    max-width: 320px;
+    padding: 0;
+    text-align: left;
+    background: var(--bg-surface, #1e1e2d);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .calendar-tooltip-lg.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .event-tooltip-title {
+    color: #f3f4f6;
+  }
+
+  .event-tooltip-text {
+    color: #e5e7eb;
+  }
+
+  .event-tooltip-muted {
+    color: #9ca3af;
+  }
+
+  /* Light mode tooltip overrides */
+  .light-mode .calendar-tooltip-lg .tooltip-inner {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .light-mode .calendar-tooltip-lg.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .light-mode .event-tooltip-title {
+    color: #111827;
+  }
+
+  .light-mode .event-tooltip-text {
+    color: #374151;
+  }
+
+  .light-mode .event-tooltip-muted {
+    color: #6b7280;
+  }
+
+  /* Main List View Hover Improvement */
+  .incident-row-list {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent !important;
+  }
+
+  .incident-row-list:hover {
+    background: rgba(99, 102, 241, 0.08) !important;
+    border-color: rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2), 0 0 15px rgba(99, 102, 241, 0.1);
+    transform: translateX(5px);
+    z-index: 2;
+  }
+
+  .light-mode .incident-row-list:hover {
+    background: rgba(99, 102, 241, 0.04) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+
+  .fc-timegrid-slot-label {
+    vertical-align: middle !important;
+  }
+
+  .fc-v-event {
+    padding: 2px 4px !important;
+  }
+</style>
 {% endblock %}
 
 
@@ -20,37 +421,41 @@
   </div>
   <ul class="sidebar-links">
     {% if is_admin(role) %}
-    <!-- Liens de gestion (Admin seulement) -->
+    <!-- Section: Administration -->
+    <li class="sidebar-category">Administration</li>
     <li><a href="{{ url_for('admin.add_incident') }}"><span class="icon">&#10133;</span> Ajouter incident</a></li>
     <li><a href="{{ url_for('admin.techniciens') }}"><span class="icon">&#128104;&#8205;&#128295;</span> Gestion
         techniciens</a></li>
     <li><a href="{{ url_for('admin.configuration') }}"><span class="icon">&#9881;&#65039;</span> Configuration</a></li>
     <li><a href="{{ url_for('stats.dashboard_stats') }}"><span class="icon">&#128202;</span> Statistiques</a></li>
-    <li class="sidebar-divider"></li>
     {% endif %}
 
-    <!-- Portails externes (Tous) -->
+    <!-- Section: Outils -->
+    <li class="sidebar-category">Outils</li>
+    <li><a href="{{ url_for('main.annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
+    <li><a href="{{ url_for('wiki.wiki') }}"><span class="icon">&#128218;</span> Base de connaissances</a></li>
+
+    <!-- Section: Liens utiles -->
+    <li class="sidebar-category">Liens utiles</li>
+    <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">&#9742;&#65039;</span>
+        TelWebPRD</a></li>
     <li><a
         href="https://portal.konicaminolta.fr/fr-fr/account/login?ReturnUrl=%2ffr-fr%2fservice-calls%2fpassive%2fdetail%2fiqqEsD3PAsbz0AjmVH3ZJpRANofTqPociqsgd_25Kxfkk8ePI-332poZGT9VmdP0BSSRrOBBmV_wzNAD4ZqsdA2%3fsource%3dERP&source=ERP"
         target="_blank"><span class="icon">&#128424;&#65039;</span> Portail Konica</a></li>
     <li><a href="https://www.sfrbusiness.fr/espace-client/authentification/#/login/authentification"
         target="_blank"><span class="icon">&#128241;</span> Portail SFR</a></li>
-    <li><a href="https://srvtelwebprd2/telweb/login.html" target="_blank"><span class="icon">&#9742;&#65039;</span>
-        TelWebPRD</a></li>
-    <li class="sidebar-divider"></li>
-
-    <!-- Outils communs (Tous) -->
-    <li><a href="{{ url_for('main.annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
-    {% if is_admin(role) or role == 'technicien' or user_type == 'technicien' %}
-    <li><a href="{{ url_for('main.faq') }}"><span class="icon">&#10067;</span> FAQ opérationnelle</a></li>
-    {% endif %}
-    <li><a href="{{ url_for('wiki.wiki') }}"><span class="icon">&#128218;</span> Base de connaissances</a></li>
+    <li><a href="https://wikidsnt/" target="_blank"><span class="icon">&#128214;</span> WikiDSNT</a></li>
     <li><a href="http://u.osmfr.org/m/1022870/" target="_blank"><span class="icon">&#128506;&#65039;</span> Carte
         CHU</a></li>
     <li><a
         href="https://easyvista-backoffice-prd.intra.ght44.fr/index.php?PHPSESSID=4ikdb03a4d690m7h5j0d1s97gs&internalurltime=1760602763"
         target="_blank"><span class="icon">&#128187;</span> Easyvista</a></li>
-    <li><a href="https://wikidsnt/" target="_blank"><span class="icon">&#128214;</span> WikiDSNT</a></li>
+
+    <!-- Section: Informations -->
+    {% if is_admin(role) or role == 'technicien' or user_type == 'technicien' %}
+    <li class="sidebar-category">Informations</li>
+    <li><a href="{{ url_for('main.faq') }}"><span class="icon">&#10067;</span> FAQ opérationnelle</a></li>
+    {% endif %}
   </ul>
 
   <!-- Sidebar Profile Widget -->
@@ -106,20 +511,36 @@
       <a href="{{ url_for('wiki.wiki') }}" class="btn btn-info btn-admin">&#128218; Base de connaissances</a>
     </div>
 
-    <!-- View Switcher -->
-    <div class="btn-group" role="group" aria-label="Sélecteur de vue">
-      <button type="button" class="btn btn-primary view-btn active" data-view="kanban"
-        onclick="window.switchView('kanban')" title="Vue Kanban (Colonnes)">
-        <i class="fas fa-columns"></i> 📊 Colonnes
-      </button>
-      <button type="button" class="btn btn-outline-primary view-btn" data-view="grouped"
-        onclick="window.switchView('grouped')" title="Vue Groupée (Accordéon)">
-        <i class="fas fa-layer-group"></i> 🗂️ Accordéons
-      </button>
-      <button type="button" class="btn btn-outline-primary view-btn" data-view="list"
-        onclick="window.switchView('list')" title="Vue Liste">
-        <i class="fas fa-list"></i> 📄 Liste
-      </button>
+    <!-- View Switcher and Zoom Controls -->
+    <div class="d-flex align-items-center gap-2">
+      <div class="btn-group" role="group" aria-label="Sélecteur de vue">
+        <button type="button" class="btn btn-primary view-btn active" data-view="kanban"
+          onclick="window.switchView('kanban')" title="Vue Kanban (Colonnes)">
+          📊 Colonnes
+        </button>
+        <button type="button" class="btn btn-outline-primary view-btn" data-view="grouped"
+          onclick="window.switchView('grouped')" title="Vue Groupée (Accordéon)">
+          🗂️ Accordéons
+        </button>
+        <button type="button" class="btn btn-outline-primary view-btn" data-view="list"
+          onclick="window.switchView('list')" title="Vue Liste">
+          📄 Liste
+        </button>
+      </div>
+
+      <!-- Zoom Control (Kanban only) -->
+      <div class="btn-group" id="kanbanZoomControls" role="group" aria-label="Zoom Kanban">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.zoomKanban(-0.1)" title="Dézoomer">
+          ➖
+        </button>
+        <button type="button" class="btn btn-outline-secondary" style="min-width: 60px; font-weight: bold;"
+          onclick="window.zoomKanban(0, true)" title="Réinitialiser le zoom">
+          <span id="kanbanZoomLevel">100%</span>
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.zoomKanban(0.1)" title="Zoomer">
+          ➕
+        </button>
+      </div>
     </div>
   </div>
   {% endif %}
@@ -149,6 +570,113 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Add Manual Calendar Event Modal -->
+  <div class="modal fade" id="addCalendarEventModal" tabindex="-1" aria-labelledby="addCalendarEventModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content"
+        style="background: var(--bg-panel); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1);">
+        <div class="modal-header border-bottom border-white border-opacity-10">
+          <h5 class="modal-title" id="addCalendarEventModalLabel">➕ Ajouter un Événement</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <form id="addCalendarEventForm">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="eventTitle" class="form-label">Titre de l'événement *</label>
+              <input type="text" class="form-control" id="eventTitle" name="title" required
+                placeholder="Ex: Réunion technique">
+            </div>
+            <div class="mb-3">
+              <label for="eventIncidentNumero" class="form-label">Lier à un incident (Optionnel)</label>
+              <input type="text" class="form-control" id="eventIncidentNumero" name="incident_numero"
+                placeholder="Ex: 2403-001">
+              <small class="text-muted">Si le numéro existe, l'événement sera lié au ticket.</small>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="eventStartTime" class="form-label">Début *</label>
+                <input type="datetime-local" class="form-control" id="eventStartTime" name="start_time" required
+                  onchange="autoCalculateEndTime(this)">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="eventEndTime" class="form-label">Fin (Optionnel)</label>
+                <input type="datetime-local" class="form-control" id="eventEndTime" name="end_time">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="eventDescription" class="form-label">Notes / Description</label>
+              <textarea class="form-control" id="eventDescription" name="description" rows="3"
+                placeholder="Détails supplémentaires..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-top border-white border-opacity-10">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-primary" id="saveEventBtn">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendrier Collaboratif Modal -->
+  <div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="calendarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content" style="background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.1);">
+        <div
+          class="modal-header border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
+          <h5 class="modal-title m-0" id="calendarModalLabel"><i class="fas fa-calendar-alt me-2"></i> Calendrier
+            Collaboratif</h5>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-primary shadow-sm me-3" data-bs-toggle="modal"
+              data-bs-target="#addCalendarEventModal" style="border-radius: 20px;">
+              ➕ Ajouter Événement
+            </button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+              aria-label="Fermer"></button>
+          </div>
+        </div>
+        <div class="modal-body" style="height: calc(100vh - 160px); padding: 1.5rem; overflow: hidden;">
+          <div id="calendar" style="height: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Details Modal (Read-only for technicians) -->
+  <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content"
+        style="background: var(--bg-panel); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1);">
+        <div class="modal-header border-bottom border-white border-opacity-10">
+          <h5 class="modal-title" id="eventDetailsModalLabel">Intervention: <span id="detailNumero"
+              class="text-neon"></span></h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-4 text-center">
+            <div id="detailAvatarContainer" class="mb-2"></div>
+            <h6 id="detailTechName" class="m-0 fw-bold"></h6>
+            <small class="text-muted">Technicien assigné</small>
+          </div>
+          <div class="p-3 rounded bg-dark bg-opacity-50 border border-white border-opacity-10">
+            <p class="mb-2"><strong>Sujet:</strong> <span id="detailSujet"></span></p>
+            <p class="mb-2"><strong>Site:</strong> <span id="detailSite"></span></p>
+            <p class="mb-2"><strong>Date RDV:</strong> <span id="detailDate" class="text-warning"></span></p>
+            <p class="mb-0 text-muted small" id="detailNotesContainer"><strong>Notes:</strong> <br><span
+                id="detailNotes" class="fst-italic"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Button (FAB) pour le calendrier -->
+  <div class="calendar-fab" id="openCalendarBtn" title="Calendrier des interventions">
+    📅
   </div>
 
 </div> <!-- /.main-content -->
@@ -414,6 +942,11 @@
     if (data && data.id) {
       console.log('🔄 Rechargement de la carte incident:', data.id);
       scheduleIncidentReload(data.id);
+
+      // Also refresh the calendar as status change affects the display
+      if (window.calendarInstance) {
+        window.calendarInstance.refetchEvents();
+      }
     }
   });
 
@@ -421,6 +954,11 @@
   socket.on('incident_rdv_changed', (data) => {
     if (data && data.id) {
       console.log('📅 Mise à jour RDV incident:', data.id, data);
+
+      // Refresh calendar immediately
+      if (window.calendarInstance) {
+        window.calendarInstance.refetchEvents();
+      }
 
       // Mettre à jour tous les inputs de RDV pour cet incident
       document.querySelectorAll(`.rdv-wrapper[data-incident-id="${data.id}"]`).forEach(wrapper => {
@@ -582,6 +1120,11 @@
     if (data && data.incident_id) {
       console.log('🔄 Rechargement de la carte incident:', data.incident_id);
       scheduleIncidentReload(data.incident_id);
+
+      // Refresh calendar as well
+      if (window.calendarInstance) {
+        window.calendarInstance.refetchEvents();
+      }
     } else {
       console.log('ℹ️ incident_update sans incident_id ignoré');
     }
@@ -607,6 +1150,11 @@
       setTimeout(() => card.remove(), 300);
     });
 
+    // Refresh calendar
+    if (window.calendarInstance) {
+      window.calendarInstance.refetchEvents();
+    }
+
     // Mettre à jour les compteurs si présents (admin)
     const totalCount = document.getElementById('totalCount');
     if (totalCount) {
@@ -620,6 +1168,11 @@
     if (data && data.incident_id) {
       console.log('✨ Nouvel incident détecté:', data.incident_id);
       scheduleIncidentReload(data.incident_id);
+
+      // Refresh calendar
+      if (window.calendarInstance) {
+        window.calendarInstance.refetchEvents();
+      }
     } else {
       requestBulkRefresh('incident_added');
     }
@@ -742,5 +1295,335 @@
       }
     }
   });
+
+  // ==========================================
+  // COLLABORATIVE CALENDAR IMPLEMENTATION
+  // ==========================================
+
+  let calendarInstance = null;
+  const calendarModalEl = document.getElementById('calendarModal');
+  const openCalendarBtn = document.getElementById('openCalendarBtn');
+
+  if (calendarModalEl && openCalendarBtn) {
+    openCalendarBtn.addEventListener('click', () => {
+      const bsModal = new bootstrap.Modal(calendarModalEl);
+      bsModal.show();
+    });
+
+    calendarModalEl.addEventListener('shown.bs.modal', function () {
+      const calendarEl = document.getElementById('calendar');
+      if (!calendarEl) return;
+
+      if (!calendarInstance) {
+        // Create calendar on first open
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
+          initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+          headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: window.innerWidth < 768 ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+          },
+          buttonText: {
+            today: "Aujourd'hui",
+            month: 'Mois',
+            week: 'Semaine',
+            day: 'Jour',
+            list: 'Liste'
+          },
+          views: {
+            timeGridWeek: {
+              titleFormat: { year: 'numeric', month: 'short', day: 'numeric' },
+              dayHeaderFormat: { weekday: 'short', day: 'numeric', omitCommas: true }
+            },
+            dayGridMonth: {
+              dayMaxEvents: 3,
+              eventDisplay: 'block'
+            }
+          },
+          slotEventOverlap: false,
+          allDaySlot: false,
+          eventOrder: "start,-urgence_level,title",
+          locale: 'fr',
+          firstDay: 1, // Monday
+          slotMinTime: '08:00:00',
+          slotMaxTime: '18:00:00',
+          slotDuration: '00:30:00',
+          slotLabelFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            omitZeroMinute: false,
+            meridiem: 'short'
+          },
+          height: '100%', // Utilise 100% de la hauteur du conteneur parent
+          expandRows: true, // Force les lignes à s'étendre pour remplir le conteneur
+          nowIndicator: true,
+          navLinks: true, // can click day/week names to navigate views
+          businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Mon - Fri
+            startTime: '08:00',
+            endTime: '18:00',
+          },
+          events: '/api/calendar_events',
+          eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            meridiem: false
+          },
+          eventClick: function (info) {
+            info.jsEvent.preventDefault();
+            const props = info.event.extendedProps;
+            const incidentId = props.incident_id || info.event.id;
+            const isManual = props.is_manual;
+
+            // Check if user is tech (readonly popup requested)
+            const isTech = "{{ role }}" === "technicien";
+
+            if (isTech && !isManual) {
+              // Show read-only popup for technicians
+              document.getElementById('detailNumero').textContent = props.numero || '??';
+              document.getElementById('detailSujet').textContent = info.event.title.split('] ')[1] || info.event.title;
+              document.getElementById('detailSite').textContent = props.site || '--';
+              document.getElementById('detailTechName').textContent = props.collaborateur || 'Non assigné';
+              document.getElementById('detailDate').textContent = FullCalendar.formatDate(info.event.start, {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', locale: 'fr'
+              });
+
+              // Notes
+              const notes = props.description || 'Aucune note';
+              document.getElementById('detailNotes').textContent = notes;
+
+              // Avatar
+              const avatarContainer = document.getElementById('detailAvatarContainer');
+              if (props.photo_profil) {
+                avatarContainer.innerHTML = `<img src="/static/uploads/avatars/${props.photo_profil}" style="width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover;">`;
+              } else {
+                avatarContainer.innerHTML = `<i class="fas fa-user-circle fa-4x text-muted opacity-50"></i>`;
+              }
+
+              const detailModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
+              detailModal.show();
+            } else {
+              // Redirect for admins or manual events (standard behavior)
+              if (props.is_manual) {
+                if (props.incident_id) {
+                  window.location.href = `/edit_incident/${props.incident_id}`;
+                }
+                return;
+              }
+              if (info.event.id) {
+                window.location.href = `/edit_incident/${info.event.id}`;
+              }
+            }
+          },
+          defaultTimedEventDuration: '00:30',
+          forceEventDuration: true,
+          eventContent: function (arg) {
+            // Custom rendering for event content
+            const props = arg.event.extendedProps;
+            const techName = props.collaborateur || 'Non assigné';
+
+            // Build avatar HTML
+            let avatarHtml = '<i class="fas fa-user-circle me-1"></i>';
+            if (props.photo_profil) {
+              const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
+              avatarHtml = `<img src="${avatarUrl}" alt="Avatar" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover; margin-right: 4px; vertical-align: middle;">`;
+            }
+
+            if (props.is_manual) {
+              return {
+                html: `
+                    <div class="fc-event-main-frame">
+                      <div class="fc-event-time">${arg.timeText}</div>
+                      <div class="fc-event-title-container">
+                        <div class="fc-event-title" style="font-weight:bold;">${arg.event.title} <i class="fas fa-thumbtack fa-xs ms-1 opacity-50"></i></div>
+                        <div class="fc-event-desc" style="font-size:0.85em; opacity:0.9;">
+                          ${avatarHtml}${techName}
+                        </div>
+                      </div>
+                    </div>
+                  `
+              };
+            }
+
+            return {
+              html: `
+                <div class="fc-event-main-frame" style="padding: 2px 4px; width: 100%; overflow: hidden;">
+                  <div class="fc-event-top-info" style="display: flex; align-items: baseline; gap: 4px; overflow: hidden;">
+                    <span class="fc-event-title" style="font-weight:700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${arg.event.title}</span>
+                    <span class="fc-event-numero" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; font-weight: 500; background: rgba(0,0,0,0.2); padding: 0px 4px; border-radius: 4px;">${props.numero}</span>
+                  </div>
+                  <div class="fc-event-sub-info" style="font-size: 0.85em; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
+                    ${avatarHtml} <span style="overflow: hidden; text-overflow: ellipsis;">${techName} • ${props.site}</span>
+                  </div>
+                </div>
+              `
+            };
+          },
+          eventDidMount: function (info) {
+            // Premium Light Mode Look: Light background with Dark Text
+            if (document.body.classList.contains('light-mode')) {
+              const bg = info.el.style.backgroundColor;
+              if (bg && bg.startsWith('rgb')) {
+                // Convert to 15% opacity
+                const rgba = bg.replace('rgb', 'rgba').replace(')', ', 0.15)');
+                info.el.style.backgroundColor = rgba;
+                info.el.style.borderLeft = `4px solid ${bg}`;
+                info.el.style.color = '#111827';
+              }
+            }
+
+            // Add Bootstrap tooltip for more info
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+              const props = info.event.extendedProps;
+
+              let avatarHtml = '<i class="fas fa-user-circle fa-2x text-muted border rounded-circle p-1"></i>';
+              if (props.photo_profil) {
+                const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
+                avatarHtml = `<img src="${avatarUrl}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">`;
+              }
+
+              const safeDescription = props.description ? props.description.replace(/"/g, '&quot;').substring(0, 150) + (props.description.length > 150 ? '...' : '') : 'Aucune note';
+
+              let tooltipTitle = '';
+
+              if (props.is_manual) {
+                tooltipTitle = `
+                      <div class="text-start p-2" style="font-size: 0.9em; min-width: 220px;">
+                          <div class="d-flex align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                              <div class="me-3">${avatarHtml}</div>
+                              <div>
+                                  <h6 class="m-0 event-tooltip-title">${props.collaborateur || 'Utilisateur'}</h6>
+                                  <small class="event-tooltip-muted">Événement manuel</small>
+                              </div>
+                          </div>
+                          <div class="mb-2 event-tooltip-text"><strong>${info.event.title}</strong></div>
+                          <div class="event-tooltip-muted fst-italic" style="white-space: pre-wrap;">${safeDescription}</div>
+                      </div>
+                  `;
+              } else {
+                // Determine icon based on urgency
+                let urgIcon = '🟢';
+                if (props.urgence === 'critique') urgIcon = '🔴';
+                else if (props.urgence === 'haute') urgIcon = '🟠';
+                else if (props.urgence === 'moyenne') urgIcon = '🟡';
+
+                tooltipTitle = `
+                      <div class="text-start p-2" style="font-size: 0.9em; min-width: 250px;">
+                          <div class="d-flex align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                              <div class="me-3">${avatarHtml}</div>
+                              <div>
+                                  <h6 class="m-0 event-tooltip-title">${props.collaborateur || 'Non assigné'}</h6>
+                                  <small class="event-tooltip-muted">${props.numero}</small>
+                              </div>
+                          </div>
+                          <div class="mb-1 event-tooltip-text"><i class="fas fa-building fa-fw me-1 event-tooltip-muted"></i> <strong>Site:</strong> ${props.site}</div>
+                          <div class="mb-1 event-tooltip-text"><i class="fas fa-tasks fa-fw me-1 event-tooltip-muted"></i> <strong>Statut:</strong> ${props.etat}</div>
+                          <div class="mb-2 event-tooltip-text">${urgIcon} <strong>Urgence:</strong> ${props.urgence}</div>
+                          <div class="mt-2 pt-2 border-top border-secondary border-opacity-25">
+                             <div class="event-tooltip-muted small fst-italic" style="white-space: pre-wrap; max-height: 80px; overflow-y: hidden;">${safeDescription}</div>
+                          </div>
+                      </div>
+                  `;
+              }
+
+              new bootstrap.Tooltip(info.el, {
+                title: tooltipTitle,
+                html: true,
+                placement: 'top',
+                trigger: 'hover',
+                container: 'body',
+                customClass: 'calendar-tooltip-lg'
+              });
+            }
+          }
+        });
+      }
+      calendarInstance.render();
+    });
+
+    // Auto-calculate end time (Default 30 min duration)
+    window.autoCalculateEndTime = function (input) {
+      if (!input.value) return;
+
+      const startTime = new Date(input.value);
+      const endTimeInput = document.getElementById('eventEndTime');
+
+      // If end time is empty, set it to start + 30 min
+      if (!endTimeInput.value) {
+        const endTime = new Date(startTime.getTime() + 30 * 60000);
+
+        // Format to YYYY-MM-DDTHH:mm
+        const year = endTime.getFullYear();
+        const month = String(endTime.getMonth() + 1).padStart(2, '0');
+        const day = String(endTime.getDate()).padStart(2, '0');
+        const hours = String(endTime.getHours()).padStart(2, '0');
+        const minutes = String(endTime.getMinutes()).padStart(2, '0');
+
+        endTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+    };
+
+    // Handle form submission for new calendar events
+    const addEventForm = document.getElementById('addCalendarEventForm');
+    if (addEventForm) {
+      addEventForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('saveEventBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Enregistrement...';
+        submitBtn.disabled = true;
+
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        // Format datetime-local to ISO if needed, but the browser usually sends standard ISO-like strings
+        // Ensure end time is null if empty
+        if (!data.end_time) {
+          delete data.end_time;
+        }
+
+        fetch('/api/calendar_events/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          },
+          body: JSON.stringify(data)
+        })
+          .then(response => {
+            if (!response.ok) throw new Error('Erreur lors de la création');
+            return response.json();
+          })
+          .then(result => {
+            if (result.success) {
+              // Close modal and reset form
+              const modalEl = document.getElementById('addCalendarEventModal');
+              const modal = bootstrap.Modal.getInstance(modalEl);
+              modal.hide();
+              addEventForm.reset();
+
+              // Refetch calendar events
+              if (calendarInstance) {
+                calendarInstance.refetchEvents();
+              }
+            } else {
+              alert('Erreur: ' + (result.error || 'Erreur inconnue'));
+            }
+          })
+          .catch(error => {
+            console.error('Add event error:', error);
+            alert('Une erreur est survenue lors de l\'ajout de l\'événement.');
+          })
+          .finally(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+          });
+      });
+    }
+  }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
 {% endblock %}

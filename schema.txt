@@ -1,0 +1,39 @@
+                                             Table "public.incidents"
+        Column        |            Type             | Collation | Nullable |                Default                
+----------------------+-----------------------------+-----------+----------+---------------------------------------
+ id                   | integer                     |           | not null | nextval('incidents_id_seq'::regclass)
+ numero               | character varying(255)      |           | not null | 
+ site                 | character varying(255)      |           | not null | 
+ sujet                | character varying(255)      |           | not null | 
+ urgence              | character varying(255)      |           | not null | 
+ collaborateur        | character varying(255)      |           | not null | 
+ etat                 | character varying(255)      |           |          | 'Affecté'::character varying
+ notes                | text                        |           |          | 
+ note_dispatch        | text                        |           |          | 
+ valide               | integer                     |           |          | 0
+ date_affectation     | date                        |           | not null | 
+ archived             | integer                     |           |          | 0
+ localisation         | character varying(255)      |           |          | ''::character varying
+ version              | integer                     |           | not null | 1
+ technicien_id        | integer                     |           |          | 
+ relance_mail         | boolean                     |           |          | false
+ relance_1            | boolean                     |           |          | false
+ relance_2            | boolean                     |           |          | false
+ relance_cloture      | boolean                     |           |          | false
+ date_rdv             | timestamp without time zone |           |          | 
+ relance_planifiee_at | timestamp without time zone |           |          | 
+ relance_done_at      | timestamp without time zone |           |          | 
+Indexes:
+    "incidents_pkey" PRIMARY KEY, btree (id)
+    "idx_incidents_archived" btree (archived)
+    "idx_incidents_archived_etat_date" btree (archived, etat, date_affectation DESC)
+    "idx_incidents_archived_technicien" btree (archived, technicien_id)
+    "idx_incidents_collaborateur" btree (collaborateur)
+    "idx_incidents_date_affectation" btree (date_affectation DESC)
+    "idx_incidents_etat" btree (etat)
+    "idx_incidents_technicien_id" btree (technicien_id)
+Foreign-key constraints:
+    "incidents_technicien_id_fkey" FOREIGN KEY (technicien_id) REFERENCES techniciens(id) ON DELETE SET NULL
+Referenced by:
+    TABLE "historique" CONSTRAINT "historique_incident_id_fkey" FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE
+

@@ -26,18 +26,18 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label for="nom" class="form-label text-muted small">Nom</label>
-            <input type="text" class="form-control" id="nom" name="nom" required placeholder="Ex: Dupont">
+            <input type="text" class="form-control" id="nom" name="nom" required placeholder="Ex : Dupont">
           </div>
           <div class="col-md-6">
             <label for="prenom" class="form-label text-muted small">Prénom</label>
-            <input type="text" class="form-control" id="prenom" name="prenom" required placeholder="Ex: Jean">
+            <input type="text" class="form-control" id="prenom" name="prenom" required placeholder="Ex : Jean">
           </div>
         </div>
 
         <div class="row g-3 mt-2">
           <div class="col-md-12">
             <label for="username" class="form-label text-muted small">Nom d'utilisateur</label>
-            <input type="text" class="form-control" id="username" name="username" required placeholder="Ex: jdupont">
+            <input type="text" class="form-control" id="username" name="username" required placeholder="Ex : jdupont">
           </div>
         </div>
 
@@ -68,7 +68,7 @@
             <div
               class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2 bg-opacity-25 border-info border-opacity-50 text-info">
               <i class="fas fa-info-circle"></i>
-              <small class="mb-0">Mot de passe par défaut : <strong>0000</strong></small>
+              <small class="mb-0">Mot de passe par défaut&nbsp;: <strong>0000</strong></small>
             </div>
           </div>
         </div>
@@ -385,7 +385,7 @@
       .then(data => {
         if (data.incidents && data.incidents.length > 0) {
           // Si le technicien a des incidents en cours : on affiche seulement les <select> et un bouton JS
-          let html = "<p><b>" + data.tech_prenom + "</b> a des tickets en cours.<br>Merci de les réattribuer :</p>";
+          let html = "<p><b>" + data.tech_prenom + "</b> a des tickets en cours.<br>Merci de les réattribuer&nbsp;:</p>";
           data.incidents.forEach(inc => {
             html +=
               "<div class='mb-2'><b>#" + inc.numero + "</b> - " + inc.site + " - " + inc.sujet +

@@ -430,10 +430,129 @@
         });
     }
 
+    function bindCategoryModals() {
+        const addCategoryBtn = document.getElementById("addCategoryBtn");
+        const addSubcategoryBtn = document.getElementById("addSubcategoryBtn");
+        const categoryModal = new bootstrap.Modal(document.getElementById("categoryModal"));
+        const subcategoryModal = new bootstrap.Modal(document.getElementById("subcategoryModal"));
+        const categoryModalForm = document.getElementById("categoryModalForm");
+        const subcategoryModalForm = document.getElementById("subcategoryModalForm");
+        const saveCategoryModalBtn = document.getElementById("saveCategoryModalBtn");
+        const saveSubcategoryModalBtn = document.getElementById("saveSubcategoryModalBtn");
+
+        if (addCategoryBtn) {
+            addCategoryBtn.addEventListener("click", () => categoryModal.show());
+        }
+
+        if (addSubcategoryBtn) {
+            addSubcategoryBtn.addEventListener("click", () => {
+                const categoryId = categorySelect.value;
+                if (!categoryId) return;
+                
+                const catOption = categorySelect.options[categorySelect.selectedIndex];
+                document.getElementById("subcategoryModalCatName").textContent = `Catégorie : ${catOption.textContent}`;
+                subcategoryModalForm.querySelector('[name="category_id"]').value = categoryId;
+                subcategoryModal.show();
+            });
+        }
+
+        if (saveCategoryModalBtn) {
+            saveCategoryModalBtn.addEventListener("click", async () => {
+                const formData = new FormData(categoryModalForm);
+                const data = Object.fromEntries(formData.entries());
+                
+                if (!data.name) {
+                    alert("Le nom est requis");
+                    return;
+                }
+
+                saveCategoryModalBtn.disabled = true;
+                saveCategoryModalBtn.textContent = "Création...";
+
+                try {
+                    const response = await fetch("/wiki/category/create", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCsrfToken()
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // We need to refresh the categories list. 
+                        // Since we don't have a simple "get all categories" API here, 
+                        // we'll reload the page but keep the draft, OR simpler: 
+                        // warn the user that a reload is needed to see the new category.
+                        // Better: Just reload and let the auto-restore handle the rest.
+                        window.location.reload();
+                    } else {
+                        alert("Erreur: " + (result.error || "Inconnue"));
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Erreur réseau");
+                } finally {
+                    saveCategoryModalBtn.disabled = false;
+                    saveCategoryModalBtn.textContent = "Créer";
+                }
+            });
+        }
+
+        if (saveSubcategoryModalBtn) {
+            saveSubcategoryModalBtn.addEventListener("click", async () => {
+                const formData = new FormData(subcategoryModalForm);
+                if (!formData.get("name")) {
+                    alert("Le nom est requis");
+                    return;
+                }
+
+                saveSubcategoryModalBtn.disabled = true;
+                saveSubcategoryModalBtn.textContent = "Création...";
+
+                try {
+                    const response = await fetch("/wiki/subcategory/create", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCsrfToken(),
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // Unlike categories, we can easily inject a subcategory into the local array
+                        // but it's safer to reload to get the real ID and consistency.
+                        window.location.reload();
+                    } else {
+                        alert("Erreur: " + (result.error || "Inconnue"));
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Erreur réseau");
+                } finally {
+                    saveSubcategoryModalBtn.disabled = false;
+                    saveSubcategoryModalBtn.textContent = "Créer";
+                }
+            });
+        }
+
+        // Enable/disable subcategory button based on category selection
+        if (categorySelect && addSubcategoryBtn) {
+            categorySelect.addEventListener("change", () => {
+                addSubcategoryBtn.disabled = !categorySelect.value;
+            });
+            addSubcategoryBtn.disabled = !categorySelect.value;
+        }
+    }
+
     initCategorySelectors();
     initEmojiPicker();
     bindSubmitAndShortcuts();
     initThemeObserver();
+    bindCategoryModals();
 
     [titleInput, iconInput, tagsInput, statusSelect, changeDescriptionInput].forEach(el => {
         if (el) {

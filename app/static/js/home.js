@@ -12,6 +12,12 @@ window.switchView = function (viewName) {
   // Save preference
   localStorage.setItem('adminViewPreference', viewName);
 
+  // Show/hide zoom controls
+  const zoomControls = document.getElementById('kanbanZoomControls');
+  if (zoomControls) {
+    zoomControls.style.display = (viewName === 'kanban') ? '' : 'none';
+  }
+
   // Hide all views
   document.querySelectorAll('.view-container').forEach(v => {
     v.classList.remove('active');
@@ -75,6 +81,42 @@ window.initializeView = function () {
       setTimeout(window.initializeView, 100);
     }
   }, 50);
+};
+
+// ==========================================
+// KANBAN ZOOM MANAGEMENT
+// ==========================================
+window.kanbanZoomLevel = 1.0;
+
+window.zoomKanban = function (delta, reset = false) {
+  const container = document.getElementById('kanban-view');
+  if (!container) return;
+
+  if (reset) {
+    window.kanbanZoomLevel = 1.0;
+  } else {
+    window.kanbanZoomLevel += delta;
+    // Restrict zoom level between 50% and 150%
+    if (window.kanbanZoomLevel < 0.5) window.kanbanZoomLevel = 0.5;
+    if (window.kanbanZoomLevel > 1.5) window.kanbanZoomLevel = 1.5;
+  }
+
+  container.style.zoom = window.kanbanZoomLevel;
+
+  const label = document.getElementById('kanbanZoomLevel');
+  if (label) {
+    label.textContent = Math.round(window.kanbanZoomLevel * 100) + '%';
+  }
+
+  localStorage.setItem('kanbanZoomLevel', window.kanbanZoomLevel.toString());
+};
+
+window.applySavedZoom = function () {
+  const savedZoom = localStorage.getItem('kanbanZoomLevel');
+  if (savedZoom) {
+    window.kanbanZoomLevel = parseFloat(savedZoom) || 1.0;
+    window.zoomKanban(0); // apply current level
+  }
 };
 
 // ==========================================
@@ -718,6 +760,7 @@ window.initTechView = function () {
 
   // Init View Preference
   window.initializeView();
+  window.applySavedZoom();
 
   // Initialize Technician View if applicable
   if (typeof window.initTechView === 'function') {
@@ -730,11 +773,14 @@ window.initTechView = function () {
       const btn = e.target.closest('.note-edit-btn') || e.target;
       window.enterEditMode(btn);
       e.stopPropagation();
-    } else if (e.target.matches('.note-save-btn')) {
-      const btn = e.target;
+    } else if (e.target.closest('.note-save-btn')) {
+      const btn = e.target.closest('.note-save-btn');
       window.saveNote(btn, btn.dataset.incidentId, btn.dataset.noteType);
-    } else if (e.target.matches('.note-cancel-btn')) {
-      window.cancelEdit(e.target);
+      e.stopPropagation();
+    } else if (e.target.closest('.note-cancel-btn')) {
+      const btn = e.target.closest('.note-cancel-btn');
+      window.cancelEdit(btn);
+      e.stopPropagation();
     }
   });
 
@@ -868,6 +914,11 @@ window.initTechView = function () {
                 badge.textContent = newEtat;
               }
               card.dataset.etat = newEtat.toLowerCase();
+
+              // Refresh the entire card to show/hide dynamic fields (RDV, Relance)
+              if (window.reloadIncidentCard) {
+                window.reloadIncidentCard(incidentId);
+              }
             }
           } else {
             alert('Erreur: ' + (d.message || 'Échec de la mise à jour'));

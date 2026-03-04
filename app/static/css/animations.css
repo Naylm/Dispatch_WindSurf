@@ -66,6 +66,31 @@
     animation: pulseGlow 2s infinite;
 }
 
+/* TICKET HIGHLIGHT (Used when clicking "Voir le ticket" from notifications) */
+@keyframes highlightPulse {
+    0% {
+        box-shadow: 0 0 0px rgba(255, 193, 7, 0);
+        background-color: transparent;
+        border-color: transparent;
+    }
+
+    30% {
+        box-shadow: 0 0 25px 5px rgba(255, 193, 7, 0.8);
+        background-color: rgba(255, 193, 7, 0.25);
+        border-color: rgba(255, 193, 7, 1);
+    }
+
+    100% {
+        box-shadow: 0 0 0px rgba(255, 193, 7, 0);
+        background-color: transparent;
+        border-color: transparent;
+    }
+}
+
+.animate-highlight-pulse {
+    animation: highlightPulse 1.2s ease-out 2;
+}
+
 /* HOVER UTILS */
 .hover-lift {
     transition: transform var(--duration-fast) var(--ease-smooth), box-shadow var(--duration-fast) var(--ease-smooth);

@@ -1,88 +1,54 @@
-# DispatchDockerWorking
+# Dispatch Manager V3.0 🚀
 
-Plateforme de gestion d'incidents et de techniciens avec base de connaissances, prete pour un deploiement Docker.
+Dispatch Manager est une application web moderne pour la gestion d'incidents, la planification de techniciens et le suivi collaboratif, conçue spécialement pour les centres de services et les équipes de support.
 
-## Sommaire
-- Presentation
-- Stack technique
-- Demarrage rapide
-- Configuration
-- Fonctionnalites
-- Maintenance
+![Interface du projet](/c:/Users/nayso/.gemini/antigravity/brain/6981928c-c453-4026-9e26-2c7ba2b3d363/note_edit_mode_view_1772629884093.png)
 
-## Presentation
-DispatchDockerWorking fournit :
-- gestion des incidents (statuts, priorites, relances, historique)
-- gestion des techniciens (activation, reset mdp, ordre)
-- wiki interne (articles, categories, tags)
-- temps reel via Socket.IO (notifications, refresh)
+## 🌟 Fonctionnalités Clés
 
-## Stack technique
-- Backend: Flask + Socket.IO
-- DB: PostgreSQL 15
-- Reverse proxy: Nginx
-- Conteneurs: Docker Compose
+- **Dashboard Kanban Interactif** : Gérez vos incidents avec une vue en colonnes fluide et intuitive.
+- **Calendrier Collaboratif (Style Google/Apple)** : Planifiez les interventions, gérez les rendez-vous et visualisez la charge de travail de l'équipe.
+- **Gestion des Techniciens** : Suivi des effectifs, affectations rapides et profils détaillés.
+- **Base de Connaissances (Wiki)** : Créez et partagez des articles de support pour une résolution plus rapide.
+- **Mode Sombre/Clair Premium** : Interface élégante avec Glassmorphism, transitions fluides et design responsive.
+- **Typographie Française** : Conformité totale avec les règles de ponctuation française.
 
-## Demarrage rapide
-```bash
-git clone https://github.com/Naylm/DispatchDockerWorking.git
-cd DispatchDockerWorking
+## 🛠️ Stack Technique
 
-docker compose up -d --build
-```
+- **Backend** : Python (Flask), PostgreSQL, Redis.
+- **Frontend** : HTML5, Vanilla CSS3 (Glassmorphism), JavaScript (ES6+).
+- **Communication** : WebSockets (Socket.io) pour les mises à jour en temps réel.
+- **Déploiement** : Docker & Docker Compose (Nginx, Gunicorn).
 
-Acces: http://localhost
+## 🚀 Installation & Lancement
 
-Premier compte admin:
-- definir `BOOTSTRAP_ADMIN_USERNAME` et `BOOTSTRAP_ADMIN_PASSWORD` dans `.env`
-- le compte est cree au demarrage avec `force_password_reset=1`
+Le projet est entièrement conteneurisé pour faciliter le déploiement local et en production.
 
-## Configuration
-Variables utiles dans `.env`:
-```
-SECRET_KEY=change_me
-POSTGRES_USER=dispatch_user
-POSTGRES_PASSWORD=change_me
-GUNICORN_WORKERS=2
-REDIS_URL=redis://redis:6379/0
-SOCKETIO_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
-SOCKETIO_DEBUG=false
-BOOTSTRAP_ADMIN_USERNAME=
-BOOTSTRAP_ADMIN_PASSWORD=
-DB_POOL_MIN=5
-DB_POOL_MAX=20
-```
+### Prérequis
+- Docker
+- Docker Compose
 
-## Fonctionnalites
-### Admin
-- creation et edition des incidents
-- assignation technicien
-- gestion statuts, priorites, sites
-- export CSV/PDF/Excel
-- relances planifiees avec badge et notification in-app
-- gestion techniciens (actif/inactif, reset mdp)
-- wiki complet
+### Lancement
+1. Clonez le dépôt :
+   ```bash
+   git clone https://github.com/Naylm/antigravity_dispatch.git
+   cd antigravity_dispatch
+   ```
 
-### Technicien
-- vue des tickets assignes
-- changement de statut
-- notes technicien
-- relances et rdv selon statut
-- notifications temps reel
-- consultation du wiki
+2. Démarrez les services :
+   ```bash
+   docker-compose up -d --build
+   ```
 
-## Maintenance
-Logs:
-```bash
-docker compose logs -f app
-docker compose logs -f postgres
-docker compose logs -f nginx
-```
+3. Accédez à l'application :
+   L'application sera disponible sur `http://localhost`.
 
-Backup PostgreSQL:
-```bash
-docker exec dispatch_postgres pg_dump -U dispatch_user dispatch > backup.sql
-```
+## 📈 Améliorations Récentes
 
-## Licence
-MIT
+- Refonte complète du calendrier collaboratif (empilement des événements, vue journalière/hebdomadaire).
+- Optimisation de la visibilité des icônes dans les notes d'incidents.
+- Correction de l'ergonomie des boutons d'action (Save/Cancel).
+
+---
+
+Développé avec ❤️ pour l'efficacité opérationnelle.

@@ -80,18 +80,26 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Catégorie *</label>
-                    <select class="form-select" id="categorySelect" required>
-                        <option value="">Sélectionnez une catégorie</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <div class="input-group">
+                        <select class="form-select" id="categorySelect" required>
+                            <option value="">Sélectionnez une catégorie</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.icon }} {{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline-primary" id="addCategoryBtn"
+                            title="Nouvelle catégorie">+</button>
+                    </div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Sous-catégorie *</label>
-                    <select class="form-select" name="subcategory_id" id="subcategorySelect" required>
-                        <option value="">Sélectionnez d'abord une catégorie</option>
-                    </select>
+                    <div class="input-group">
+                        <select class="form-select" name="subcategory_id" id="subcategorySelect" required>
+                            <option value="">Sélectionnez d'abord une catégorie</option>
+                        </select>
+                        <button type="button" class="btn btn-outline-primary" id="addSubcategoryBtn"
+                            title="Nouvelle sous-catégorie" disabled>+</button>
+                    </div>
                 </div>
             </div>
 
@@ -99,7 +107,7 @@
                 <label class="form-label">Tags (séparés par des virgules)</label>
                 <input type="text" class="form-control" name="tags" id="tagsInput"
                     value="{% if article and article.tags %}{{ article.tags }}{% endif %}"
-                    placeholder="exemple: wifi, réseau, configuration">
+                    placeholder="exemple : wifi, réseau, configuration">
                 <small class="text-muted">Maximum 10 tags.</small>
             </div>
 
@@ -136,7 +144,7 @@
         <div class="form-section">
             <h5 class="mb-3">Description du changement</h5>
             <input type="text" class="form-control" name="change_description" id="changeDescriptionInput"
-                placeholder="Ex: correction de procédure, ajout de précision...">
+                placeholder="Ex : correction de procédure, ajout de précision...">
             <small class="text-muted">Optionnel, utile pour l’historique.</small>
         </div>
         {% endif %}
@@ -148,6 +156,76 @@
             </button>
         </div>
     </form>
+</div>
+
+<!-- Modal Nouvelle Catégorie -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouvelle Catégorie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryModalForm">
+                    <div class="mb-3">
+                        <label class="form-label">Nom *</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icône (emoji)</label>
+                        <input type="text" class="form-control" name="icon" value="📁">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Couleur</label>
+                        <input type="color" class="form-control form-control-color" name="color" value="#4f46e5">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveCategoryModalBtn">Créer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nouvelle Sous-Catégorie -->
+<div class="modal fade" id="subcategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouvelle Sous-Catégorie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="subcategoryModalCatName" class="text-muted small"></p>
+                <form id="subcategoryModalForm">
+                    <input type="hidden" name="category_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nom *</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icône (emoji)</label>
+                        <input type="text" class="form-control" name="icon" value="📄">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveSubcategoryModalBtn">Créer</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 

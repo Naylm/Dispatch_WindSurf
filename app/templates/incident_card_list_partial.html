@@ -44,13 +44,48 @@
         {% endif %}
       </div>
 
-      <div class="text-white text-opacity-75 small d-flex align-items-center gap-3">
+      <div class="text-white text-opacity-75 small d-flex flex-wrap align-items-center gap-3">
         <span class="fw-medium">{{ i.sujet }}</span>
         {% if i.localisation %}
         <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ i.localisation }}</span>
         {% endif %}
         <span class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ i.date_affectation|format_date }}</span>
+
+        {# Dynamic indicators #}
+        {% if (statut_info and statut_info.has_rdv) or i.date_rdv %}
+        <span class="text-warning"><i class="far fa-clock me-1"></i>{{ i.date_rdv|format_date if i.date_rdv else 'RDV à
+          planifier' }}</span>
+        {% endif %}
       </div>
+
+      {# RDV Input inline if needed #}
+      {% if statut_info and statut_info.has_rdv %}
+      <div class="mt-2 d-flex align-items-center gap-2" style="max-width: 300px;">
+        <small class="text-warning fw-bold" style="font-size: 0.7rem;">📅 RDV&nbsp;:</small>
+        <input type="datetime-local"
+          class="form-control form-control-xs bg-dark text-warning border-warning rdv-input p-0 px-1"
+          style="font-size: 0.7rem; height: 1.5rem;" data-incident-id="{{ i.id }}"
+          value="{{ i.date_rdv|replace(' ', 'T') if i.date_rdv else '' }}" onchange="updateRdv(this)">
+      </div>
+      {% endif %}
+
+      {# Relances checkboxes inline #}
+      {% if (statut_info and statut_info.has_relances) or i.relance_mail or i.relance_1 or i.relance_2 or
+      i.relance_cloture %}
+      <div class="relances-wrapper mt-1 d-flex align-items-center gap-3" data-incident-id="{{ i.id }}">
+        <small class="text-info fw-bold" style="font-size: 0.7rem;">📧 Relances&nbsp;:</small>
+        <div class="d-flex align-items-center gap-2">
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_mail" {% if
+            i.relance_mail %}checked{% endif %} onchange="updateRelance(this)" title="Mail">
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_1" {% if
+            i.relance_1 %}checked{% endif %} onchange="updateRelance(this)" title="R1">
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_2" {% if
+            i.relance_2 %}checked{% endif %} onchange="updateRelance(this)" title="R2">
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_cloture" {%
+            if i.relance_cloture %}checked{% endif %} onchange="updateRelance(this)" title="Fin">
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Actions & Config -->

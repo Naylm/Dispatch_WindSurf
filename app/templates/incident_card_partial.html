@@ -86,12 +86,12 @@
 
     <!-- CONDITIONAL SECTIONS based on Status -->
 
-    <!-- SECTION RDV: Only if 'Suspendu intervention programmée' or similar or if RDV exists -->
-    {% if i.etat == 'Suspendu intervention programmée' or i.etat == 'Planifié' or i.date_rdv %}
+    <!-- SECTION RDV: Dynamic based on status config or if RDV exists -->
+    {% if (statut_info and statut_info.has_rdv) or i.date_rdv %}
     <div class="rdv-wrapper mb-2 p-1 rounded border border-warning border-opacity-25 bg-warning bg-opacity-10"
       data-incident-id="{{ i.id }}">
       <div class="d-flex align-items-center gap-2">
-        <small class="text-warning fw-bold" style="font-size: 0.75rem;">📅 RDV:</small>
+        <small class="text-warning fw-bold" style="font-size: 0.75rem;">📅 RDV&nbsp;:</small>
         <!-- Use ISO format for input value but display formatted date if needed -->
         <!-- We'll use a simple date input for interaction -->
         <input type="datetime-local" class="form-control form-control-xs bg-dark text-warning border-warning rdv-input"
@@ -102,8 +102,8 @@
     </div>
     {% endif %}
 
-    <!-- SECTION RELANCE: Only if 'En attente' or 'Relance' or if checked -->
-    {% if 'Relance' in i.etat or 'attente' in i.etat or i.relance_mail or i.relance_1 or i.relance_2 or
+    <!-- SECTION RELANCE: Dynamic based on status config or if any relance checked -->
+    {% if (statut_info and statut_info.has_relances) or i.relance_mail or i.relance_1 or i.relance_2 or
     i.relance_cloture %}
     <div class="relances-wrapper mb-2 p-1 px-2 rounded border border-info border-opacity-25 bg-info bg-opacity-10"
       data-incident-id="{{ i.id }}">
@@ -171,10 +171,13 @@
         <textarea class="form-control form-control-sm mb-1 bg-dark text-white border-secondary note-edit-textarea"
           rows="3" style="font-size: 0.8rem;">{{ note_dispatch }}</textarea>
         <div class="d-flex gap-1 justify-content-end">
-          <button class="btn btn-xs btn-outline-secondary py-0 px-2 note-cancel-btn"
-            style="font-size: 0.7rem;">Annuler</button>
-          <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="dispatch" style="font-size: 0.7rem;">✔️</button>
+          <button class="btn btn-xs note-cancel-btn" title="Annuler">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="dispatch"
+            title="Enregistrer">
+            <i class="fa-solid fa-check"></i>
+          </button>
         </div>
       </div>
       {% endif %}
@@ -202,10 +205,13 @@
         <textarea class="form-control form-control-sm mb-1 bg-dark text-white border-secondary note-edit-textarea"
           rows="3" style="font-size: 0.8rem;">{{ note_tech }}</textarea>
         <div class="d-flex gap-1 justify-content-end">
-          <button class="btn btn-xs btn-outline-secondary py-0 px-2 note-cancel-btn"
-            style="font-size: 0.7rem;">Annuler</button>
-          <button class="btn btn-xs btn-success py-0 px-2 note-save-btn" data-incident-id="{{ i.id }}"
-            data-note-type="tech" style="font-size: 0.7rem;">✔️</button>
+          <button class="btn btn-xs note-cancel-btn" title="Annuler">
+            <i class="fas fa-times"></i>
+          </button>
+          <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="tech"
+            title="Enregistrer">
+            <i class="fas fa-check"></i>
+          </button>
         </div>
       </div>
     </div>

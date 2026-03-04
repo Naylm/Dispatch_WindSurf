@@ -500,14 +500,18 @@ class NotificationSystem {
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             // Remove any specific existing transition to ensure animation runs immediately
-            const oldAnimation = card.style.animation;
+            card.classList.remove('animate-highlight-pulse');
 
-            // Animation de mise en évidence jaune répétée 2 fois
-            card.style.animation = 'highlightPulse 1s ease 2';
+            // Trigger reflow
+            void card.offsetWidth;
 
+            // Add the highlight class
+            card.classList.add('animate-highlight-pulse');
+
+            // Cleanup after animation ends
             setTimeout(() => {
-                card.style.animation = oldAnimation;
-            }, 2000);
+                card.classList.remove('animate-highlight-pulse');
+            }, 3000);
         } else {
             console.warn('Carte incident non trouvée pour ID:', incidentId);
         }
@@ -839,12 +843,6 @@ notificationStyles.textContent = `
     @keyframes urgentGlow {
         0%, 100% { box-shadow: inset 0 0 0 rgba(220, 53, 69, 0); }
         50% { box-shadow: inset 0 0 15px rgba(220, 53, 69, 0.3); }
-    }
-
-    @keyframes highlightPulse {
-        0% { box-shadow: 0 0 0px rgba(255, 193, 7, 0); background-color: transparent; }
-        50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.8); background-color: rgba(255, 193, 7, 0.2); }
-        100% { box-shadow: 0 0 0px rgba(255, 193, 7, 0); background-color: transparent; }
     }
 
     @keyframes slideInDown {

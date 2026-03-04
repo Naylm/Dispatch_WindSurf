@@ -93,4 +93,193 @@ def api_incident(id):
         statuts=statuts,
     )
 
-# Add other API routes like stats/data here...
+@api_bp.route('/calendar_events')
+def calendar_events():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    db = get_db()
+    
+    # Base query for scheduled incidents (with joined tech info for avatars)
+    query = """
+        SELECT i.id, i.sujet, i.numero, i.site, i.urgence, i.etat, i.date_rdv, i.collaborateur, i.notes, t.photo_profil
+        FROM incidents i
+        LEFT JOIN techniciens t ON (
+            -- We try to match by technicien_id or by name in collaborateur field
+            i.technicien_id = t.id OR i.collaborateur ILIKE '%' || t.prenom || '%'
+        )
+        WHERE i.date_rdv IS NOT NULL
+    """
+    params = []
+    
+    # The user wants a collaborative calendar where everyone can see everything.
+    # We only apply filtering if it's a "standard" user (not admin/tech) if that even exists, 
+    # but based on requirements, technicians should see all scheduled interventions.
+    pass
+             
+    incidents = db.execute(query, tuple(params)).fetchall()
+    
+    # Priority colors
+    priority_colors = {
+        'critique': '#dc3545',
+        'haute': '#fd7e14',
+        'moyenne': '#ffc107',
+        'basse': '#198754'
+    }
+    
+    events = []
+    # 1. Process scheduled incidents
+    for inc in incidents:
+        start_date = inc['date_rdv']
+        if isinstance(start_date, str):
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                continue
+                
+        if not start_date:
+            continue
+            
+        color = priority_colors.get((inc['urgence'] or '').lower(), '#0d6efd')
+        
+        events.append({
+            'id': str(inc['id']),
+            'type': 'incident',
+            'title': f"[{inc['site']}] {inc['sujet']} ({inc['numero']})",
+            'start': start_date.isoformat(),
+            'allDay': False, 
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': {
+                'numero': inc['numero'],
+                'site': inc['site'],
+                'urgence': inc['urgence'],
+                'etat': inc['etat'],
+                'collaborateur': inc['collaborateur'],
+                'description': inc['notes'],
+                'photo_profil': inc['photo_profil'],
+                'is_manual': False
+            }
+        })
+        
+    # 2. Process manual calendar events
+    manual_query = """
+        SELECT c.id, c.title, c.description, c.start_time, c.end_time, c.created_by, c.incident_id, t.prenom, t.photo_profil
+        FROM calendar_events c
+        LEFT JOIN techniciens t ON c.technicien_id = t.id
+    """
+    manual_events = db.execute(manual_query).fetchall()
+    
+    for ev in manual_events:
+        start_date = ev['start_time']
+        if isinstance(start_date, str):
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                continue
+                
+        end_date_iso = None
+        if ev['end_time']:
+            end_date = ev['end_time']
+            if isinstance(end_date, str):
+                try:
+                    end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    end_date_iso = end_date.isoformat()
+                except ValueError:
+                    pass
+            else:
+                end_date_iso = end_date.isoformat()
+                
+        events.append({
+            'id': f"manual_{ev['id']}",
+            'type': 'manual',
+            'title': ev['title'],
+            'start': start_date.isoformat(),
+            'end': end_date_iso,
+            'allDay': False,
+            'backgroundColor': '#6f42c1', # Purple for manual events
+            'borderColor': '#6f42c1',
+            'extendedProps': {
+                'description': ev['description'],
+                'collaborateur': ev['prenom'] or ev['created_by'],
+                'photo_profil': ev['photo_profil'],
+                'incident_id': ev['incident_id'],
+                'is_manual': True
+            }
+        })
+        
+    return jsonify(events)
+
+@api_bp.route('/calendar_events/add', methods=['POST'])
+def add_calendar_event():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    data = request.json
+    if not data or not data.get('title') or not data.get('start_time'):
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    db = get_db()
+    
+    technicien_id = None
+    if session.get("role") not in ["admin", "superadmin"]:
+        tech_info = _get_current_tech_info(db)
+        if tech_info:
+            technicien_id = tech_info["id"]
+            
+    incident_id = data.get('incident_id')
+    incident_numero = data.get('incident_numero')
+    
+    if incident_numero and not incident_id:
+        inc = db.execute("SELECT id FROM incidents WHERE numero=%s", (incident_numero.strip().upper(),)).fetchone()
+        if inc:
+            incident_id = inc['id']
+            
+    try:
+        db.execute(
+            """INSERT INTO calendar_events 
+               (title, description, start_time, end_time, created_by, technicien_id, incident_id) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (
+                data['title'],
+                data.get('description', ''),
+                data['start_time'],
+                data.get('end_time'),
+                session['user'],
+                technicien_id,
+                incident_id
+            )
+        )
+        db.commit()
+        return jsonify({"success": True}), 201
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+    return jsonify({"error": "Unknown error"}), 500
+
+@api_bp.route('/save-preferences', methods=['POST'])
+def save_preferences():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+        
+    db = get_db()
+    table = "techniciens" if session.get("user_type") == "technicien" else "users"
+    
+    try:
+        # PostgreSQL supports JSONB directly. Passing a dict/list to execute 
+        # with %s will usually work if the driver handles it, or we use json.dumps.
+        # psycopg2 handles dicts if we use Json wrapper or if we pass string.
+        # For simplicity and compatibility with our wrapper, we pass json string.
+        db.execute(
+            f"UPDATE {table} SET preferences = %s WHERE username = %s",
+            (json.dumps(data), session["user"])
+        )
+        db.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Error saving preferences: {e}")
+        return jsonify({"error": str(e)}), 500

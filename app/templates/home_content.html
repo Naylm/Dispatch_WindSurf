@@ -85,7 +85,7 @@
     <div class="tech-grid">
         {% for tech in techniciens %}
         <div class="tech-column" data-technicien="{{ tech.prenom }}">
-            <div class="card shadow-sm h-100 incident-col-card">
+            <div class="card shadow-sm incident-col-card">
                 <div class="card-header text-center fw-bold bg-primary text-white">
                     {{ tech.prenom }}
                     <span class="badge bg-light text-primary ms-1" id="tech-count-{{ tech.prenom }}">
@@ -108,7 +108,7 @@
         {% endfor %}
         <!-- Colonne pour les incidents non assignés -->
         <div class="tech-column" data-technicien="Non affecté">
-            <div class="card shadow-sm h-100 incident-col-card border-warning">
+            <div class="card shadow-sm incident-col-card border-warning">
                 <div class="card-header text-center fw-bold bg-warning text-dark">
                     Non affecté
                     <span class="badge bg-dark text-warning ms-1" id="tech-count-non-affecte">
