@@ -348,6 +348,18 @@
     margin-top: 5px;
   }
 
+  .calendar-tooltip-lg .tooltip-inner img.tooltip-avatar {
+    width: 35px !important;
+    height: 35px !important;
+    max-width: 35px !important;
+    max-height: 35px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    margin-top: 0 !important;
+  }
+
   /* Prevent icon scaling in tooltips */
   .calendar-tooltip-lg .tooltip-inner i.fas {
     font-size: 1rem !important;
@@ -1565,7 +1577,7 @@
               let avatarHtml = '<i class="fas fa-user-circle fa-lg text-muted border rounded-circle p-1"></i>';
               if (props.photo_profil) {
                 const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
-                avatarHtml = `<img src="${avatarUrl}" class="tooltip-avatar" alt="Avatar">`;
+                avatarHtml = `<img src="${avatarUrl}" class="tooltip-avatar" alt="Avatar" style="width: 35px !important; height: 35px !important; border-radius: 50% !important; object-fit: cover !important; border: 2px solid rgba(255,255,255,0.2) !important;">`;
               }
 
               const safeDescription = props.description ? props.description.replace(/"/g, '&quot;').substring(0, 150) + (props.description.length > 150 ? '...' : '') : 'Aucune note';
@@ -1612,13 +1624,19 @@
                   `;
               }
 
+              const allowList = bootstrap.Tooltip.Default.allowList;
+              if (!allowList.img) allowList.img = ['src', 'alt', 'title', 'width', 'height'];
+              if (!allowList.img.includes('class')) allowList.img.push('class');
+              if (!allowList.img.includes('style')) allowList.img.push('style');
+
               new bootstrap.Tooltip(info.el, {
                 title: tooltipTitle,
                 html: true,
                 placement: 'top',
                 trigger: 'hover',
                 container: 'body',
-                customClass: 'calendar-tooltip-lg'
+                customClass: 'calendar-tooltip-lg',
+                allowList: allowList
               });
             }
           }
