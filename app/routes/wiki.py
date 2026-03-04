@@ -280,10 +280,17 @@ def create_wiki_subcategory():
             current_app.logger.error("wiki_subcategory_create: user not in session")
             return jsonify({"error": "Non autorisé"}), 403
         
-        name = request.form.get("name", "").strip()
-        category_id = request.form.get("category_id")
-        icon = request.form.get("icon", "📄").strip()
-        description = request.form.get("description", "").strip()
+        if request.is_json:
+            data = request.json
+            name = data.get("name", "").strip()
+            category_id = data.get("category_id")
+            icon = data.get("icon", "📄").strip()
+            description = data.get("description", "").strip()
+        else:
+            name = request.form.get("name", "").strip()
+            category_id = request.form.get("category_id")
+            icon = request.form.get("icon", "📄").strip()
+            description = request.form.get("description", "").strip()
         
         if not name or not category_id:
             current_app.logger.error("wiki_subcategory_create: missing name or category_id")

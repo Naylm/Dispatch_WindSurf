@@ -1,8 +1,7 @@
 {# Template partiel pour une carte d'incident - Vue Technicien #}
 {% set priorite_info_header = priorites|selectattr("nom", "equalto", i.urgence)|first %}
-<div class="card small-card shadow-sm hover-lift border-0 mb-3"
-  style="background: var(--bg-panel); backdrop-filter: blur(10px);" data-incident-id="{{ i.id }}"
-  data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}"
+<div class="card small-card shadow-sm hover-lift border-0 mb-3 tech-card-bg" style="backdrop-filter: blur(10px);"
+  data-incident-id="{{ i.id }}" data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}"
   data-localisation="{{ i.localisation|lower if i.localisation else '' }}" data-sujet="{{ i.sujet|lower }}"
   data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}" data-date-affectation="{{ i.date_affectation }}"
   data-technicien="{{ i.collaborateur }}">

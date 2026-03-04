@@ -127,9 +127,26 @@ def calendar_events():
         'basse': '#198754'
     }
     
+    mine_only = request.args.get('mine_only') == '1'
+    tech_info = _get_current_tech_info(db)
+    current_prenom = tech_info['prenom'] if tech_info else None
+    current_tech_id = tech_info['id'] if tech_info else None
+    current_user = session.get('user')
+    
     events = []
     # 1. Process scheduled incidents
     for inc in incidents:
+        if mine_only:
+            is_mine = False
+            collab = (inc['collaborateur'] or '').lower()
+            if current_prenom and current_prenom.lower() in collab:
+                is_mine = True
+            elif current_user and current_user.lower() in collab:
+                is_mine = True
+                
+            if not is_mine:
+                continue
+                
         start_date = inc['date_rdv']
         if isinstance(start_date, str):
             try:
@@ -171,6 +188,20 @@ def calendar_events():
     manual_events = db.execute(manual_query).fetchall()
     
     for ev in manual_events:
+        if mine_only:
+            is_mine = False
+            if ev['created_by'] == current_user:
+                is_mine = True
+            elif current_tech_id and ev.get('technicien_id') == current_tech_id:
+                is_mine = True
+            elif current_prenom and current_prenom.lower() in (ev['prenom'] or '').lower():
+                is_mine = True
+            elif current_user and current_user.lower() in (ev['prenom'] or '').lower():
+                is_mine = True
+                
+            if not is_mine:
+                continue
+                
         start_date = ev['start_time']
         if isinstance(start_date, str):
             try:
@@ -272,13 +303,13 @@ def delete_calendar_event(event_id):
             # Admins can delete any manual event
             res = db.execute("DELETE FROM calendar_events WHERE id = %s RETURNING id", (event_id,)).fetchone()
         else:
-            # Technicians can only delete events they created
+            # Users can delete events they created, or events assigned to them
             tech_info = _get_current_tech_info(db)
-            if not tech_info:
-                return jsonify({"error": "Unauthorized"}), 403
+            tech_id = tech_info['id'] if tech_info else -1
+            
             res = db.execute(
                 "DELETE FROM calendar_events WHERE id = %s AND (created_by = %s OR technicien_id = %s) RETURNING id", 
-                (event_id, session['user'], tech_info['id'])
+                (event_id, session['user'], tech_id)
             ).fetchone()
             
         if res:

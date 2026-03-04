@@ -3,7 +3,7 @@
 {% block title %}Dispatch Manager{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=12.8">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=13.0">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
   /* Floating Action Button (FAB) for Calendar - Modern Glassmorphism */
@@ -657,8 +657,14 @@
           class="modal-header border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
           <h5 class="modal-title m-0" id="calendarModalLabel"><i class="fas fa-calendar-alt me-2"></i> Calendrier
             Collaboratif</h5>
-          <div>
-            <button type="button" class="btn btn-sm btn-outline-primary shadow-sm me-3" data-bs-toggle="modal"
+          <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0" title="Afficher uniquement mes événements">
+              <input class="form-check-input" type="checkbox" role="switch" id="myEventsToggle"
+                style="cursor: pointer;">
+              <label class="form-check-label small opacity-75" for="myEventsToggle" style="cursor: pointer;">Mes
+                évènements</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary shadow-sm" data-bs-toggle="modal"
               data-bs-target="#addCalendarEventModal" style="border-radius: 20px;">
               ➕ Ajouter Événement
             </button>
@@ -729,7 +735,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/home.js') }}?v=12.11"></script>
+<script src="{{ url_for('static', filename='js/home.js') }}?v=13.0"></script>
 <script>
   // Thème dark/light géré par static/js/theme.js
 
@@ -1342,6 +1348,21 @@
     }
   });
 
+  // Check URL for open_incident from notifications
+  document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const incidentId = urlParams.get('open_incident');
+    if (incidentId) {
+      setTimeout(() => {
+        if (window.notificationSystem) {
+          window.notificationSystem.scrollToIncident(incidentId);
+        }
+      }, 800); // Wait for async cards to load
+      // Remove query param from URL without refreshing
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  });
+
   // ==========================================
   // COLLABORATIVE CALENDAR IMPLEMENTATION
   // ==========================================
@@ -1361,6 +1382,14 @@
       if (!calendarEl) return;
 
       if (!calendarInstance) {
+        // Init the toggle listener
+        const myEventsToggle = document.getElementById('myEventsToggle');
+        if (myEventsToggle) {
+          myEventsToggle.addEventListener('change', () => {
+            if (calendarInstance) calendarInstance.refetchEvents();
+          });
+        }
+
         // Create calendar on first open
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
           initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
@@ -1409,7 +1438,14 @@
             startTime: '08:00',
             endTime: '18:00',
           },
-          events: '/api/calendar_events',
+          events: function (info, successCallback, failureCallback) {
+            const toggle = document.getElementById('myEventsToggle');
+            const mineOnly = toggle && toggle.checked ? '1' : '0';
+            fetch('/api/calendar_events?mine_only=' + mineOnly)
+              .then(res => res.json())
+              .then(data => successCallback(data))
+              .catch(err => failureCallback(err));
+          },
           eventTimeFormat: {
             hour: '2-digit',
             minute: '2-digit',

@@ -413,12 +413,15 @@
 
         window.addEventListener("keydown", (e) => {
             const key = (e.key || "").toLowerCase();
+            // Removed CTRL+S shortcut as it crashes the page or submits improperly
+            /*
             if ((e.ctrlKey || e.metaKey) && key === "s") {
                 e.preventDefault();
                 syncContentField();
                 if (typeof form.requestSubmit === "function") form.requestSubmit();
                 else form.submit();
             }
+            */
         });
 
         window.addEventListener("beforeunload", (e) => {
@@ -448,7 +451,7 @@
             addSubcategoryBtn.addEventListener("click", () => {
                 const categoryId = categorySelect.value;
                 if (!categoryId) return;
-                
+
                 const catOption = categorySelect.options[categorySelect.selectedIndex];
                 document.getElementById("subcategoryModalCatName").textContent = `Catégorie : ${catOption.textContent}`;
                 subcategoryModalForm.querySelector('[name="category_id"]').value = categoryId;
@@ -460,7 +463,7 @@
             saveCategoryModalBtn.addEventListener("click", async () => {
                 const formData = new FormData(categoryModalForm);
                 const data = Object.fromEntries(formData.entries());
-                
+
                 if (!data.name) {
                     alert("Le nom est requis");
                     return;
@@ -512,13 +515,15 @@
                 saveSubcategoryModalBtn.textContent = "Création...";
 
                 try {
+                    const data = Object.fromEntries(formData.entries());
                     const response = await fetch("/wiki/subcategory/create", {
                         method: "POST",
                         headers: {
+                            "Content-Type": "application/json",
                             "X-CSRFToken": getCsrfToken(),
                             "X-Requested-With": "XMLHttpRequest"
                         },
-                        body: formData
+                        body: JSON.stringify(data)
                     });
 
                     const result = await response.json();

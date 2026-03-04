@@ -215,6 +215,13 @@ class NotificationSystem {
                 onClick: () => this.scrollToIncident(incident_id)
             }
         });
+
+        // Auto-refresh the dashboard so the tech doesn't need to press F5
+        if (window.scheduleIncidentReload && incident_id) {
+            window.scheduleIncidentReload(incident_id);
+        } else if (window.requestBulkRefresh) {
+            window.requestBulkRefresh('new_assignment');
+        }
     }
 
     /**
@@ -489,9 +496,14 @@ class NotificationSystem {
     }
 
     /**
-     * Scroll vers un incident spécifique
+     * Scroll vers un incident spécifique (avec redirection vers l'accueil si nécessaire)
      */
     scrollToIncident(incidentId) {
+        if (window.location.pathname !== '/' && window.location.pathname !== '/home') {
+            window.location.href = '/?open_incident=' + incidentId;
+            return;
+        }
+
         // Chercher la carte par data-incident-id (utilisé dans tous les templates)
         const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
         if (cards.length > 0) {
