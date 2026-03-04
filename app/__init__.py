@@ -57,6 +57,21 @@ def create_app(debug=False):
     # Register Extensions
     csrf.init_app(app)
     
+    # Global CSRF error handler — return JSON for AJAX/JSON requests
+    from flask_wtf.csrf import CSRFError
+    from flask import jsonify as _jsonify, request as _request
+    
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        is_ajax = (
+            _request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or _request.is_json
+            or _request.content_type == 'application/json'
+        )
+        if is_ajax:
+            return _jsonify({"success": False, "error": f"CSRF token invalide: {e.description}"}), 400
+        return e.description, 400
+    
     # SocketIO Configuration
     redis_url = os.environ.get("REDIS_URL")
     use_redis = False

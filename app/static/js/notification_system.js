@@ -505,7 +505,9 @@ class NotificationSystem {
      * Scroll vers un incident spécifique (avec redirection vers l'accueil si nécessaire)
      */
     scrollToIncident(incidentId) {
-        if (window.location.pathname !== '/' && window.location.pathname !== '/home') {
+        // If not on the home page, redirect there with the open_incident parameter
+        const path = window.location.pathname;
+        if (path !== '/' && path !== '/home' && path !== '/home/') {
             window.location.href = '/?open_incident=' + incidentId;
             return;
         }
@@ -517,18 +519,27 @@ class NotificationSystem {
             const card = Array.from(cards).find(c => c.offsetParent !== null) || cards[0];
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // Remove any specific existing transition to ensure animation runs immediately
+            // Force-remove backgrounds that override the animation
+            const savedBg = card.style.background || '';
+            const savedBgColor = card.style.backgroundColor || '';
+            const hadTechBg = card.classList.contains('tech-card-bg');
+
+            // Temporarily remove things that block the animation
+            card.style.background = 'none';
+            card.style.backgroundColor = 'transparent';
+            if (hadTechBg) card.classList.remove('tech-card-bg');
+
+            // Remove any existing animation class, trigger reflow, re-add
             card.classList.remove('animate-highlight-pulse');
-
-            // Trigger reflow
             void card.offsetWidth;
-
-            // Add the highlight class
             card.classList.add('animate-highlight-pulse');
 
-            // Cleanup after animation ends
+            // Restore original styles after animation ends
             setTimeout(() => {
                 card.classList.remove('animate-highlight-pulse');
+                card.style.background = savedBg;
+                card.style.backgroundColor = savedBgColor;
+                if (hadTechBg) card.classList.add('tech-card-bg');
             }, 3000);
         } else {
             console.warn('Carte incident non trouvée pour ID:', incidentId);

@@ -473,7 +473,7 @@
                 saveCategoryModalBtn.textContent = "Création...";
 
                 try {
-                    const response = await fetch("/wiki/category/create", {
+                    const response = await fetch("/wiki/wiki/category/create", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -516,7 +516,7 @@
 
                 try {
                     const data = Object.fromEntries(formData.entries());
-                    const response = await fetch("/wiki/subcategory/create", {
+                    const response = await fetch("/wiki/wiki/subcategory/create", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
