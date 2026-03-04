@@ -695,6 +695,15 @@
                 id="detailNotes" class="fst-italic"></span></p>
           </div>
         </div>
+        <div class="modal-footer border-top border-white border-opacity-10" id="eventDetailsFooter"
+          style="display: none;">
+          <button type="button" class="btn btn-sm btn-outline-danger me-auto" id="deleteEventBtn">
+            <i class="fas fa-trash-alt me-1"></i> Supprimer l'évènement
+          </button>
+          <a href="#" class="btn btn-sm btn-primary" id="viewTicketBtn" style="display: none;">
+            <i class="fas fa-external-link-alt me-1"></i> Voir le ticket
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -1399,14 +1408,13 @@
             const props = info.event.extendedProps;
             const incidentId = props.incident_id || info.event.id;
             const isManual = props.is_manual;
-
-            // Check if user is tech (readonly popup requested)
             const isTech = "{{ role }}" === "technicien";
+            const isAdmin = "{{ role }}" === "admin" || "{{ role }}" === "superadmin";
 
-            if (isTech && !isManual) {
-              // Show read-only popup for technicians
-              document.getElementById('detailNumero').textContent = props.numero || '??';
-              document.getElementById('detailSujet').textContent = info.event.title.split('] ')[1] || info.event.title;
+            // If it's a manual event, OR if the user is a tech viewing a regular event, show the modal.
+            if (isManual || isTech) {
+              document.getElementById('detailNumero').textContent = props.numero || (isManual ? 'Manuel' : '??');
+              document.getElementById('detailSujet').textContent = info.event.title;
               document.getElementById('detailSite').textContent = props.site || '--';
               document.getElementById('detailTechName').textContent = props.collaborateur || 'Non assigné';
               document.getElementById('detailDate').textContent = FullCalendar.formatDate(info.event.start, {
@@ -1414,11 +1422,9 @@
                 hour: '2-digit', minute: '2-digit', locale: 'fr'
               });
 
-              // Notes
               const notes = props.description || 'Aucune note';
               document.getElementById('detailNotes').textContent = notes;
 
-              // Avatar
               const avatarContainer = document.getElementById('detailAvatarContainer');
               if (props.photo_profil) {
                 avatarContainer.innerHTML = `<img src="/static/uploads/avatars/${props.photo_profil}" class="modal-avatar" alt="Avatar">`;
@@ -1426,23 +1432,70 @@
                 avatarContainer.innerHTML = `<i class="fas fa-user-circle fa-4x text-muted opacity-30"></i>`;
               }
 
-              // Set extra fields
               const detailStatut = document.getElementById('detailStatut');
               if (detailStatut) detailStatut.textContent = props.etat || props.status || '--';
 
               const detailUrgence = document.getElementById('detailUrgence');
               if (detailUrgence) detailUrgence.textContent = props.urgence || '--';
 
+              const footer = document.getElementById('eventDetailsFooter');
+              const deleteBtn = document.getElementById('deleteEventBtn');
+              const viewTicketBtn = document.getElementById('viewTicketBtn');
+
+              if (footer) {
+                // Show footer if manual event (for all roles) or if it's an admin (to see the view ticket button)
+                if (isManual || isAdmin) {
+                  footer.style.display = 'flex';
+
+                  // Delete logic
+                  if (isManual) {
+                    deleteBtn.style.display = 'inline-block';
+                    deleteBtn.onclick = function () {
+                      if (confirm("Êtes-vous sûr de vouloir supprimer cet évènement ?")) {
+                        const evtId = info.event.id.replace('manual_', '');
+                        fetch(`/api/calendar_events/${evtId}`, {
+                          method: 'DELETE',
+                          headers: {
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                          }
+                        }).then(res => res.json()).then(data => {
+                          if (data.success) {
+                            info.event.remove();
+                            const modalInst = bootstrap.Modal.getInstance(document.getElementById('eventDetailsModal'));
+                            if (modalInst) modalInst.hide();
+                          } else {
+                            alert("Erreur lors de la suppression.");
+                          }
+                        }).catch(err => {
+                          console.error(err);
+                          alert("Erreur réseau lors de la suppression.");
+                        });
+                      }
+                    };
+                  } else {
+                    deleteBtn.style.display = 'none';
+                  }
+
+                  // View ticket logic
+                  if (incidentId && incidentId !== 'undefined' && !info.event.id.toString().startsWith('manual_')) {
+                    viewTicketBtn.style.display = 'inline-block';
+                    viewTicketBtn.href = `/edit_incident/${incidentId}`;
+                  } else if (props.incident_id) {
+                    // Manual event linked to an incident
+                    viewTicketBtn.style.display = 'inline-block';
+                    viewTicketBtn.href = `/edit_incident/${props.incident_id}`;
+                  } else {
+                    viewTicketBtn.style.display = 'none';
+                  }
+                } else {
+                  footer.style.display = 'none';
+                }
+              }
+
               const detailModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
               detailModal.show();
             } else {
-              // Redirect for admins or manual events (standard behavior)
-              if (props.is_manual) {
-                if (props.incident_id) {
-                  window.location.href = `/edit_incident/${props.incident_id}`;
-                }
-                return;
-              }
+              // Admin/Superadmin clicking on a non-manual event: redirect to ticket
               if (info.event.id) {
                 window.location.href = `/edit_incident/${info.event.id}`;
               }
@@ -1512,7 +1565,7 @@
               let avatarHtml = '<i class="fas fa-user-circle fa-lg text-muted border rounded-circle p-1"></i>';
               if (props.photo_profil) {
                 const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
-                avatarHtml = `<img src="${avatarUrl}" alt="Avatar" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">`;
+                avatarHtml = `<img src="${avatarUrl}" class="tooltip-avatar" alt="Avatar">`;
               }
 
               const safeDescription = props.description ? props.description.replace(/"/g, '&quot;').substring(0, 150) + (props.description.length > 150 ? '...' : '') : 'Aucune note';

@@ -257,6 +257,40 @@ def add_calendar_event():
         traceback.print_exc()
     return jsonify({"error": "Unknown error"}), 500
 
+@api_bp.route('/calendar_events/<int:event_id>', methods=['DELETE'])
+def delete_calendar_event(event_id):
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    db = get_db()
+    
+    # Check permissions: admins/superadmins can delete anything, techs can only delete their own
+    is_admin = session.get("role") in ["admin", "superadmin"]
+    
+    try:
+        if is_admin:
+            # Admins can delete any manual event
+            res = db.execute("DELETE FROM calendar_events WHERE id = %s RETURNING id", (event_id,)).fetchone()
+        else:
+            # Technicians can only delete events they created
+            tech_info = _get_current_tech_info(db)
+            if not tech_info:
+                return jsonify({"error": "Unauthorized"}), 403
+            res = db.execute(
+                "DELETE FROM calendar_events WHERE id = %s AND (created_by = %s OR technicien_id = %s) RETURNING id", 
+                (event_id, session['user'], tech_info['id'])
+            ).fetchone()
+            
+        if res:
+            db.commit()
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Event not found or unauthorized to delete"}), 404
+            
+    except Exception as e:
+        print(f"Error deleting event {event_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @api_bp.route('/save-preferences', methods=['POST'])
 def save_preferences():
     if "user" not in session:
