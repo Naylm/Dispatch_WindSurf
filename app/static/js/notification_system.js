@@ -217,11 +217,17 @@ class NotificationSystem {
         });
 
         // Auto-refresh the dashboard so the tech doesn't need to press F5
-        if (window.scheduleIncidentReload && incident_id) {
-            window.scheduleIncidentReload(incident_id);
-        } else if (window.requestBulkRefresh) {
-            window.requestBulkRefresh('new_assignment');
-        }
+        // Use a delay to ensure the backend has committed the data
+        setTimeout(() => {
+            if (window.refreshIncidents) {
+                // Full refresh is most reliable for new cards that don't exist in DOM yet
+                window.refreshIncidents();
+            } else if (window.scheduleIncidentReload && incident_id) {
+                window.scheduleIncidentReload(incident_id);
+            } else if (window.requestBulkRefresh) {
+                window.requestBulkRefresh('new_assignment');
+            }
+        }, 1500);
     }
 
     /**

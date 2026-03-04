@@ -69,26 +69,26 @@
 /* TICKET HIGHLIGHT (Used when clicking "Voir le ticket" from notifications) */
 @keyframes highlightPulse {
     0% {
-        box-shadow: 0 0 0px rgba(255, 193, 7, 0);
-        background-color: transparent;
-        border-color: transparent;
+        box-shadow: 0 0 0px rgba(255, 193, 7, 0) !important;
+        background-color: transparent !important;
+        border-color: transparent !important;
     }
 
     30% {
-        box-shadow: 0 0 25px 5px rgba(255, 193, 7, 0.8);
-        background-color: rgba(255, 193, 7, 0.25);
-        border-color: rgba(255, 193, 7, 1);
+        box-shadow: 0 0 25px 5px rgba(255, 193, 7, 0.8) !important;
+        background-color: rgba(255, 193, 7, 0.25) !important;
+        border-color: rgba(255, 193, 7, 1) !important;
     }
 
     100% {
-        box-shadow: 0 0 0px rgba(255, 193, 7, 0);
-        background-color: transparent;
-        border-color: transparent;
+        box-shadow: 0 0 0px rgba(255, 193, 7, 0) !important;
+        background-color: transparent !important;
+        border-color: transparent !important;
     }
 }
 
 .animate-highlight-pulse {
-    animation: highlightPulse 1.2s ease-out 2;
+    animation: highlightPulse 1.2s ease-out 2 !important;
 }
 
 /* HOVER UTILS */
