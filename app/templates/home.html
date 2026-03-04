@@ -339,6 +339,22 @@
     overflow: hidden;
   }
 
+  /* Tooltip Media Constraints */
+  .calendar-tooltip-lg .tooltip-inner img {
+    max-width: 100% !important;
+    max-height: 250px !important;
+    object-fit: contain !important;
+    border-radius: 4px;
+    margin-top: 5px;
+  }
+
+  /* Prevent icon scaling in tooltips */
+  .calendar-tooltip-lg .tooltip-inner i.fas {
+    font-size: 1rem !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
   .calendar-tooltip-lg.bs-tooltip-top .tooltip-arrow::before {
     border-top-color: rgba(255, 255, 255, 0.1);
   }
@@ -663,10 +679,19 @@
             <small class="text-muted">Technicien assigné</small>
           </div>
           <div class="p-3 rounded bg-dark bg-opacity-50 border border-white border-opacity-10">
-            <p class="mb-2"><strong>Sujet:</strong> <span id="detailSujet"></span></p>
-            <p class="mb-2"><strong>Site:</strong> <span id="detailSite"></span></p>
-            <p class="mb-2"><strong>Date RDV:</strong> <span id="detailDate" class="text-warning"></span></p>
-            <p class="mb-0 text-muted small" id="detailNotesContainer"><strong>Notes:</strong> <br><span
+            <p class="mb-2"><i class="fas fa-info-circle fa-fw me-2 opacity-75"></i><strong>Sujet : </strong> <span
+                id="detailSujet"></span></p>
+            <p class="mb-2"><i class="fas fa-building fa-fw me-2 opacity-75"></i><strong>Site : </strong> <span
+                id="detailSite"></span></p>
+            <p class="mb-2"><i class="fas fa-calendar-alt fa-fw me-2 opacity-75"></i><strong>Date RDV : </strong> <span
+                id="detailDate" class="text-warning"></span></p>
+            <p class="mb-2" id="detailStatutContainer"><i class="fas fa-tasks fa-fw me-2 opacity-75"></i><strong>Statut
+                : </strong> <span id="detailStatut"></span></p>
+            <p class="mb-2" id="detailUrgenceContainer"><i
+                class="fas fa-exclamation-triangle fa-fw me-2 opacity-75"></i><strong>Urgence : </strong> <span
+                id="detailUrgence"></span></p>
+            <p class="mb-0 text-muted small" id="detailNotesContainer"><i
+                class="fas fa-sticky-note fa-fw me-2 opacity-75"></i><strong>Notes : </strong> <br><span
                 id="detailNotes" class="fst-italic"></span></p>
           </div>
         </div>
@@ -1396,10 +1421,17 @@
               // Avatar
               const avatarContainer = document.getElementById('detailAvatarContainer');
               if (props.photo_profil) {
-                avatarContainer.innerHTML = `<img src="/static/uploads/avatars/${props.photo_profil}" style="width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--accent-color); object-fit: cover;">`;
+                avatarContainer.innerHTML = `<img src="/static/uploads/avatars/${props.photo_profil}" class="modal-avatar" alt="Avatar">`;
               } else {
-                avatarContainer.innerHTML = `<i class="fas fa-user-circle fa-4x text-muted opacity-50"></i>`;
+                avatarContainer.innerHTML = `<i class="fas fa-user-circle fa-4x text-muted opacity-30"></i>`;
               }
+
+              // Set extra fields
+              const detailStatut = document.getElementById('detailStatut');
+              if (detailStatut) detailStatut.textContent = props.etat || props.status || '--';
+
+              const detailUrgence = document.getElementById('detailUrgence');
+              if (detailUrgence) detailUrgence.textContent = props.urgence || '--';
 
               const detailModal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
               detailModal.show();
@@ -1477,10 +1509,10 @@
             if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
               const props = info.event.extendedProps;
 
-              let avatarHtml = '<i class="fas fa-user-circle fa-2x text-muted border rounded-circle p-1"></i>';
+              let avatarHtml = '<i class="fas fa-user-circle fa-lg text-muted border rounded-circle p-1"></i>';
               if (props.photo_profil) {
                 const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
-                avatarHtml = `<img src="${avatarUrl}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">`;
+                avatarHtml = `<img src="${avatarUrl}" alt="Avatar" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">`;
               }
 
               const safeDescription = props.description ? props.description.replace(/"/g, '&quot;').substring(0, 150) + (props.description.length > 150 ? '...' : '') : 'Aucune note';
