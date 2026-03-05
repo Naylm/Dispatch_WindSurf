@@ -245,7 +245,11 @@
         }
 
         function selectEmoji(emoji) {
-            iconInput.value = emoji;
+            if (window.currentEmojiTargetInput) {
+                window.currentEmojiTargetInput.value = emoji;
+            } else if (iconInput) {
+                iconInput.value = emoji;
+            }
             emojiPicker.classList.remove("show");
 
             recentEmojis = [emoji, ...recentEmojis.filter(e => e !== emoji)].slice(0, 32);
@@ -275,23 +279,40 @@
             }, 200);
         });
 
-        emojiPickerToggle.addEventListener("click", async e => {
-            e.preventDefault();
-            e.stopPropagation();
-            const isShowing = emojiPicker.classList.contains("show");
-            if (!isShowing) {
-                emojiPicker.classList.add("show");
-                emojiSearch.focus();
-                const activeBtn = document.querySelector(".category-btn.active");
-                const activeCat = activeBtn ? activeBtn.dataset.category : "smileys";
-                await renderEmojis(activeCat);
-            } else {
-                emojiPicker.classList.remove("show");
-            }
+        const toggleBtns = document.querySelectorAll("#emojiPickerToggle, .emoji-picker-btn");
+        toggleBtns.forEach(btn => {
+            btn.addEventListener("click", async e => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Track which input we are targeting
+                const targetId = btn.dataset.target;
+                if (targetId) {
+                    window.currentEmojiTargetInput = document.getElementById(targetId);
+                } else {
+                    window.currentEmojiTargetInput = iconInput;
+                }
+
+                // Ensure picker is above modals
+                emojiPicker.style.zIndex = "9999";
+
+                const isShowing = emojiPicker.classList.contains("show");
+                // If it's already showing but for a different button, keep it open
+                if (!isShowing || window.lastEmojiBtnClicked !== btn) {
+                    emojiPicker.classList.add("show");
+                    emojiSearch.focus();
+                    const activeBtn = document.querySelector(".category-btn.active");
+                    const activeCat = activeBtn ? activeBtn.dataset.category : "smileys";
+                    await renderEmojis(activeCat);
+                } else {
+                    emojiPicker.classList.remove("show");
+                }
+                window.lastEmojiBtnClicked = btn;
+            });
         });
 
         document.addEventListener("click", e => {
-            if (!e.target.closest("#emojiPicker") && !e.target.closest("#emojiPickerToggle")) {
+            if (!e.target.closest("#emojiPicker") && !e.target.closest("#emojiPickerToggle") && !e.target.closest(".emoji-picker-btn")) {
                 emojiPicker.classList.remove("show");
             }
         });

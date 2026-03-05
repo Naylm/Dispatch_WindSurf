@@ -1353,13 +1353,25 @@
     const urlParams = new URLSearchParams(window.location.search);
     const incidentId = urlParams.get('open_incident');
     if (incidentId) {
-      setTimeout(() => {
-        if (window.notificationSystem) {
-          window.notificationSystem.scrollToIncident(incidentId);
-        }
-      }, 800); // Wait for async cards to load
       // Remove query param from URL without refreshing
       window.history.replaceState({}, document.title, window.location.pathname);
+
+      let attempts = 0;
+      const checkInterval = setInterval(() => {
+        attempts++;
+        const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+
+        // As long as we find the card in the DOM, we can scroll to it
+        if (cards.length > 0) {
+          clearInterval(checkInterval);
+          if (window.notificationSystem) {
+            window.notificationSystem.scrollToIncident(incidentId);
+          }
+        } else if (attempts > 30) {
+          // Stop checking after ~6 seconds (30 * 200ms) to avoid infinite loops
+          clearInterval(checkInterval);
+        }
+      }, 200);
     }
   });
 
