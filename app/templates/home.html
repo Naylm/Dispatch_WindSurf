@@ -3,8 +3,55 @@
 {% block title %}Dispatch Manager{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=13.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=17.0">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+  /* DIRECT INJECTION: Neon Pulse Halo Highlight */
+  @keyframes highlightPulseHaloDirect {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+
+    20% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    100% {
+      opacity: 0;
+      transform: scale(1.15);
+      box-shadow: 0 0 50px 30px rgba(255, 193, 7, 0);
+    }
+  }
+
+  .animate-highlight-pulse {
+    position: relative !important;
+    overflow: visible !important;
+    z-index: 1050 !important;
+    transition: none !important;
+    border: 3px solid #ffc107 !important;
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.4) !important;
+  }
+
+  .animate-highlight-pulse::after {
+    content: "" !important;
+    position: absolute !important;
+    top: -10px !important;
+    left: -10px !important;
+    right: -10px !important;
+    bottom: -10px !important;
+    border-radius: inherit !important;
+    border: 4px solid #ffc107 !important;
+    box-shadow: 0 0 40px 15px rgba(255, 193, 7, 0.8) !important;
+    pointer-events: none !important;
+    z-index: 99 !important;
+    animation: highlightPulseHaloDirect 1.5s ease-out infinite !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+</style>
 <style>
   /* Floating Action Button (FAB) for Calendar - Modern Glassmorphism */
   .calendar-fab {
@@ -456,6 +503,7 @@
         techniciens</a></li>
     <li><a href="{{ url_for('admin.configuration') }}"><span class="icon">&#9881;&#65039;</span> Configuration</a></li>
     <li><a href="{{ url_for('stats.dashboard_stats') }}"><span class="icon">&#128202;</span> Statistiques</a></li>
+    <li><a href="{{ url_for('admin.trash') }}"><span class="icon">&#128465;&#65039;</span> Corbeille</a></li>
     {% endif %}
 
     <!-- Section: Outils -->
@@ -735,7 +783,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/home.js') }}?v=13.0"></script>
+<script>console.log("💎 home.html v17 LOADED - DIRECT INJECTION ACTIVE");</script>
+<script src="{{ url_for('static', filename='js/home.js') }}?v=17.0"></script>
 <script>
   // Thème dark/light géré par static/js/theme.js
 
@@ -1348,32 +1397,6 @@
     }
   });
 
-  // Check URL for open_incident from notifications
-  document.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const incidentId = urlParams.get('open_incident');
-    if (incidentId) {
-      // Remove query param from URL without refreshing
-      window.history.replaceState({}, document.title, window.location.pathname);
-
-      let attempts = 0;
-      const checkInterval = setInterval(() => {
-        attempts++;
-        const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
-
-        // As long as we find the card in the DOM, we can scroll to it
-        if (cards.length > 0) {
-          clearInterval(checkInterval);
-          if (window.notificationSystem) {
-            window.notificationSystem.scrollToIncident(incidentId);
-          }
-        } else if (attempts > 30) {
-          // Stop checking after ~6 seconds (30 * 200ms) to avoid infinite loops
-          clearInterval(checkInterval);
-        }
-      }, 200);
-    }
-  });
 
   // ==========================================
   // COLLABORATIVE CALENDAR IMPLEMENTATION

@@ -368,7 +368,7 @@ def delete_incident(id):
     _log_historique(db, id, "suppression", f"Ticket {incident['numero']}", "SUPPRIMÉ", session["user"])
     
     try:
-        db.execute("DELETE FROM incidents WHERE id=%s", (id,))
+        db.execute("UPDATE incidents SET is_deleted=TRUE, deleted_at=CURRENT_TIMESTAMP WHERE id=%s", (id,))
         db.commit()
         _emit_incident_event("incident_deleted", id, technician_names=[incident["collaborateur"]], action="delete")
         _emit_bulk_refresh("incident_deleted", technician_names=[incident["collaborateur"]], incident_id=id)
@@ -625,3 +625,62 @@ def delete_statut(id):
     emit_config_updated(socketio, 'statut')
     flash("Statut supprimé", "success")
     return redirect(url_for("admin.configuration"))
+
+@admin_bp.route("/trash")
+@admin_required
+def trash():
+    db = get_db()
+    # Fetch soft-deleted incidents, ordered by deletion date descending
+    deleted_incidents = db.execute(
+        "SELECT * FROM incidents WHERE is_deleted=TRUE ORDER BY deleted_at DESC"
+    ).fetchall()
+    return render_template("admin/trash.html", incidents=deleted_incidents)
+
+@admin_bp.route("/restore_incident/<int:id>", methods=["POST"])
+@admin_required
+def restore_incident(id):
+    db = get_db()
+    incident = db.execute("SELECT * FROM incidents WHERE id=%s AND is_deleted=TRUE", (id,)).fetchone()
+    if not incident:
+        return jsonify({"error": "Incident introuvable dans la corbeille"}), 404
+
+    _log_historique(db, id, "restauration", f"Ticket {incident['numero']}", "RESTAURÉ", session["user"])
+    
+    try:
+        db.execute("UPDATE incidents SET is_deleted=FALSE, deleted_at=NULL WHERE id=%s", (id,))
+        db.commit()
+        
+        # Notify about restoration (logic similar to new assignment to ensure it reappears for techs)
+        _emit_incident_event("incident_added", id, technician_names=[incident["collaborateur"]], action="restore")
+        _emit_bulk_refresh("incident_added", technician_names=[incident["collaborateur"]], incident_id=id)
+        
+        flash(f"Incident {incident['numero']} restauré avec succès", "success")
+        return redirect(url_for("admin.trash"))
+    except Exception as e:
+        db.rollback()
+        current_app.logger.error(f"Erreur lors de la restauration: {e}")
+        flash("Erreur lors de la restauration de l'incident", "danger")
+        return redirect(url_for("admin.trash"))
+
+@admin_bp.route("/permanent_delete_incident/<int:id>", methods=["POST"])
+@admin_required
+def permanent_delete_incident(id):
+    db = get_db()
+    incident = db.execute("SELECT * FROM incidents WHERE id=%s AND is_deleted=TRUE", (id,)).fetchone()
+    if not incident:
+        return jsonify({"error": "Incident introuvable dans la corbeille"}), 404
+
+    try:
+        # Delete from history first (FK constraint)
+        db.execute("DELETE FROM historique WHERE incident_id=%s", (id,))
+        # Delete from incidents
+        db.execute("DELETE FROM incidents WHERE id=%s", (id,))
+        db.commit()
+        
+        flash(f"Incident {incident['numero']} supprimé définitivement", "success")
+        return redirect(url_for("admin.trash"))
+    except Exception as e:
+        db.rollback()
+        current_app.logger.error(f"Erreur lors de la suppression définitive: {e}")
+        flash("Erreur lors de la suppression définitive", "danger")
+        return redirect(url_for("admin.trash"))

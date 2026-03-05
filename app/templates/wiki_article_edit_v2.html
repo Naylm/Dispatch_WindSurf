@@ -49,7 +49,8 @@
                     <div class="input-group icon-input-group">
                         <input type="text" class="form-control form-control-lg text-center" name="icon" id="iconInput"
                             value="{% if article and article.icon %}{{ article.icon }}{% else %}📝{% endif %}"
-                            maxlength="4" readonly>
+                            maxlength="4" readonly style="cursor: pointer;"
+                            onclick="document.getElementById('emojiPickerToggle').click()">
                         <button type="button" class="btn btn-primary" id="emojiPickerToggle">Choisir</button>
                         <div class="emoji-picker" id="emojiPicker">
                             <div class="emoji-picker-header">
@@ -177,7 +178,9 @@
                         <div class="input-group">
                             <button class="btn btn-outline-secondary emoji-picker-btn" type="button"
                                 data-target="catIconInput">😀</button>
-                            <input type="text" class="form-control" name="icon" id="catIconInput" value="📁">
+                            <input type="text" class="form-control" name="icon" id="catIconInput" value="📁" readonly
+                                style="cursor: pointer;"
+                                onclick="document.querySelector('[data-target=\'catIconInput\']').click()">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -219,7 +222,9 @@
                         <div class="input-group">
                             <button class="btn btn-outline-secondary emoji-picker-btn" type="button"
                                 data-target="subcatIconInput">😀</button>
-                            <input type="text" class="form-control" name="icon" id="subcatIconInput" value="📄">
+                            <input type="text" class="form-control" name="icon" id="subcatIconInput" value="📄" readonly
+                                style="cursor: pointer;"
+                                onclick="document.querySelector('[data-target=\'subcatIconInput\']').click()">
                         </div>
                     </div>
                     <div class="mb-3">

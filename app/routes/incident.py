@@ -449,14 +449,15 @@ def delete(id):
     inc = db.execute("SELECT id, collaborateur FROM incidents WHERE id=%s", (id,)).fetchone()
     if inc:
         try:
-            current_app.logger.error(f"DEBUG_DELETE: Found incident, preparing to delete {id}")
-            # Delete dependent records manually just in case
-            db.execute("DELETE FROM historique WHERE incident_id=%s", (id,))
+            current_app.logger.error(f"DEBUG_DELETE: Found incident, preparing to soft-delete {id}")
             
-            # Delete the incident itself
-            db.execute("DELETE FROM incidents WHERE id=%s", (id,))
+            # Perform soft delete instead of hard delete
+            db.execute(
+                "UPDATE incidents SET is_deleted=TRUE, deleted_at=CURRENT_TIMESTAMP WHERE id=%s",
+                (id,)
+            )
             db.commit()
-            current_app.logger.error("DEBUG_DELETE: Success deleting in DB")
+            current_app.logger.error("DEBUG_DELETE: Success soft-deleting in DB")
             
             _emit_incident_event("incident_deleted", id, technician_names=[inc.get("collaborateur")], action="delete")
             _emit_bulk_refresh("incident_deleted", technician_names=[inc.get("collaborateur")], incident_id=id)

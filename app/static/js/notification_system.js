@@ -1,15 +1,31 @@
-/**
- * Système de notifications en temps réel pour Dispatch Manager
- * Gère les notifications de nouveaux tickets, changements de statut, tickets urgents, etc.
- */
-
 class NotificationSystem {
     constructor() {
         this.notifications = [];
         this.unreadCount = 0;
         this.soundEnabled = localStorage.getItem('notification_sound') !== 'false';
+        this.loadNotifications();
         this.initializeUI();
         this.requestNotificationPermission();
+
+        // Check for incident to open from URL after a short delay to let the dashboard load
+        setTimeout(() => this.checkUrlParams(), 1000);
+    }
+
+    /**
+     * Vérifie les paramètres de l'URL pour des actions automatiques
+     */
+    checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const incidentId = params.get('open_incident');
+        if (incidentId) {
+            console.log('🔍 Tentative d\'ouverture auto de l\'incident:', incidentId);
+
+            // Remove query param from URL without refreshing
+            const newUrl = window.location.pathname + window.location.search.replace(/[?&]open_incident=[^&]+/, '').replace(/^&/, '?');
+            window.history.replaceState({}, document.title, newUrl);
+
+            this.scrollToIncident(incidentId);
+        }
     }
 
     /**
@@ -212,15 +228,14 @@ class NotificationSystem {
             incident_id: incident_id,
             action: {
                 label: 'Voir le ticket',
-                onClick: () => this.scrollToIncident(incident_id)
+                type: 'scroll_to_incident',
+                incident_id: incident_id
             }
         });
 
         // Auto-refresh the dashboard so the tech doesn't need to press F5
-        // Use a delay to ensure the backend has committed the data
         setTimeout(() => {
             if (window.refreshIncidents) {
-                // Full refresh is most reliable for new cards that don't exist in DOM yet
                 window.refreshIncidents();
             } else if (window.scheduleIncidentReload && incident_id) {
                 window.scheduleIncidentReload(incident_id);
@@ -244,7 +259,8 @@ class NotificationSystem {
             incident_id: incident_id,
             action: {
                 label: 'Voir',
-                onClick: () => this.scrollToIncident(incident_id)
+                type: 'scroll_to_incident',
+                incident_id: incident_id
             }
         });
     }
@@ -263,7 +279,8 @@ class NotificationSystem {
             incident_id: incident_id,
             action: {
                 label: 'Voir',
-                onClick: () => this.scrollToIncident(incident_id)
+                type: 'scroll_to_incident',
+                incident_id: incident_id
             }
         });
     }
@@ -282,7 +299,8 @@ class NotificationSystem {
             message: `${title || 'Article'} — par ${requested_by || 'quelqu\'un'}`,
             action: article_id ? {
                 label: "Voir l'article",
-                onClick: () => { window.location.href = `/wiki/article/${article_id}`; }
+                type: 'link',
+                url: `/wiki/article/${article_id}`
             } : null
         });
     }
@@ -331,13 +349,9 @@ class NotificationSystem {
         // Event listeners pour les actions
         listContainer.querySelectorAll('.notif-action-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const notifId = parseFloat(btn.dataset.id);
-                const notif = this.notifications.find(n => n.id === notifId);
-                if (notif && notif.action && notif.action.onClick) {
-                    notif.action.onClick();
-                    this.markAsRead(notifId);
-                    this.closePanel();
-                }
+                this.handleNotificationAction(notifId);
             });
         });
 
@@ -349,13 +363,33 @@ class NotificationSystem {
             });
         });
 
-        // Marquer comme lu au clic
+        // Marquer comme lu au clic sur l'item (mais pas sur les boutons)
         listContainer.querySelectorAll('.notification-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const notifId = parseFloat(item.dataset.id);
-                this.markAsRead(notifId);
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('button')) {
+                    const notifId = parseFloat(item.dataset.id);
+                    this.markAsRead(notifId);
+                }
             });
         });
+    }
+
+    /**
+     * Gère l'action d'une notification (redirection, scroll, etc.)
+     */
+    handleNotificationAction(notifId) {
+        const notif = this.notifications.find(n => n.id === notifId);
+        if (!notif || !notif.action) return;
+
+        const action = notif.action;
+        this.markAsRead(notifId);
+        this.closePanel();
+
+        if (action.type === 'scroll_to_incident') {
+            this.scrollToIncident(action.incident_id);
+        } else if (action.type === 'link') {
+            window.location.href = action.url;
+        }
     }
 
     /**
@@ -364,6 +398,7 @@ class NotificationSystem {
     updateBadge() {
         this.unreadCount = this.notifications.filter(n => !n.read).length;
         const badge = document.getElementById('notificationBadge');
+        if (!badge) return;
 
         if (this.unreadCount > 0) {
             badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
@@ -488,7 +523,9 @@ class NotificationSystem {
 
             desktopNotif.onclick = () => {
                 window.focus();
-                if (notification.incident_id) {
+                if (notification.action) {
+                    this.handleNotificationAction(notification.id);
+                } else if (notification.incident_id) {
                     this.scrollToIncident(notification.incident_id);
                 }
                 desktopNotif.close();
@@ -505,45 +542,101 @@ class NotificationSystem {
      * Scroll vers un incident spécifique (avec redirection vers l'accueil si nécessaire)
      */
     scrollToIncident(incidentId) {
+        console.log(`🚀 scrollToIncident called for: ${incidentId}`);
         // If not on the home page, redirect there with the open_incident parameter
         const path = window.location.pathname;
         if (path !== '/' && path !== '/home' && path !== '/home/') {
+            console.log('🔄 Not on home page, redirecting...');
             window.location.href = '/?open_incident=' + incidentId;
             return;
         }
 
-        // Chercher la carte par data-incident-id (utilisé dans tous les templates)
-        const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
-        if (cards.length > 0) {
-            // Scroll au premier élément visible trouvé
-            const card = Array.from(cards).find(c => c.offsetParent !== null) || cards[0];
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Force-remove backgrounds that override the animation
-            const savedBg = card.style.background || '';
-            const savedBgColor = card.style.backgroundColor || '';
-            const hadTechBg = card.classList.contains('tech-card-bg');
-
-            // Temporarily remove things that block the animation
-            card.style.background = 'none';
-            card.style.backgroundColor = 'transparent';
-            if (hadTechBg) card.classList.remove('tech-card-bg');
-
-            // Remove any existing animation class, trigger reflow, re-add
-            card.classList.remove('animate-highlight-pulse');
-            void card.offsetWidth;
-            card.classList.add('animate-highlight-pulse');
-
-            // Restore original styles after animation ends
-            setTimeout(() => {
-                card.classList.remove('animate-highlight-pulse');
-                card.style.background = savedBg;
-                card.style.backgroundColor = savedBgColor;
-                if (hadTechBg) card.classList.add('tech-card-bg');
-            }, 3000);
+        // Si on est sur l'accueil, s'assurer que les filtres ne cachent pas le ticket
+        if (window.resetFilters) {
+            console.log('🧹 Resetting filters...');
+            window.resetFilters();
         } else {
-            console.warn('Carte incident non trouvée pour ID:', incidentId);
+            console.log('🧹 Resetting filters (fallback)...');
+            const search = document.getElementById('searchInput') || document.getElementById('searchInputTech');
+            if (search) search.value = '';
+            if (window.applySearchAndFilters) window.applySearchAndFilters();
+            if (window.applyFiltersTech) window.applyFiltersTech();
         }
+
+        let attempts = 0;
+        const maxAttempts = 15; // Increased
+
+        const findAndScroll = () => {
+            console.log(`🔍 findAndScroll attempt ${attempts + 1}/${maxAttempts}`);
+            const cards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+            console.log(`Found ${cards.length} cards with id ${incidentId}`);
+
+            if (cards.length > 0) {
+                // Determine which card to use. Try visible one first.
+                let card = Array.from(cards).find(c => c.offsetParent !== null);
+
+                if (!card) {
+                    console.log('⚠️ No visible card found, trying to switch views...');
+                    card = cards[0];
+                    const viewContainer = card.closest('.view-container') || card.closest('#userView');
+
+                    if (viewContainer) {
+                        const viewId = viewContainer.id;
+                        let viewName = viewId === 'userView' ? 'tech' : viewId.replace('-view', '');
+
+                        if (window.switchView) {
+                            console.log(`🔄 Force switching to view: ${viewName}`);
+                            window.switchView(viewName);
+                        }
+                    }
+                }
+
+                // Wait a tiny bit for layout if we just switched views or cleared filters
+                setTimeout(() => {
+                    const finalCards = document.querySelectorAll(`[data-incident-id="${incidentId}"]`);
+                    const finalCard = Array.from(finalCards).find(c => c.offsetParent !== null) || finalCards[0];
+
+                    if (finalCard) {
+                        console.log('📍 Final card identified, scrolling and animating...', finalCard);
+                        finalCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                        // Force animation re-trigger
+                        finalCard.classList.remove('animate-highlight-pulse');
+                        void finalCard.offsetWidth; // Trigger reflow
+                        finalCard.classList.add('animate-highlight-pulse');
+                        console.log('✨ Class animate-highlight-pulse added to card');
+
+                        // S'assurer que le parent est visible (accordéon)
+                        let parent = finalCard.parentElement;
+                        while (parent) {
+                            if (parent.classList.contains('collapse') && !parent.classList.contains('show')) {
+                                console.log('📂 Opening parent collapse...');
+                                const bsCollapse = bootstrap.Collapse.getInstance(parent) || new bootstrap.Collapse(parent);
+                                bsCollapse.show();
+                            }
+                            parent = parent.parentElement;
+                        }
+
+                        setTimeout(() => {
+                            finalCard.classList.remove('animate-highlight-pulse');
+                            console.log('🏁 Animation class removed');
+                        }, 6000);
+                    }
+                }, 150); // Small buffer for DOM to update
+                return true;
+            }
+
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(findAndScroll, 600);
+            } else {
+                console.error(`❌ Incident ${incidentId} NOT FOUND after ${maxAttempts} attempts.`);
+            }
+            return false;
+        };
+
+        // Added a 100ms delay to findAndScroll to let resetFilters finish its job
+        setTimeout(findAndScroll, 100);
     }
 
     /**
@@ -569,7 +662,7 @@ class NotificationSystem {
     saveNotifications() {
         try {
             const data = {
-                notifications: this.notifications.slice(0, 20), // Garder seulement les 20 dernières
+                notifications: this.notifications.slice(0, 30), // Garder seulement les 30 dernières
                 timestamp: Date.now()
             };
             const storageKey = `dispatch_notifications_${window.CURRENT_USER || 'guest'}`;

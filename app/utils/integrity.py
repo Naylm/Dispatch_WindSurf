@@ -433,6 +433,25 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
             print("   - Colonne version ajoutee a la table incidents")
 
+        # Migration: ajouter colonnes pour corbeille (soft delete)
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='is_deleted'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE")
+            print("   - Colonne is_deleted ajoutee a la table incidents")
+
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='deleted_at'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN deleted_at TIMESTAMP")
+            print("   - Colonne deleted_at ajoutee a la table incidents")
+
     # Indexes de performance sur colonnes chaudes incidents
     incident_indexes = [
         ("idx_incidents_archived", "CREATE INDEX IF NOT EXISTS idx_incidents_archived ON incidents (archived)"),

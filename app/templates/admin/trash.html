@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Corbeille - Dispatch Manager{% endblock %}
+
+{% block styles %}
+<style>
+    .trash-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .trash-card {
+        background: var(--bg-panel, #ffffff);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .trash-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .trash-table {
+        margin-bottom: 0;
+    }
+
+    .trash-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+        border-top: none;
+    }
+
+    .trash-table td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .empty-trash {
+        padding: 4rem 2rem;
+        text-align: center;
+        opacity: 0.6;
+    }
+
+    .btn-restore {
+        color: #28a745;
+        border-color: #28a745;
+    }
+
+    .btn-restore:hover {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .deleted-info {
+        font-size: 0.85rem;
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="trash-container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.home') }}">Accueil</a></li>
+            <li class="breadcrumb-item active">Administration</li>
+            <li class="breadcrumb-item active" aria-current="page">Corbeille</li>
+        </ol>
+    </nav>
+
+    <div class="trash-card">
+        <div class="trash-header">
+            <h4 class="mb-0">🗑️ Corbeille des Tickets</h4>
+            <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary btn-sm">Retour</a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table trash-table">
+                <thead>
+                    <tr>
+                        <th>Numéro</th>
+                        <th>Sujet</th>
+                        <th>Collaborateur</th>
+                        <th>Site</th>
+                        <th>Supprimé le</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for incident in incidents %}
+                    <tr>
+                        <td><strong>{{ incident.numero }}</strong></td>
+                        <td>{{ incident.sujet }}</td>
+                        <td>{{ incident.collaborateur }}</td>
+                        <td><span class="badge bg-light text-dark">{{ incident.site }}</span></td>
+                        <td>
+                            <div class="deleted-info">
+                                {{ incident.deleted_at.strftime('%d/%m/%Y %H:%M') if incident.deleted_at else 'Inconnu'
+                                }}
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-2">
+                                <form action="{{ url_for('admin.restore_incident', id=incident.id) }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Restaurer">
+                                        Restaurer
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('admin.permanent_delete_incident', id=incident.id) }}"
+                                    method="POST"
+                                    onsubmit="return confirm('Supprimer définitivement ce ticket ? Cette action est irréversible.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="Supprimer définitivement">
+                                        Supprimer
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-trash">
+                                <h5 class="text-muted">La corbeille est vide</h5>
+                                <p class="mb-0">Aucun ticket supprimé n'a été trouvé.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

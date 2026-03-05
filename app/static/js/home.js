@@ -1016,6 +1016,36 @@ window.initTechView = function () {
     }
   });
 
+  window.resetFilters = function () {
+    const adminSearch = document.getElementById('searchInput');
+    const techSearch = document.getElementById('searchInputTech');
+
+    if (adminSearch) {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterEtat').value = '';
+      document.getElementById('filterUrgence').value = '';
+      document.getElementById('filterSite').value = '';
+      document.getElementById('sortBy').value = '';
+      window.applySearchAndFilters();
+      window.applySorting();
+    }
+
+    if (techSearch) {
+      document.getElementById('searchInputTech').value = '';
+      document.getElementById('filterSiteTech').value = '';
+      document.getElementById('filterUrgenceTech').value = '';
+      document.getElementById('sortByTech').value = '';
+      // We need to trigger the tech view filters as well
+      if (typeof window.applyFiltersTech === 'function') {
+        window.applyFiltersTech();
+      }
+      if (typeof window.initTechView === 'function') {
+        // This might re-apply ordering
+        // window.initTechView(); 
+      }
+    }
+  };
+
   // Run initial overflow check for all notes
   setTimeout(() => {
     document.querySelectorAll('.note-wrapper').forEach(window.checkNoteOverflow);

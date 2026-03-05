@@ -51,18 +51,18 @@ def home():
 
     if session["role"] in ("admin", "superadmin"):
         incidents = db.execute(
-            "SELECT * FROM incidents WHERE archived=0 ORDER BY id ASC"
+            "SELECT * FROM incidents WHERE archived=0 AND is_deleted=FALSE ORDER BY id ASC"
         ).fetchall()
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         if current_tech_id:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 ORDER BY id ASC",
+                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 AND is_deleted=FALSE ORDER BY id ASC",
                 (current_tech_id,),
             ).fetchall()
         else:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 ORDER BY id ASC",
+                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 AND is_deleted=FALSE ORDER BY id ASC",
                 (session["user"],),
             ).fetchall()
         techniciens = []
@@ -71,7 +71,7 @@ def home():
         SELECT s.category, COUNT(*) as count
         FROM incidents i
         JOIN statuts s ON i.etat = s.nom
-        WHERE i.archived=0
+        WHERE i.archived=0 AND i.is_deleted=FALSE
         GROUP BY s.category
     """).fetchall()
 
@@ -125,18 +125,18 @@ def home_content_api():
 
     if session["role"] in ("admin", "superadmin"):
         incidents = db.execute(
-            "SELECT * FROM incidents WHERE archived=0 ORDER BY id ASC"
+            "SELECT * FROM incidents WHERE archived=0 AND is_deleted=FALSE ORDER BY id ASC"
         ).fetchall()
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
     else:
         if current_tech_id:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 ORDER BY id ASC",
+                "SELECT * FROM incidents WHERE technicien_id=%s AND archived=0 AND is_deleted=FALSE ORDER BY id ASC",
                 (current_tech_id,),
             ).fetchall()
         else:
             incidents = db.execute(
-                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 ORDER BY id ASC",
+                "SELECT * FROM incidents WHERE collaborateur=%s AND archived=0 AND is_deleted=FALSE ORDER BY id ASC",
                 (session["user"],),
             ).fetchall()
         techniciens = []
@@ -145,7 +145,7 @@ def home_content_api():
         SELECT s.category, COUNT(*) as count
         FROM incidents i
         JOIN statuts s ON i.etat = s.nom
-        WHERE i.archived=0
+        WHERE i.archived=0 AND i.is_deleted=FALSE
         GROUP BY s.category
     """).fetchall()
 
