@@ -5,9 +5,11 @@ Notifications are emitted only to authorized Socket.IO rooms.
 
 from datetime import datetime
 import logging
+from flask import has_request_context, session
 from app.utils.references import get_reference_data
 
 logger = logging.getLogger(__name__)
+
 
 ADMIN_SOCKET_ROOM = "role:admin"
 
@@ -28,6 +30,15 @@ def _emit_notification(socketio, payload, technicien=None, target_user=None, inc
     - Technician room receives technician-targeted events
     - target_user allows targeting username-based rooms (wiki)
     """
+    if "triggered_by_username" not in payload and has_request_context():
+        payload["triggered_by_username"] = session.get("user")
+        
+        # Also include a formatted triggered_by string for clearer display
+        triggered_by = session.get("prenom") or session.get("user")
+        if session.get("role") in ["admin", "superadmin"]:
+            triggered_by = f"{triggered_by} (Admin)"
+        payload["triggered_by_display"] = triggered_by
+
     rooms = set()
     if include_admin:
         rooms.add(ADMIN_SOCKET_ROOM)

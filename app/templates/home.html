@@ -4,6 +4,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=17.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dispatch_runner.css') }}?v=17.0">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
   /* DIRECT INJECTION: Neon Pulse Halo Highlight */
@@ -727,6 +728,29 @@
     </div>
   </div>
 
+  <!-- EASTER EGG: DISPATCH RUNNER -->
+  <div id="easterEggContainer">
+    <button id="closeGameBtn" class="close-game-btn" title="Quitter">&times;</button>
+    <h2 class="text-neon mb-4">DISPATCH RUNNER</h2>
+    <div class="game-canvas-wrapper shadow-lg">
+      <canvas id="gameCanvas"></canvas>
+      <div class="game-ui">
+        <div class="game-stat">SCORE: <span id="gameScore">0</span></div>
+        <div class="game-stat">MAX: <span id="gameHighScore">0</span></div>
+      </div>
+      <div class="game-over-overlay">
+        <h2>CRASH SYSTÈME</h2>
+        <button id="restartGameBtn" class="game-over-btn">REBOOT SYSTEM</button>
+        <div id="gameLeaderboard" class="leaderboard-container"></div>
+      </div>
+    </div>
+    <p class="game-instructions mt-4">
+      <kbd>ESPACE</kbd> ou <kbd>CLIC</kbd> pour SAUTER<br>
+      <kbd>BAS</kbd> ou <kbd>S</kbd> pour se BAISSER<br>
+      Évitez les câbles et les serveurs !
+    </p>
+  </div>
+
   <!-- Event Details Modal (Read-only for technicians) -->
   <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel"
     aria-hidden="true">
@@ -785,6 +809,7 @@
 {% block scripts %}
 <script>console.log("💎 home.html v17 LOADED - DIRECT INJECTION ACTIVE");</script>
 <script src="{{ url_for('static', filename='js/home.js') }}?v=17.0"></script>
+<script src="{{ url_for('static', filename='js/dispatch_runner.js') }}?v=17.0"></script>
 <script>
   // Thème dark/light géré par static/js/theme.js
 

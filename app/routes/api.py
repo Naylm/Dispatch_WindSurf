@@ -348,3 +348,44 @@ def save_preferences():
     except Exception as e:
         print(f"Error saving preferences: {e}")
         return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/runner/submit-score', methods=['POST'])
+def submit_runner_score():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    data = request.json
+    if not data or 'score' not in data:
+        return jsonify({"error": "Missing score"}), 400
+        
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO dispatch_runner_scores (username, score) VALUES (%s, %s)",
+            (session["user"], int(data['score']))
+        )
+        db.commit()
+        return jsonify({"success": True}), 201
+    except Exception as e:
+        print(f"Error submitting runner score: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/runner/leaderboard')
+def get_runner_leaderboard():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    db = get_db()
+    try:
+        # Get top 10 scores
+        scores = db.execute("""
+            SELECT username, MAX(score) as score 
+            FROM dispatch_runner_scores 
+            GROUP BY username 
+            ORDER BY score DESC 
+            LIMIT 10
+        """).fetchall()
+        return jsonify([dict(s) for s in scores])
+    except Exception as e:
+        print(f"Error fetching runner leaderboard: {e}")
+        return jsonify({"error": str(e)}), 500

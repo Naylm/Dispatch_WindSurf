@@ -9,6 +9,27 @@ class NotificationSystem {
 
         // Check for incident to open from URL after a short delay to let the dashboard load
         setTimeout(() => this.checkUrlParams(), 1000);
+
+        // Cross-tab synchronization
+        window.addEventListener('storage', (e) => {
+            const storageKey = `dispatch_notifications_${window.CURRENT_USER || 'guest'}`;
+            if (e.key === storageKey && e.newValue) {
+                try {
+                    const parsed = JSON.parse(e.newValue);
+                    const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+                    this.notifications = parsed.notifications
+                        .filter(n => new Date(n.timestamp).getTime() > weekAgo)
+                        .map(n => ({ ...n, timestamp: new Date(n.timestamp) }));
+                    this.updateBadge();
+                    const panel = document.getElementById('notificationPanel');
+                    if (panel && panel.style.display !== 'none') {
+                        this.renderNotifications();
+                    }
+                } catch (err) {
+                    console.error("Error syncing notifications across tabs", err);
+                }
+            }
+        });
     }
 
     /**
@@ -217,11 +238,12 @@ class NotificationSystem {
         const displayNumero = numero || 'N/A';
         const displaySite = site || 'Site inconnu';
         const displaySujet = sujet || 'Sans sujet';
+        const byText = data.triggered_by_display ? ` (par ${data.triggered_by_display})` : '';
 
         this.addNotification({
             type: 'new_assignment',
             priority: priority,
-            title: isUrgent ? '🚨 URGENT - Nouveau ticket' : '📋 Nouveau ticket assigné',
+            title: (isUrgent ? '🚨 URGENT - Nouveau ticket' : '📋 Nouveau ticket assigné') + byText,
             message: `${displayNumero} - ${displaySite} / ${displaySujet}`,
             details: note_dispatch || '',
             urgence: urgence,
@@ -250,11 +272,12 @@ class NotificationSystem {
      */
     notifyStatusChange(data) {
         const { incident_id, numero, old_status, new_status } = data;
+        const byText = data.triggered_by_display ? ` (par ${data.triggered_by_display})` : '';
 
         this.addNotification({
             type: 'status_change',
             priority: 'info',
-            title: '🔄 Changement de statut',
+            title: '🔄 Changement de statut' + byText,
             message: `${numero}: ${old_status} → ${new_status}`,
             incident_id: incident_id,
             action: {
@@ -270,11 +293,12 @@ class NotificationSystem {
      */
     notifyUrgentUpdate(data) {
         const { incident_id, numero, message } = data;
+        const byText = data.triggered_by_display ? ` (par ${data.triggered_by_display})` : '';
 
         this.addNotification({
             type: 'urgent_update',
             priority: 'urgent',
-            title: '⚠️ Mise à jour urgente',
+            title: '⚠️ Mise à jour urgente' + byText,
             message: `${numero}: ${message}`,
             incident_id: incident_id,
             action: {
@@ -330,7 +354,7 @@ class NotificationSystem {
                     </div>
                     <div class="notification-message">${notif.message}</div>
                     ${notif.details ? `<div class="notification-details">${notif.details}</div>` : ''}
-                    ${notif.urgence ? `<span class="badge bg-danger mt-1">${notif.urgence}</span>` : ''}
+                    ${notif.urgence ? `<span class="badge ${this.getUrgencyClass(notif.urgence)} mt-1">${notif.urgence}</span>` : ''}
                     <div class="notification-time">${this.formatTime(notif.timestamp)}</div>
                 </div>
                 <div class="notification-actions">
@@ -657,12 +681,25 @@ class NotificationSystem {
     }
 
     /**
+     * Retourne la classe CSS correspondant à l'urgence
+     */
+    getUrgencyClass(urgence) {
+        if (!urgence) return 'bg-secondary';
+        const u = urgence.toLowerCase();
+        if (u.includes('critique')) return 'bg-danger';
+        if (u.includes('haute')) return 'bg-danger';
+        if (u.includes('moyenne')) return 'bg-warning text-dark';
+        if (u.includes('basse')) return 'bg-info text-dark';
+        return 'bg-secondary';
+    }
+
+    /**
      * Sauvegarde les notifications dans localStorage
      */
     saveNotifications() {
         try {
             const data = {
-                notifications: this.notifications.slice(0, 30), // Garder seulement les 30 dernières
+                notifications: this.notifications.slice(0, 50), // Garder jusqu'à 50 (comme dans addNotification)
                 timestamp: Date.now()
             };
             const storageKey = `dispatch_notifications_${window.CURRENT_USER || 'guest'}`;
@@ -781,6 +818,12 @@ class NotificationSystem {
 
         socket.on('notification', (data) => {
             console.log('🔔 Notification reçue:', data.type, data);
+
+            // Ignorer les notifications déclenchées par l'utilisateur actuel
+            if (data.triggered_by_username && window.CURRENT_USER && data.triggered_by_username === window.CURRENT_USER) {
+                console.log('🔇 Notification ignorée (déclenchée par l\'utilisateur lui-même)');
+                return;
+            }
 
             switch (data.type) {
                 case 'new_assignment':

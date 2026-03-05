@@ -1012,6 +1012,29 @@ def ensure_database_integrity():
     else:
         print("   - Index full-text deja existant")
     
+    # ========== TABLE: dispatch_runner_scores ==========
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'dispatch_runner_scores'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE dispatch_runner_scores (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                score INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("dispatch_runner_scores")
+        cursor.execute("CREATE INDEX idx_runner_scores_score ON dispatch_runner_scores (score DESC)")
+        print("   - Table dispatch_runner_scores creee")
+    else:
+        tables_verified.append("dispatch_runner_scores")
+    
     # Normalisation finale après création de toutes les tables
     
     # 1. Migration technicien_id dans incidents
