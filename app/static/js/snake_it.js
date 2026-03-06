@@ -164,7 +164,6 @@ class SnakeIT {
                 this.level = newLevel;
                 this.speed = Math.min(20, 8 + (this.level - 1) * 1.5);
                 window.konamiSound?.play('levelup');
-                this.waitReady = true;
             } else {
                 window.konamiSound?.play('eat');
             }
@@ -257,21 +256,7 @@ class SnakeIT {
         ctx.fillText(`NIVEAU ${this.level}`, this.canvas.width - 10, 20);
         ctx.textAlign = 'left';
 
-        // Intermission
-        if (this.waitReady) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            ctx.fillStyle = '#00f3ff';
-            ctx.font = 'bold 30px Courier New';
-            ctx.textAlign = 'center';
-            ctx.fillText(`NIVEAU ${this.level - 1} RÉUSSI`, this.canvas.width / 2, this.canvas.height / 2 - 20);
-            ctx.fillStyle = '#fff';
-            ctx.font = '20px Courier New';
-            ctx.fillText(`BANDE PASSANTE AUGMENTÉE (Nv.${this.level})`, this.canvas.width / 2, this.canvas.height / 2 + 20);
-            ctx.font = '14px Courier New';
-            ctx.fillText('APPUYEZ SUR UNE TOUCHE POUR REPRENDRE', this.canvas.width / 2, this.canvas.height / 2 + 60);
-            ctx.textAlign = 'left';
-        }
+        // Intermission removed for smoother flow
     }
 
     drawInitialScreen() {

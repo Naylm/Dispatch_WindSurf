@@ -133,19 +133,33 @@ class TicketInvaders {
             { rows: [['bug', 'bug', 'bug', 'bug', 'bug'], ['ticket', 'ticket', 'ticket', 'ticket', 'ticket', 'ticket']] },
             // Level 3: Mixed with virus
             { rows: [['virus', 'virus', 'virus', 'virus'], ['bug', 'bug', 'bug', 'bug', 'bug'], ['ticket', 'ticket', 'ticket', 'ticket', 'ticket', 'ticket']] },
-            // Level 4: Trojans (zigzag movement)
-            { rows: [['trojan', 'trojan', 'trojan', 'trojan', 'trojan'], ['bug', 'bug', 'bug', 'bug', 'bug'], ['ticket', 'ticket', 'ticket', 'ticket', 'ticket', 'ticket', 'ticket']] },
+            // Level 4: V-Shape formation
+            { rows: [['trojan', '', '', '', 'trojan'], ['', 'bug', '', 'bug', ''], ['', '', 'virus', '', ''], ['', 'bug', '', 'bug', ''], ['ticket', 'ticket', 'ticket', 'ticket', 'ticket']] },
             // Level 5: BOSS WAVE — Firewall + minions
             { rows: [['firewall', 'firewall'], ['virus', 'virus', 'virus', 'virus', 'virus'], ['trojan', 'trojan', 'trojan', 'trojan']], boss: true },
-            // Level 6: DDoS swarm
-            { rows: [['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['bug', 'bug', 'bug', 'bug', 'bug']] },
-            // Level 7: Ransomware (shielded)
-            { rows: [['ransom', 'ransom', 'ransom', 'ransom'], ['virus', 'virus', 'virus', 'virus', 'virus'], ['trojan', 'trojan', 'trojan', 'trojan', 'trojan']] },
-            // Level 8: Full assault
-            { rows: [['firewall', 'ransom', 'firewall'], ['trojan', 'virus', 'trojan', 'virus', 'trojan'], ['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['bug', 'bug', 'bug', 'bug', 'bug', 'bug']], boss: true },
+            // Level 6: DDoS swarm (Columns)
+            { rows: [['ddos', '', 'ddos', '', 'ddos', '', 'ddos'], ['ddos', '', 'ddos', '', 'ddos', '', 'ddos'], ['ddos', '', 'ddos', '', 'ddos', '', 'ddos']] },
+            // Level 7: Ransomware (Shielded wall)
+            { rows: [['ransom', 'ransom', 'ransom', 'ransom'], ['virus', 'virus', 'virus', 'virus', 'virus']] },
+            // Level 8: X-Shape
+            { rows: [['virus', '', '', '', 'virus'], ['', 'trojan', '', 'trojan', ''], ['', '', 'firewall', '', ''], ['', 'trojan', '', 'trojan', ''], ['virus', '', '', '', 'virus']], boss: true },
+            // Level 9: Checkerboard
+            { rows: [['ticket', '', 'bug', '', 'ticket'], ['', 'virus', '', 'virus', ''], ['bug', '', 'ticket', '', 'bug']] },
+            // Level 10: Concentric Squares
+            { rows: [['ransom', 'ransom', 'ransom', 'ransom', 'ransom'], ['ransom', '', '', '', 'ransom'], ['ransom', '', 'firewall', '', 'ransom'], ['ransom', '', '', '', 'ransom'], ['ransom', 'ransom', 'ransom', 'ransom', 'ransom']], boss: true },
+            // Level 11: Glitch swarm
+            { rows: [['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['trojan', 'trojan', 'trojan', 'trojan'], ['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['trojan', 'trojan', 'trojan']] },
+            // Level 12: Triple Firewall Fortress
+            { rows: [['firewall', 'firewall', 'firewall'], ['ransom', 'ransom', 'ransom', 'ransom'], ['virus', 'virus', 'virus', 'virus', 'virus']], boss: true },
+            // Level 13: The Gauntlet
+            { rows: [['ransom', 'ransom'], ['virus', 'virus', 'virus'], ['bug', 'bug', 'bug', 'bug'], ['ticket', 'ticket', 'ticket', 'ticket', 'ticket']] },
+            // Level 14: Zigzag Assault
+            { rows: [['trojan', 'trojan', 'trojan'], ['trojan', 'trojan', 'trojan', 'trojan'], ['trojan', 'trojan', 'trojan', 'trojan', 'trojan']] },
+            // Level 15: FINAL BOSS (Full Mix)
+            { rows: [['firewall', 'ransom', 'firewall'], ['virus', 'trojan', 'virus', 'trojan', 'virus'], ['ddos', 'ddos', 'ddos', 'ddos', 'ddos', 'ddos'], ['bug', 'bug', 'bug', 'bug', 'bug']], boss: true },
         ];
 
-        // Loop levels after 8 with scaling
+        // Loop levels after 15 with scaling
         const idx = ((this.level - 1) % configs.length);
         const config = JSON.parse(JSON.stringify(configs[idx])); // deep clone
         return config;
@@ -158,12 +172,16 @@ class TicketInvaders {
 
         for (let r = 0; r < config.rows.length; r++) {
             const row = config.rows[r];
-            const totalW = row.reduce((sum, t) => sum + this.enemyTypes[t].width + pad, -pad);
-            const startX = Math.max(20, (this.canvas.width - totalW) / 2);
+            const rowWidth = row.reduce((sum, t) => {
+                if (!t) return sum + 40 + pad; // Padding for empty slot
+                return sum + this.enemyTypes[t].width + pad;
+            }, -pad);
+            const startX = Math.max(20, (this.canvas.width - rowWidth) / 2);
             let cx = startX;
 
             for (let c = 0; c < row.length; c++) {
                 const typeName = row[c];
+                if (!typeName) { cx += 40; continue; } // Handle empty slots in formations
                 const type = this.enemyTypes[typeName];
                 this.enemies.push({
                     x: cx, y: 40 + r * (type.height + pad),
@@ -237,6 +255,11 @@ class TicketInvaders {
         window.konamiSound?.play('levelup');
         this.waitReady = true;
         this.spawnPowerup(this.canvas.width / 2, 0); // Bonus powerup on level clear
+    }
+
+    spawnPowerup(x, y, pType = null) {
+        const type = pType || this.powerupTypes[Math.floor(Math.random() * this.powerupTypes.length)];
+        this.powerups.push({ x, y, ...type });
     }
 
     initStarfield() {

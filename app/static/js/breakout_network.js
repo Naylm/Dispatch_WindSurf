@@ -39,6 +39,13 @@ class BreakoutNetwork {
         this.waitReady = true;
         this.stickyWait = false;
 
+        // Brick settings
+        this.brickCols = 10;
+        this.brickHeight = 20;
+        this.brickPadding = 5;
+        this.brickOffsetLeft = 30;
+        this.brickOffsetTop = 50;
+
         this.keys = { ArrowLeft: false, ArrowRight: false, Space: false };
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
@@ -105,14 +112,134 @@ class BreakoutNetwork {
         this.waitReady = true;
     }
 
+    getLevelConfig() {
+        const patterns = [
+            // Level 1: Full block (Basic)
+            { type: 'full', rows: 4 },
+            // Level 2: Hollow Box
+            {
+                type: 'pattern', data: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            },
+            // Level 3: Stripes
+            {
+                type: 'pattern', data: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            },
+            // Level 4: Diamond
+            {
+                type: 'pattern', data: [
+                    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
+                ]
+            },
+            // Level 5: X-Shape
+            {
+                type: 'pattern', data: [
+                    [1, 1, 0, 0, 0, 0, 0, 0, 1, 1],
+                    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+                    [0, 0, 1, 1, 0, 0, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 0, 0, 1, 1, 0, 0],
+                    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+                    [1, 1, 0, 0, 0, 0, 0, 0, 1, 1]
+                ]
+            },
+            // Level 6: Checkerboard
+            {
+                type: 'pattern', data: [
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+                ]
+            },
+            // Level 7: Pyramids
+            {
+                type: 'pattern', data: [
+                    [0, 0, 1, 1, 0, 0, 0, 0, 1, 1],
+                    [0, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            },
+            // Level 8: Columns
+            {
+                type: 'pattern', data: [
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+                ]
+            },
+            // Level 9: The Heart
+            {
+                type: 'pattern', data: [
+                    [0, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
+                ]
+            },
+            // Level 10: Space Invader pixel art
+            {
+                type: 'pattern', data: [
+                    [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            }
+        ];
+        return patterns[(this.level - 1) % patterns.length];
+    }
+
     createBricks() {
-        const rows = Math.min(3 + this.level, 8);
+        const config = this.getLevelConfig();
         const colors = ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00f3ff', '#ff00ff', '#9900ff', '#ffffff'];
         this.bricks = [];
-        for (let c = 0; c < this.brickCols; c++) {
-            this.bricks[c] = [];
-            for (let r = 0; r < rows; r++) {
-                this.bricks[c][r] = { x: 0, y: 0, status: 1, color: colors[r % colors.length] };
+
+        if (config.type === 'pattern') {
+            const data = config.data;
+            const rows = data.length;
+            const cols = data[0].length;
+            // Center the pattern if it's smaller than current brickCols
+            const startCol = Math.max(0, Math.floor((this.brickCols - cols) / 2));
+
+            for (let c = 0; c < this.brickCols; c++) {
+                this.bricks[c] = [];
+                for (let r = 0; r < rows; r++) {
+                    const patternCol = c - startCol;
+                    const status = (patternCol >= 0 && patternCol < cols) ? data[r][patternCol] : 0;
+                    this.bricks[c][r] = { x: 0, y: 0, status: status, color: colors[r % colors.length] };
+                }
+            }
+        } else {
+            const rows = Math.min(3 + this.level, 8);
+            for (let c = 0; c < this.brickCols; c++) {
+                this.bricks[c] = [];
+                for (let r = 0; r < rows; r++) {
+                    this.bricks[c][r] = { x: 0, y: 0, status: 1, color: colors[r % colors.length] };
+                }
             }
         }
     }
@@ -123,14 +250,15 @@ class BreakoutNetwork {
         if (e.code === 'ArrowRight') this.keys.ArrowRight = true;
         if (e.code === 'Space') {
             this.keys.Space = true;
-            if (!this.isPlaying && !this.isGameOver) this.start();
-            if (this.waitReady && this.isPlaying) {
+            if (!this.isPlaying && !this.isGameOver) {
+                this.start();
+            } else if (this.waitReady && this.isPlaying) {
                 this.waitReady = false;
                 this.stickyWait = false;
                 const b = this.balls[0];
                 if (b) {
-                    b.dx = b.speed * (Math.random() > 0.5 ? 1 : -1);
-                    b.dy = -b.speed;
+                    b.dx = (b.speed || this.baseSpeed) * (Math.random() > 0.5 ? 1 : -1);
+                    b.dy = -(b.speed || this.baseSpeed);
                 }
             } else if (this.laserActive && this.isPlaying && !this.waitReady) {
                 this.fireLaser();
@@ -180,6 +308,7 @@ class BreakoutNetwork {
     }
 
     nextLevel() {
+        this.level++;
         this.balls = [];
         this.resetBall();
         this.createBricks();
@@ -234,9 +363,12 @@ class BreakoutNetwork {
         } else if (p.type === 'LIFE') {
             this.lives = Math.min(5, this.lives + 1);
         } else if (p.type === 'SLOW') {
-            const oldSpeed = this.ball.speed;
-            this.ball.speed = Math.max(3, this.ball.speed - 2);
-            setTimeout(() => { if (this.isPlaying) this.ball.speed = this.baseSpeed + (this.level - 1) * 0.3; }, 8000);
+            for (let b of this.balls) { b.dx *= 0.6; b.dy *= 0.6; }
+            setTimeout(() => {
+                if (this.isPlaying) {
+                    for (let b of this.balls) { b.dx /= 0.6; b.dy /= 0.6; }
+                }
+            }, 8000);
         } else if (p.type === 'STICKY') {
             this.stickyActive = true;
             this.laserActive = false;
@@ -443,9 +575,14 @@ class BreakoutNetwork {
 
     draw() {
         const ctx = this.ctx;
-        ctx.fillStyle = '#0f0f19'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Dynamic background based on level
+        const bgColors = ['#0f0f19', '#1a0f1a', '#0f1a1a', '#1a1a0f', '#0a0a14'];
+        ctx.fillStyle = bgColors[(this.level - 1) % bgColors.length];
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Bricks
+        const glowIntensity = 4 + (this.level % 5);
         for (let c = 0; c < this.brickCols; c++) {
             for (let r = 0; r < this.bricks[c].length; r++) {
                 if (this.bricks[c][r].status === 1) {
@@ -454,7 +591,8 @@ class BreakoutNetwork {
                     this.bricks[c][r].x = bx; this.bricks[c][r].y = by;
                     ctx.fillStyle = this.bricks[c][r].color;
                     ctx.shadowColor = this.bricks[c][r].color;
-                    ctx.shadowBlur = 6; ctx.fillRect(bx, by, this.brickWidth, this.brickHeight);
+                    ctx.shadowBlur = glowIntensity;
+                    ctx.fillRect(bx, by, this.brickWidth, this.brickHeight);
                     ctx.shadowBlur = 0;
                 }
             }
@@ -516,24 +654,25 @@ class BreakoutNetwork {
             }
         }
 
-        if (this.waitReady && !this.isGameOver && !this.stickyWait) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            ctx.fillStyle = '#00f3ff'; ctx.font = 'bold 30px Courier New'; ctx.textAlign = 'center';
-            if (this.level > 1 && totalActiveInDraw === 0) {
-                ctx.fillText(`FIREWALL NIVEAU ${this.level - 1} DÉTRUIT`, this.canvas.width / 2, this.canvas.height / 2 - 20);
-            }
-            ctx.fillStyle = '#fff'; ctx.font = '22px Courier New';
-            ctx.fillText(`PRÊT POUR LE NIVEAU ${this.level} ?`, this.canvas.width / 2, this.canvas.height / 2 + 30);
-            ctx.font = '16px Courier New';
-            ctx.fillText('APPUYEZ SUR ESPACE POUR LANCER LE PING', this.canvas.width / 2, this.canvas.height / 2 + 70);
-            ctx.textAlign = 'left';
-        }
+        if (this.waitReady && this.isPlaying && !this.stickyWait) {
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            ctx.textAlign = 'center';
 
-        // Guns drawing
-        if (this.laserActive) {
-            ctx.fillStyle = '#ff3333';
-            ctx.fillRect(this.paddle.x + 5, this.paddle.y - 8, 10, 8);
-            ctx.fillRect(this.paddle.x + this.paddle.width - 15, this.paddle.y - 8, 10, 8);
+            if (this.level > 1 && totalActiveInDraw === 0) {
+                ctx.fillStyle = '#00f3ff';
+                ctx.font = 'bold 28px Courier New';
+                ctx.fillText(`FIREWALL NIVEAU ${this.level - 1} DÉTRUIT`, this.canvas.width / 2, this.canvas.height / 2 - 40);
+            }
+
+            ctx.fillStyle = '#00f3ff';
+            ctx.font = 'bold 32px Courier New';
+            ctx.fillText(`PRÊT POUR LE NIVEAU ${this.level} ?`, this.canvas.width / 2, this.canvas.height / 2 + 10);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '18px Courier New';
+            ctx.fillText('APPUYEZ SUR ESPACE POUR LANCER LE PING', this.canvas.width / 2, this.canvas.height / 2 + 60);
+            ctx.textAlign = 'left';
         }
     }
 
