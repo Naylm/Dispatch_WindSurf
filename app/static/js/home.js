@@ -120,6 +120,42 @@ window.applySavedZoom = function () {
 };
 
 // ==========================================
+// TECH ZOOM MANAGEMENT
+// ==========================================
+window.techZoomLevel = 1.0;
+
+window.zoomTech = function (delta, reset = false) {
+  const container = document.getElementById('userView');
+  if (!container) return;
+
+  if (reset) {
+    window.techZoomLevel = 1.0;
+  } else {
+    window.techZoomLevel += delta;
+    // Restrict zoom level between 50% and 150%
+    if (window.techZoomLevel < 0.5) window.techZoomLevel = 0.5;
+    if (window.techZoomLevel > 1.5) window.techZoomLevel = 1.5;
+  }
+
+  container.style.zoom = window.techZoomLevel;
+
+  const label = document.getElementById('techZoomLevel');
+  if (label) {
+    label.textContent = Math.round(window.techZoomLevel * 100) + '%';
+  }
+
+  localStorage.setItem('techZoomLevel', window.techZoomLevel.toString());
+};
+
+window.applySavedTechZoom = function () {
+  const savedZoom = localStorage.getItem('techZoomLevel');
+  if (savedZoom) {
+    window.techZoomLevel = parseFloat(savedZoom) || 1.0;
+    window.zoomTech(0); // apply current level
+  }
+};
+
+// ==========================================
 // SEARCH & FILTERS
 // ==========================================
 
@@ -759,8 +795,9 @@ window.initTechView = function () {
   console.log('🚀 Home JS initialized');
 
   // Init View Preference
-  window.initializeView();
+  // Apply saved zoom if on Kanban View or Tech View
   window.applySavedZoom();
+  window.applySavedTechZoom();
 
   // Initialize Technician View if applicable
   if (typeof window.initTechView === 'function') {

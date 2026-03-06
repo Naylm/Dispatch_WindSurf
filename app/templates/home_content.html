@@ -280,6 +280,25 @@
 
         <button id="clearFiltersTechBtn" class="btn btn-outline-secondary btn-sm px-2 py-0" style="font-size: 0.8rem;">✕
             R.A.Z</button>
+
+        <!-- Tech Zoom Controls -->
+        <div class="ms-auto pe-2">
+            <div class="btn-group" id="techZoomControls" role="group" aria-label="Zoom Table">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="window.zoomTech(-0.1)"
+                    title="Dézoomer">
+                    ➖
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0"
+                    style="min-width: 50px; font-weight: bold; font-size: 0.8rem;" onclick="window.zoomTech(0, true)"
+                    title="Réinitialiser le zoom">
+                    <span id="techZoomLevel">100%</span>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="window.zoomTech(0.1)"
+                    title="Zoomer">
+                    ➕
+                </button>
+            </div>
+        </div>
     </div>
 
     {% for i in incidents %}

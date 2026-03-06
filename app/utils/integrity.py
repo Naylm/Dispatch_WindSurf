@@ -1034,6 +1034,31 @@ def ensure_database_integrity():
         print("   - Table dispatch_runner_scores creee")
     else:
         tables_verified.append("dispatch_runner_scores")
+
+    # ========== TABLE: arcade_scores (generic multi-game leaderboard) ==========
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'arcade_scores'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE arcade_scores (
+                id SERIAL PRIMARY KEY,
+                game_name VARCHAR(50) NOT NULL,
+                username VARCHAR(255) NOT NULL,
+                score INTEGER NOT NULL,
+                level INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("arcade_scores")
+        cursor.execute("CREATE INDEX idx_arcade_scores_game ON arcade_scores (game_name, score DESC)")
+        print("   - Table arcade_scores creee")
+    else:
+        tables_verified.append("arcade_scores")
     
     # Normalisation finale après création de toutes les tables
     

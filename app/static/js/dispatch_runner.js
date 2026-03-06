@@ -1,16 +1,15 @@
 /**
  * DISPATCH RUNNER - MINI GAME
- * Synthwave infinite runner triggered by Konami Code
+ * Synthwave infinite runner - launched from Konami Hub
  */
 
 class DispatchRunner {
     constructor() {
-        this.container = document.getElementById('easterEggContainer');
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.scoreElement = document.getElementById('gameScore');
         this.highScoreElement = document.getElementById('gameHighScore');
-        this.gameOverOverlay = document.querySelector('.game-over-overlay');
+        this.gameOverOverlay = document.querySelector('#runnerGameContainer .game-over-overlay');
 
         // Game specs
         this.width = 800;
@@ -20,125 +19,91 @@ class DispatchRunner {
 
         // Game state
         this.active = false;
+        this.waitStart = true;
         this.score = 0;
-        this.highScore = localStorage.getItem('dispatch_runner_highscore') || 0;
+        this.level = 1;
+        this.highScore = parseInt(localStorage.getItem('dispatch_runner_highscore')) || 0;
         this.speed = 5;
         this.gravity = 0.6;
         this.gameLoopId = null;
 
-        // Entitites
+        // Entities
         this.player = {
-            x: 100,
-            y: 0,
-            width: 40,
-            height: 60,
-            dy: 0,
-            jumpForce: 12,
-            grounded: false,
-            crouching: false,
-            color: '#00ffff'
+            x: 100, y: 0, width: 40, height: 60,
+            dy: 0, jumpForce: 12, grounded: false, crouching: false, color: '#00ffff'
         };
 
         this.obstacles = [];
         this.particles = [];
         this.keys = {};
 
-        // Resources
+        this.boundKeyDown = (e) => this._onKeyDown(e);
+        this.boundKeyUp = (e) => this._onKeyUp(e);
+        this.boundClick = () => {
+            if (this.waitStart) {
+                this.waitStart = false;
+                this.active = true;
+            } else if (this.active) {
+                this.jump();
+            }
+        };
+
         this.init();
     }
 
     init() {
-        this.highScoreElement.textContent = this.highScore;
-        this.setupKonami();
+        if (this.highScoreElement) this.highScoreElement.textContent = this.highScore;
         this.setupListeners();
-    }
-
-    setupKonami() {
-        const konami = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-        let cursor = 0;
-
-        document.addEventListener('keydown', (e) => {
-            // Check if active element is a search bar or if we are idle
-            const isSearchBar = document.activeElement &&
-                (document.activeElement.type === 'search' ||
-                    document.activeElement.placeholder?.toLowerCase().includes('recherche'));
-
-            if (e.key === konami[cursor]) {
-                cursor++;
-                if (cursor === konami.length) {
-                    this.start();
-                    cursor = 0;
-                }
-            } else {
-                cursor = 0;
-            }
-        });
+        this.reset();
     }
 
     setupListeners() {
-        window.addEventListener('keydown', (e) => {
-            if (!this.active) return;
-            this.keys[e.code] = true;
+        window.addEventListener('keydown', this.boundKeyDown);
+        window.addEventListener('keyup', this.boundKeyUp);
+        this.canvas.addEventListener('mousedown', this.boundClick);
 
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                this.jump();
-                e.preventDefault();
-            }
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-                if (this.player.grounded) {
-                    this.crouch(true);
-                }
-                e.preventDefault();
-            }
-            if (e.code === 'Escape') {
-                this.stop();
-            }
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (!this.active) return;
-            this.keys[e.code] = false;
-
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-                this.crouch(false);
-            }
-        });
-
-        this.canvas.addEventListener('mousedown', () => {
-            if (this.active) this.jump();
-        });
-
-        document.getElementById('restartGameBtn').addEventListener('click', () => {
+        document.getElementById('restartGameBtn')?.addEventListener('click', () => {
             this.reset();
-        });
-
-        document.getElementById('closeGameBtn').addEventListener('click', () => {
-            this.stop();
+            this.active = true;
         });
     }
 
+    _onKeyDown(e) {
+        if (this.waitStart && (e.code === 'Space' || e.code === 'ArrowUp')) {
+            this.waitStart = false;
+            this.active = true;
+            e.preventDefault();
+            return;
+        }
+        if (!this.active) return;
+        this.keys[e.code] = true;
+        if (e.code === 'Space' || e.code === 'ArrowUp') { this.jump(); e.preventDefault(); }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') { if (this.player.grounded) this.crouch(true); e.preventDefault(); }
+    }
+
+    _onKeyUp(e) {
+        if (!this.active) return;
+        this.keys[e.code] = false;
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') this.crouch(false);
+    }
+
     start() {
-        this.active = true;
-        this.container.classList.add('active');
         this.reset();
+        this.waitStart = true;
+        this.active = false;
     }
 
     stop() {
         this.active = false;
-        this.container.classList.remove('active');
+        this.waitStart = true;
         cancelAnimationFrame(this.gameLoopId);
-
-        // Ensure the search bar is cleared when exiting the game so tickets are not hidden
-        const searchInput = document.getElementById('searchInput') || document.getElementById('searchInputTech');
-        if (searchInput && searchInput.value) {
-            searchInput.value = '';
-            searchInput.dispatchEvent(new Event('input'));
-        }
     }
 
     reset() {
-        this.active = true;
+        this.active = false;
+        this.waitStart = true;
         this.score = 0;
+        this.level = 1;
         this.speed = 5;
         this.player.y = this.height - 110;
         this.player.dy = 0;
@@ -147,7 +112,8 @@ class DispatchRunner {
         this.player.height = 60;
         this.obstacles = [];
         this.particles = [];
-        this.gameOverOverlay.classList.remove('visible');
+        if (this.gameOverOverlay) this.gameOverOverlay.classList.remove('visible');
+        if (this.scoreElement) this.scoreElement.textContent = '0';
 
         if (this.gameLoopId) cancelAnimationFrame(this.gameLoopId);
         this.gameLoop();
@@ -158,12 +124,12 @@ class DispatchRunner {
             this.player.dy = -this.player.jumpForce;
             this.player.grounded = false;
             this.createJumpParticles();
+            window.konamiSound?.play('jump');
         }
     }
 
     crouch(isCrouching) {
         if (!this.player.grounded && isCrouching) return;
-
         if (isCrouching && !this.player.crouching) {
             this.player.crouching = true;
             this.player.height = 35;
@@ -180,11 +146,8 @@ class DispatchRunner {
             this.particles.push({
                 x: this.player.x + this.player.width / 2,
                 y: this.player.y + this.player.height,
-                vx: (Math.random() - 0.5) * 4,
-                vy: Math.random() * -2,
-                size: Math.random() * 4 + 2,
-                color: '#ff00ff',
-                life: 1.0
+                vx: (Math.random() - 0.5) * 4, vy: Math.random() * -2,
+                size: Math.random() * 4 + 2, color: '#ff00ff', life: 1.0
             });
         }
     }
@@ -192,36 +155,24 @@ class DispatchRunner {
     spawnObstacle() {
         if (this.obstacles.length === 0 ||
             (this.width - this.obstacles[this.obstacles.length - 1].x > (200 + Math.random() * 300))) {
-
             const type = Math.random() > 0.4 ? 'ground' : 'air';
             const h = type === 'ground' ? 30 + Math.random() * 40 : 40;
             this.obstacles.push({
                 x: this.width,
-                y: type === 'ground' ? this.height - 50 - h : this.height - 130, // Air obstacles at head level
-                width: 30,
-                height: h,
-                type: type,
+                y: type === 'ground' ? this.height - 50 - h : this.height - 130,
+                width: 30, height: h, type: type,
                 color: type === 'ground' ? '#ff00ff' : '#ffff00'
             });
         }
     }
 
     update() {
-        // Player physics
+        if (!this.active) return;
         const isJumping = this.keys['Space'] || this.keys['ArrowUp'];
         const isFalling = this.keys['ArrowDown'] || this.keys['KeyS'];
-
         let currentGravity = this.gravity;
-
-        // Fast fall logic: down key in air
-        if (!this.player.grounded && isFalling) {
-            currentGravity *= 3;
-        }
-
-        // Variable jump: let go of jump key while moving up
-        if (!this.player.grounded && !isJumping && this.player.dy < 0) {
-            this.player.dy += 1; // Stronger deceleration
-        }
+        if (!this.player.grounded && isFalling) currentGravity *= 3;
+        if (!this.player.grounded && !isJumping && this.player.dy < 0) this.player.dy += 1;
 
         if (!this.player.crouching) {
             this.player.dy += currentGravity;
@@ -235,100 +186,92 @@ class DispatchRunner {
             this.player.grounded = true;
         }
 
-        // Obstacles
         this.spawnObstacle();
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
             obs.x -= this.speed;
-
-            // Collision detection
-            if (this.player.x < obs.x + obs.width &&
-                this.player.x + this.player.width > obs.x &&
-                this.player.y < obs.y + obs.height &&
-                this.player.y + this.player.height > obs.y) {
+            if (this.player.x < obs.x + obs.width && this.player.x + this.player.width > obs.x &&
+                this.player.y < obs.y + obs.height && this.player.y + this.player.height > obs.y) {
                 this.gameOver();
             }
-
             if (obs.x + obs.width < 0) {
                 this.obstacles.splice(i, 1);
                 this.score++;
-
-                // GRADUAL SPEED INCREASE
-                if (this.score % 5 === 0 && this.speed < 15) {
-                    this.speed += 0.3;
+                // Level up every 10 obstacles
+                const newLevel = Math.floor(this.score / 10) + 1;
+                if (newLevel > this.level) {
+                    this.level = newLevel;
+                    this.speed = Math.min(15, 5 + (this.level - 1) * 0.8);
+                    window.konamiSound?.play('levelup');
                 }
             }
         }
 
-        // Particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.02;
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
             if (p.life <= 0) this.particles.splice(i, 1);
         }
 
-        this.scoreElement.textContent = this.score;
+        if (this.scoreElement) this.scoreElement.textContent = this.score;
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
-
-        // Draw Grid Floor
         this.drawGrid();
-
-        // Draw Player (Neon Tech Character)
         this.drawPlayer();
-
-        // Draw Obstacles
-        for (const obs of this.obstacles) {
-            this.drawObstacle(obs);
-        }
-
-        // Draw Particles
+        for (const obs of this.obstacles) this.drawObstacle(obs);
         for (const p of this.particles) {
             this.ctx.fillStyle = `rgba(255, 0, 255, ${p.life})`;
             this.ctx.shadowBlur = 0;
             this.ctx.fillRect(p.x, p.y, p.size, p.size);
         }
-
         this.ctx.shadowBlur = 0;
+
+        // Level indicator
+        this.ctx.fillStyle = '#00f3ff';
+        this.ctx.font = 'bold 14px Courier New';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`LEVEL ${this.level}`, this.width - 15, 25);
+        this.ctx.textAlign = 'left';
+
+        // Start screen
+        if (this.waitStart && !this.gameOverOverlay.classList.contains('visible')) {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            this.ctx.fillStyle = '#00f3ff';
+            this.ctx.font = 'bold 40px Courier New';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('DISPATCH RUNNER', this.width / 2, this.height / 2 - 20);
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '20px Courier New';
+            this.ctx.fillText('ESPACE pour commencer la livraison', this.width / 2, this.height / 2 + 30);
+            this.ctx.textAlign = 'left';
+        }
     }
 
     drawPlayer() {
         const p = this.player;
         this.ctx.save();
         this.ctx.translate(p.x, p.y);
-
-        // Glow effect
         this.ctx.shadowBlur = 15;
         this.ctx.shadowColor = p.color;
-
         if (p.crouching) {
-            // Crouching pose
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(0, 10, 40, 25); // Lower body
+            this.ctx.fillRect(0, 10, 40, 25);
             this.ctx.fillStyle = '#fff';
-            this.ctx.fillRect(25, 5, 15, 15); // Head forward
+            this.ctx.fillRect(25, 5, 15, 15);
             this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(32, 10, 8, 4); // Visor
-
-            // Small fire from suit?
+            this.ctx.fillRect(32, 10, 8, 4);
             this.ctx.fillStyle = '#ff00ff';
             this.ctx.fillRect(-5, 20, 5, 5);
         } else {
-            // Standing Body
             this.ctx.fillStyle = p.color;
             this.ctx.fillRect(5, 15, 30, 35);
-
-            // Helmet/Head
             this.ctx.fillStyle = '#fff';
             this.ctx.fillRect(10, 0, 20, 18);
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(12, 5, 16, 5);
-
-            // Legs
             const legOffset = Math.sin(Date.now() / 100) * 8;
             this.ctx.fillStyle = p.color;
             if (p.grounded) {
@@ -339,7 +282,6 @@ class DispatchRunner {
                 this.ctx.fillRect(22, 50, 10, 5);
             }
         }
-
         this.ctx.restore();
     }
 
@@ -348,16 +290,12 @@ class DispatchRunner {
         this.ctx.translate(obs.x, obs.y);
         this.ctx.shadowBlur = 10;
         this.ctx.shadowColor = obs.color;
-
         if (obs.type === 'ground') {
-            // SERVER RACK MODEL
             this.ctx.fillStyle = '#333';
             this.ctx.fillRect(0, 0, obs.width, obs.height);
             this.ctx.strokeStyle = obs.color;
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(0, 0, obs.width, obs.height);
-
-            // Server LED lights
             for (let y = 5; y < obs.height - 5; y += 12) {
                 this.ctx.fillStyle = Math.random() > 0.1 ? '#00ff00' : '#ff0000';
                 this.ctx.fillRect(5, y, 4, 4);
@@ -365,27 +303,19 @@ class DispatchRunner {
                 this.ctx.fillRect(12, y, obs.width - 18, 4);
             }
         } else {
-            // DRONE MODEL
             const droneTime = Date.now() / 50;
             const floatY = Math.sin(droneTime) * 8;
             this.ctx.translate(0, floatY);
-
-            // Drone Body
             this.ctx.fillStyle = '#222';
             this.ctx.fillRect(0, 10, obs.width, 15);
-
-            // Rotors
             this.ctx.fillStyle = '#555';
             const rotorW = Math.cos(droneTime * 0.5) * obs.width;
             this.ctx.fillRect((obs.width / 2) - (rotorW / 2), 5, rotorW, 2);
-
-            // Surveillance Eye (Neon Yellow)
             this.ctx.fillStyle = obs.color;
             this.ctx.beginPath();
             this.ctx.arc(obs.width / 2, 17, 5, 0, Math.PI * 2);
             this.ctx.fill();
         }
-
         this.ctx.restore();
     }
 
@@ -393,14 +323,10 @@ class DispatchRunner {
         const groundY = this.height - 50;
         this.ctx.strokeStyle = '#2d0a4e';
         this.ctx.lineWidth = 1;
-
-        // Horizon
         this.ctx.beginPath();
         this.ctx.moveTo(0, groundY);
         this.ctx.lineTo(this.width, groundY);
         this.ctx.stroke();
-
-        // Moving lines
         const offset = (Date.now() / 10 % 50);
         for (let x = -50; x < this.width + 50; x += 50) {
             this.ctx.beginPath();
@@ -408,7 +334,6 @@ class DispatchRunner {
             this.ctx.lineTo(x + (offset * -1) - 100, this.height);
             this.ctx.stroke();
         }
-
         for (let y = groundY; y < this.height; y += 15) {
             this.ctx.beginPath();
             this.ctx.moveTo(0, y);
@@ -419,76 +344,60 @@ class DispatchRunner {
 
     async gameOver() {
         this.active = false;
-        this.gameOverOverlay.classList.add('visible');
+        window.konamiSound?.play('die');
+        if (this.gameOverOverlay) this.gameOverOverlay.classList.add('visible');
 
-        // Submit score to server
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             await fetch('/api/runner/submit-score', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                 body: JSON.stringify({ score: this.score })
             });
-        } catch (e) {
-            console.error("Failed to submit score:", e);
-        }
+        } catch (e) { console.error("Failed to submit score:", e); }
 
         if (this.score > this.highScore) {
             this.highScore = this.score;
             localStorage.setItem('dispatch_runner_highscore', this.highScore);
-            this.highScoreElement.textContent = this.highScore;
+            if (this.highScoreElement) this.highScoreElement.textContent = this.highScore;
         }
         cancelAnimationFrame(this.gameLoopId);
 
-        // Show leaderboard
+        // Submit to generic leaderboard too
+        await window.arcadeLeaderboard?.submitScore('runner', this.score, this.level);
         this.loadLeaderboard();
     }
 
     async loadLeaderboard() {
+        // Load original runner leaderboard
         const lbContainer = document.getElementById('gameLeaderboard');
-        if (!lbContainer) return;
-
-        lbContainer.innerHTML = '<div class="text-center py-2">Chargement du classement...</div>';
-
-        try {
-            const response = await fetch('/api/runner/leaderboard');
-            const data = await response.json();
-
-            if (!data || data.length === 0) {
-                lbContainer.innerHTML = '<div class="text-center py-2 opacity-50">Aucun score pour le moment</div>';
-                return;
-            }
-
-            let html = '<table class="leaderboard-table w-100"><tbody>';
-            data.forEach((entry, index) => {
-                const isMe = entry.username === window.CURRENT_USER;
-                html += `
-                    <tr class="${isMe ? 'me' : ''}">
-                        <td class="rank">#${index + 1}</td>
-                        <td class="user">${entry.username}</td>
-                        <td class="score">${entry.score}</td>
-                    </tr>
-                `;
-            });
-            html += '</tbody></table>';
-            lbContainer.innerHTML = html;
-        } catch (e) {
-            lbContainer.innerHTML = '<div class="text-center py-2 text-danger">Erreur de chargement</div>';
+        if (lbContainer) {
+            lbContainer.innerHTML = '<div class="text-center py-2">Chargement...</div>';
+            try {
+                const response = await fetch('/api/runner/leaderboard');
+                const data = await response.json();
+                if (!data || data.length === 0) {
+                    lbContainer.innerHTML = '<div class="text-center py-2 opacity-50">Aucun score</div>';
+                } else {
+                    let html = '<table class="leaderboard-table w-100"><tbody>';
+                    data.forEach((entry, index) => {
+                        const isMe = entry.username === window.CURRENT_USER;
+                        html += `<tr class="${isMe ? 'me' : ''}"><td class="rank">#${index + 1}</td><td class="user">${entry.username}</td><td class="score">${entry.score}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    lbContainer.innerHTML = html;
+                }
+            } catch (e) { lbContainer.innerHTML = '<div class="text-center py-2 text-danger">Erreur</div>'; }
         }
+
+        // Load generic hub leaderboard into the new runnerLeaderboard container
+        window.arcadeLeaderboard?.loadLeaderboard('runner', 'runnerLeaderboard');
     }
 
     gameLoop() {
-        if (!this.active) return;
+        if (!this.active && !this.waitStart) return;
         this.update();
         this.draw();
         this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
     }
 }
-
-// Initialisation au chargement
-document.addEventListener('DOMContentLoaded', () => {
-    window.dispatchRunner = new DispatchRunner();
-});

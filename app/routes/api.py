@@ -389,3 +389,57 @@ def get_runner_leaderboard():
     except Exception as e:
         print(f"Error fetching runner leaderboard: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ========== GENERIC ARCADE LEADERBOARD ==========
+VALID_GAMES = ['flappy', 'invaders', 'breakout', 'snake', 'memory', 'runner']
+
+@api_bp.route('/arcade/submit-score', methods=['POST'])
+def submit_arcade_score():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.json
+    if not data or 'score' not in data or 'game' not in data:
+        return jsonify({"error": "Missing score or game"}), 400
+    game = data['game']
+    if game not in VALID_GAMES:
+        return jsonify({"error": "Invalid game"}), 400
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO arcade_scores (game_name, username, score, level) VALUES (%s, %s, %s, %s)",
+            (game, session["user"], int(data['score']), int(data.get('level', 1)))
+        )
+        db.commit()
+        return jsonify({"success": True}), 201
+    except Exception as e:
+        print(f"Error submitting arcade score: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/arcade/leaderboard/<game>')
+def get_arcade_leaderboard(game):
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 403
+    if game not in VALID_GAMES:
+        return jsonify({"error": "Invalid game"}), 400
+    db = get_db()
+    
+    # For memory, lower score (attempts) is better
+    score_agg = "MIN(score)" if game == "memory" else "MAX(score)"
+    order_dir = "ASC" if game == "memory" else "DESC"
+    
+    try:
+        query = f"""
+            SELECT username, {score_agg} as score, MAX(level) as level
+            FROM arcade_scores
+            WHERE game_name = %s
+            GROUP BY username
+            ORDER BY score {order_dir}
+            LIMIT 10
+        """
+        scores = db.execute(query, (game,)).fetchall()
+        return jsonify([dict(s) for s in scores])
+    except Exception as e:
+        print(f"Error fetching arcade leaderboard: {e}")
+        return jsonify({"error": str(e)}), 500
+

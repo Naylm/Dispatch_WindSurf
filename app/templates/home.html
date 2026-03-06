@@ -4,7 +4,8 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=17.0">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dispatch_runner.css') }}?v=17.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games_hub.css') }}?v=19.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dispatch_runner.css') }}?v=19.0">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
   /* DIRECT INJECTION: Neon Pulse Halo Highlight */
@@ -728,27 +729,159 @@
     </div>
   </div>
 
-  <!-- EASTER EGG: DISPATCH RUNNER -->
+  <!-- EASTER EGG: ARCADE HUB -->
   <div id="easterEggContainer">
-    <button id="closeGameBtn" class="close-game-btn" title="Quitter">&times;</button>
-    <h2 class="text-neon mb-4">DISPATCH RUNNER</h2>
-    <div class="game-canvas-wrapper shadow-lg">
-      <canvas id="gameCanvas"></canvas>
-      <div class="game-ui">
-        <div class="game-stat">SCORE: <span id="gameScore">0</span></div>
-        <div class="game-stat">MAX: <span id="gameHighScore">0</span></div>
+    <!-- Hub Menu -->
+    <div class="hub-menu">
+      <h2 class="hub-title">KONAMI HUB</h2>
+      <div class="hub-games-list">
+        <button class="hub-game-btn" data-game="runner">1. Dispatch Runner</button>
+        <button class="hub-game-btn" data-game="flappy">2. Flappy Drone</button>
+        <button class="hub-game-btn" data-game="invaders">3. Ticket Invaders</button>
+        <button class="hub-game-btn" data-game="breakout">4. Breakout Network</button>
+        <button class="hub-game-btn" data-game="snake">5. Snake IT</button>
+        <button class="hub-game-btn" data-game="memory">6. Memory Errors</button>
       </div>
-      <div class="game-over-overlay">
-        <h2>CRASH SYSTÈME</h2>
-        <button id="restartGameBtn" class="game-over-btn">REBOOT SYSTEM</button>
-        <div id="gameLeaderboard" class="leaderboard-container"></div>
+      <div class="hub-bottom-btns">
+        <button id="hubSoundToggle" class="hub-sound-btn">🔊 SON ON</button>
+        <button id="closeHubBtn" class="hub-close-btn">SORTIR</button>
       </div>
     </div>
-    <p class="game-instructions mt-4">
-      <kbd>ESPACE</kbd> ou <kbd>CLIC</kbd> pour SAUTER<br>
-      <kbd>BAS</kbd> ou <kbd>S</kbd> pour se BAISSER<br>
-      Évitez les câbles et les serveurs !
-    </p>
+
+    <!-- Game 1: Dispatch Runner -->
+    <div id="runnerGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" id="exitGameBtn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <h2 class="text-neon mb-4">DISPATCH RUNNER</h2>
+      <div class="game-canvas-wrapper shadow-lg">
+        <canvas id="gameCanvas"></canvas>
+        <div class="game-ui">
+          <div class="game-stat">SCORE: <span id="gameScore">0</span></div>
+          <div class="game-stat">MAX: <span id="gameHighScore">0</span></div>
+        </div>
+        <div class="game-over-overlay">
+          <h2>CRASH SYSTÈME</h2>
+          <button id="restartGameBtn" class="game-over-btn">REBOOT SYSTEM</button>
+          <div id="runnerLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+        </div>
+      </div>
+      <p class="game-instructions mt-4" style="color:#fff; text-align:center;">
+        <kbd>ESPACE</kbd> ou <kbd>CLIC</kbd> pour SAUTER<br>
+        <kbd>BAS</kbd> ou <kbd>S</kbd> pour se BAISSER<br>
+        Évitez les câbles et les serveurs !
+      </p>
+    </div>
+
+    <!-- Game 2: Flappy Drone -->
+    <div id="flappyGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <canvas id="flappyCanvas" class="shadow-lg" style="border: 2px solid #00f3ff; border-radius: 10px;"></canvas>
+      <div class="game-over-overlay" id="flappyGameOver"
+        style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:320px; background:rgba(0,0,0,0.9); border:2px solid #ff00ff; border-radius:10px; padding:20px; flex-direction:column; justify-content:center; align-items:center; z-index:10;">
+        <h2
+          style="color:#ff00ff; font-family:monospace; font-size:1.5rem; text-shadow:0 0 10px #ff00ff; margin-bottom:10px;">
+          CRASHED</h2>
+        <button id="restartFlappyBtn" class="game-over-btn mt-2">RÉESSAYER</button>
+        <div id="flappyLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+      </div>
+    </div>
+
+    <!-- Game 3: Ticket Invaders -->
+    <div id="invadersGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <h2 class="text-neon mb-4">TICKET INVADERS</h2>
+      <div class="game-canvas-wrapper shadow-lg">
+        <canvas id="invadersCanvas" style="border: 2px solid #00f3ff; border-radius: 10px;"></canvas>
+        <div class="game-ui">
+          <div class="game-stat">SCORE: <span id="invadersScore">0</span></div>
+          <div class="game-stat">MAX: <span id="invadersHighScore">0</span></div>
+        </div>
+        <div class="game-over-overlay" id="invadersGameOver"
+          style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); flex-direction:column; justify-content:center; align-items:center;">
+          <h2>GAME OVER</h2>
+          <button id="restartInvadersBtn" class="game-over-btn mt-3">RÉESSAYER</button>
+          <div id="invadersLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+        </div>
+      </div>
+      <p class="game-instructions mt-4" style="color:#fff; text-align:center;">
+        <kbd>←</kbd> <kbd>→</kbd> pour se DEPLACER<br>
+        <kbd>ESPACE</kbd> pour DEPLOYER UN PATCH
+      </p>
+    </div>
+
+    <!-- Game 4: Breakout Network -->
+    <div id="breakoutGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <h2 class="text-neon mb-4">BREAKOUT NETWORK</h2>
+      <div class="game-canvas-wrapper shadow-lg">
+        <canvas id="breakoutCanvas" style="border: 2px solid #00f3ff; border-radius: 10px;"></canvas>
+        <div class="game-ui">
+          <div class="game-stat">SCORE: <span id="breakoutScore">0</span></div>
+          <div class="game-stat">MAX: <span id="breakoutHighScore">0</span></div>
+        </div>
+        <div class="game-over-overlay" id="breakoutGameOver"
+          style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); flex-direction:column; justify-content:center; align-items:center;">
+          <h2>CONNEXION PERDUE</h2>
+          <button id="restartBreakoutBtn" class="game-over-btn mt-3">RÉESSAYER</button>
+          <div id="breakoutLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+        </div>
+      </div>
+      <p class="game-instructions mt-4" style="color:#fff; text-align:center;">
+        <kbd>←</kbd> <kbd>→</kbd> pour déplacer le Proxy<br>
+        Détruisez le pare-feu !
+      </p>
+    </div>
+
+    <!-- Game 5: Snake IT -->
+    <div id="snakeGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <h2 class="text-neon mb-4">SNAKE IT</h2>
+      <div class="game-canvas-wrapper shadow-lg">
+        <canvas id="snakeCanvas" style="border: 2px solid #00f3ff; border-radius: 10px; background: #0f0f19;"></canvas>
+        <div class="game-ui">
+          <div class="game-stat">PAQUETS: <span id="snakeScore">0</span></div>
+          <div class="game-stat">MAX: <span id="snakeHighScore">0</span></div>
+        </div>
+        <div class="game-over-overlay" id="snakeGameOver"
+          style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); flex-direction:column; justify-content:center; align-items:center;">
+          <h2>CÂBLE DÉCONNECTÉ</h2>
+          <button id="restartSnakeBtn" class="game-over-btn mt-3">RÉESSAYER</button>
+          <div id="snakeLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+        </div>
+      </div>
+      <p class="game-instructions mt-4" style="color:#fff; text-align:center;">
+        <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> pour DIRIGER LE CÂBLE RJ45
+      </p>
+    </div>
+
+    <!-- Game 6: Memory Errors -->
+    <div id="memoryGameContainer" class="minigame-canvas"
+      style="display:none; position:relative; width:100%; height:100%; justify-content:center; align-items:center; flex-direction:column;">
+      <button class="game-exit-btn" onclick="window.gamesHub.exitCurrentGame()">X Quitter</button>
+      <h2 class="text-neon mb-4">MEMORY ERRORS</h2>
+      <div class="game-canvas-wrapper shadow-lg"
+        style="background: transparent; border: none; box-shadow: none !important;">
+        <div id="memoryGrid"></div>
+        <div class="game-ui" style="margin-top: 20px; position:relative; text-align: center; justify-content:center;">
+          <div class="game-stat mx-3">TENTATIVES: <span id="memoryScore">0</span></div>
+          <div class="game-stat mx-3">RECORD: <span id="memoryHighScore">-</span></div>
+        </div>
+        <div class="game-over-overlay" id="memoryGameOver"
+          style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); flex-direction:column; justify-content:center; align-items:center; border-radius:10px;">
+          <h2>SYSTÈME RÉPARÉ</h2>
+          <div class="memory-current-score text-white mb-3" style="font-size: 1.2rem; font-family: monospace;"></div>
+          <button id="restartMemoryBtn" class="game-over-btn mt-3">NOUVELLE PARTIE</button>
+          <div id="memoryLeaderboard" class="mt-3" style="max-height:200px; overflow-y:auto; width:100%;"></div>
+        </div>
+      </div>
+      <p class="game-instructions mt-4" style="color:#fff; text-align:center;">
+        Trouvez les paires de codes HTTP associées.
+      </p>
+    </div>
   </div>
 
   <!-- Event Details Modal (Read-only for technicians) -->
@@ -809,7 +942,15 @@
 {% block scripts %}
 <script>console.log("💎 home.html v17 LOADED - DIRECT INJECTION ACTIVE");</script>
 <script src="{{ url_for('static', filename='js/home.js') }}?v=17.0"></script>
-<script src="{{ url_for('static', filename='js/dispatch_runner.js') }}?v=17.0"></script>
+<!-- Easter Egg Scripts -->
+<script src="{{ url_for('static', filename='js/konami_sound.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/games_hub.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/dispatch_runner.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/flappy_drone.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/ticket_invaders.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/breakout_network.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/snake_it.js') }}?v=20.0"></script>
+<script src="{{ url_for('static', filename='js/memory_errors.js') }}?v=20.0"></script>
 <script>
   // Thème dark/light géré par static/js/theme.js
 
