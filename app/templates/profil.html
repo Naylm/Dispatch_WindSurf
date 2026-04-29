@@ -8,15 +8,10 @@
 
 {% block content %}
 <div class="profile-container">
-    <nav class="navbar mb-4">
-        <div class="container-fluid">
-            <span class="navbar-brand">Mon Profil</span>
-            <div class="d-flex gap-2">
-                <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
-                <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
-            </div>
-        </div>
-    </nav>
+    <div class="page-header mb-4 d-flex justify-content-between align-items-center">
+        <h2 class="h3 mb-0 text-neon">Mon Profil</h2>
+        <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+    </div>
 
     {# Consommer tous les messages flash pour éviter qu'ils persistent, mais n'afficher que ceux pertinents pour le
     profil #}
@@ -228,6 +223,31 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Configuration Système (Super Admin) -->
+            {% if role == 'superadmin' %}
+            <div class="form-section mt-4">
+                <h3 class="section-title"><span class="icon">⚙️</span> Configuration Système</h3>
+                <div class="card bg-light border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">Konami Hub (Easter Eggs)</h5>
+                                <p class="text-muted small mb-0">Active ou désactive l'accès aux mini-jeux cachés pour tous les utilisateurs.</p>
+                            </div>
+                            <form action="{{ url_for('auth.toggle_konami') }}" method="POST" class="m-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                {% if konami_hub_enabled %}
+                                <button type="submit" class="btn btn-danger btn-sm">Désactiver</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-success btn-sm">Activer</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Infos compte -->
             <div class="mt-4 text-muted small">

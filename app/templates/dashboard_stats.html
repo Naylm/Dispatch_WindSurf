@@ -2,13 +2,7 @@
 
 {% block title %}Dashboard Statistiques - Dispatch Manager{% endblock %}
 
-{% block head %}
-<!-- Chart.js 4.x -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script
-  src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.min.js"></script>
-
+{% block styles %}
 <!-- CSS personnalisé -->
 <link href="{{ url_for('static', filename='css/dashboard_stats.css') }}" rel="stylesheet" />
 {% endblock %}
@@ -304,6 +298,11 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Chart.js 4.x -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.min.js"></script>
+
 <script src="{{ url_for('static', filename='js/dashboard_stats.js') }}"></script>
 <script>
   // Initialiser les données de référence

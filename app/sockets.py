@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+active_sids = {}
+
 def register_socket_handlers(socketio):
     """
     Enregistre les gestionnaires d'événements Socket.IO sur l'instance socketio fournie.
@@ -39,18 +41,34 @@ def register_socket_handlers(socketio):
                 join_room(prenom_room)
                 logger.info(f"🤝 Socket {request.sid} a rejoint automatiquement la salle : {prenom_room}")
 
+        # Track active connections and broadcast count
+        active_sids[request.sid] = user or "anonymous"
+        socketio.emit('active_connections_count', {'count': len(active_sids)}, room='role:admin')
+
     @socketio.on('disconnect')
     def handle_disconnect():
         logger.info(f"❌ Client Socket.IO déconnecté: {request.sid}")
+        if request.sid in active_sids:
+            del active_sids[request.sid]
+        socketio.emit('active_connections_count', {'count': len(active_sids)}, room='role:admin')
+
 
     @socketio.on('join_tech_room')
     def handle_join_tech_room(data):
         """
         Permet à un client de rejoindre explicitement une salle technicien par son prénom.
-        Utile car le backend émet souvent vers tech:prenom.
+        SECURITY: Vérifie que l'utilisateur ne rejoint que sa propre salle.
         """
         prenom = data.get('prenom')
         if prenom:
-            room = f"tech:{prenom.strip().lower()}"
-            join_room(room)
-            logger.info(f"🤝 Socket {request.sid} a rejoint manuellement la salle : {room}")
+            user = session.get('user', '').strip().lower()
+            session_prenom = session.get('prenom', '').strip().lower()
+            requested = prenom.strip().lower()
+            
+            # Allow join only if it matches the user's own username or prenom
+            if requested == user or requested == session_prenom:
+                room = f"tech:{requested}"
+                join_room(room)
+                logger.info(f"🤝 Socket {request.sid} a rejoint sa salle : {room}")
+            else:
+                logger.warning(f"⚠️ Socket {request.sid} a tenté de rejoindre une salle non autorisée : tech:{requested} (user={user})")

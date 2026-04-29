@@ -349,9 +349,15 @@ class DispatchRunner {
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const idempotencyKey = window.arcadeLeaderboard?.makeIdempotencyKey('runner-native')
+                || `runner-native:${Date.now()}-${Math.random().toString(16).slice(2)}`;
             await fetch('/api/runner/submit-score', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Idempotency-Key': idempotencyKey
+                },
                 body: JSON.stringify({ score: this.score })
             });
         } catch (e) { console.error("Failed to submit score:", e); }

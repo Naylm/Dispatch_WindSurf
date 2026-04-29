@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+
+{% block title %}Diffusion d'informations - Dispatch Manager{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/broadcasts.css') }}">
+<!-- Quill Local Styles -->
+<link href="{{ url_for('static', filename='vendor/quill/quill.snow.css') }}" rel="stylesheet">
+<style>
+    /* Safe mode fallback style */
+    #editor-fallback {
+        width: 100%;
+        height: 300px;
+        background: rgba(255,255,255,0.05);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        display: none; /* Hidden by default */
+    }
+    .ql-container {
+        font-family: 'Inter', sans-serif !important;
+    }
+    .broadcasts-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .btn-add-broadcast {
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        color: white;
+        border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 50px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-add-broadcast:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.6);
+        color: white;
+    }
+
+    .btn-add-broadcast:active {
+        transform: translateY(0) scale(0.95);
+    }
+
+    /* Pulse effect */
+    @keyframes pulse-border {
+        0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+    .btn-add-broadcast {
+        animation: pulse-border 2s infinite;
+    }
+
+    /* Quill Overrides */
+    .ql-container {
+        font-family: inherit;
+        font-size: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+        color: white;
+        min-height: 200px;
+    }
+    .ql-toolbar {
+        background: rgba(255, 255, 255, 0.1);
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    .ql-stroke { stroke: #ccc !important; }
+    .ql-fill { fill: #ccc !important; }
+    .ql-picker { color: #ccc !important; }
+    .ql-editor.ql-blank::before { color: rgba(255,255,255,0.3) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="broadcasts-container animate-fade-in-up">
+    <div class="page-header mb-5 d-flex justify-content-between align-items-center">
+        <div>
+            <a href="{{ url_for('main.home') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+            <h1 class="display-5 fw-bold text-neon m-0">Diffusion d'Informations</h1>
+            <p class="text-muted lead mt-1">Les dernières nouvelles et procédures importantes</p>
+        </div>
+        
+        {% if session.get('role') in ['admin', 'superadmin'] %}
+        <button class="btn btn-add-broadcast" data-bs-toggle="modal" data-bs-target="#addBroadcastModal">
+            <i class="fas fa-plus me-2"></i> Diffuser une info
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="broadcast-grid">
+        {% if broadcasts %}
+            {% for b in broadcasts %}
+            <div class="broadcast-card {{ 'permanent' if b.is_permanent else 'temporary' }} stagger-{{ loop.index }}">
+                <div class="broadcast-header">
+                    <h2 class="broadcast-title">
+                        {% if b.is_permanent %}
+                        <i class="fas fa-thumbtack text-primary"></i>
+                        {% else %}
+                        <i class="fas fa-bullhorn text-warning"></i>
+                        {% endif %}
+                        {{ b.title }}
+                    </h2>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="broadcast-type-badge badge {{ 'bg-primary' if b.is_permanent else 'bg-warning text-dark' }}">
+                            {{ 'Permanent' if b.is_permanent else 'Temporaire' }}
+                        </span>
+                        {% if session.get('role') in ['admin', 'superadmin'] %}
+                        <div class="admin-controls">
+                            <button class="btn btn-edit edit-broadcast-btn" 
+                                data-id="{{ b.id }}"
+                                data-title="{{ b.title }}"
+                                data-permanent="{{ 'true' if b.is_permanent else 'false' }}"
+                                data-content="{{ b.content }}"
+                                title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-delete" onclick="deleteBroadcast({{ b.id }})" title="Supprimer">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="broadcast-content">
+                    {{ b.content | safe }}
+                </div>
+                
+                <div class="broadcast-meta">
+                    <span><i class="far fa-user me-1"></i> {{ b.created_by }}</span>
+                    <span><i class="far fa-clock me-1"></i> {{ b.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-broadcasts">
+                <div class="display-1 mb-3 opacity-25">📢</div>
+                <h3>Aucune information diffusée pour le moment</h3>
+                <p class="text-muted">Les annonces importantes apparaîtront ici.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if session.get('role') in ['admin', 'superadmin'] %}
+<!-- Modal Add Broadcast -->
+<div class="modal fade" id="addBroadcastModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.1);">
+            <div class="modal-header border-bottom border-white border-opacity-10">
+                <h5 class="modal-title"><i class="fas fa-bullhorn me-2"></i> Nouvelle Diffusion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBroadcastForm" class="broadcast-form">
+                    <input type="hidden" id="bcId">
+                    <div class="mb-4">
+                        <label class="form-label">Titre de l'information</label>
+                        <input type="text" id="bcTitle" class="form-control" placeholder="Ex: Maintenance serveur ce soir..." required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Contenu</label>
+                        <!-- Primary Rich Editor -->
+                        <div id="editor" style="height: 300px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;"></div>
+                        
+                        <!-- Fallback Textarea (hidden by default) -->
+                        <textarea id="editor-fallback" placeholder="Écrivez votre annonce ici (Mode Secours)..."></textarea>
+                        
+                        <small class="text-muted mt-2 d-block">
+                            <i class="fas fa-info-circle me-1"></i> Astuce: Vous pouvez <b>coller des images</b> directement dans l'éditeur.
+                        </small>
+                    </div>
+                    
+                    <div class="toggle-container">
+                        <div class="toggle-label">
+                            <i class="fas fa-thumbtack me-2"></i> Type de diffusion
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="bcIsPermanent">
+                            <span class="slider"></span>
+                        </label>
+                        <span id="toggleStatusText" class="toggle-status temporary">Temporaire</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-top border-white border-opacity-10">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="saveBroadcastBtn" style="background: linear-gradient(135deg, #6366f1, #4f46e5); border: none; border-radius: 10px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                    <i class="fas fa-paper-plane me-2"></i> Diffuser maintenant
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<!-- Quill JS Local -->
+<script src="{{ url_for('static', filename='vendor/quill/quill.min.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM chargé, tentative d'initialisation de Quill...");
+        
+        const editorElement = document.getElementById('editor');
+        const fallbackElement = document.getElementById('editor-fallback');
+        
+        if (!editorElement) return;
+
+        // Function to switch to safe mode
+        const enableSafeMode = () => {
+            console.warn("Passage en mode secours (textarea)");
+            editorElement.style.display = 'none';
+            fallbackElement.style.display = 'block';
+            window.isSafeMode = true;
+        };
+
+        // Check if Quill is loaded
+        if (typeof Quill === 'undefined') {
+            enableSafeMode();
+        } else {
+            try {
+                // Initialize Quill
+                window.quill = new Quill('#editor', {
+                    theme: 'snow',
+                    placeholder: 'Écrivez votre annonce ici...',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            ['link', 'image'],
+                            ['clean']
+                        ]
+                    }
+                });
+                console.log("Quill initialisé avec succès");
+
+                // Custom Image Handler for Paste and Upload
+                window.quill.getModule('toolbar').addHandler('image', () => {
+                    const input = document.createElement('input');
+                    input.setAttribute('type', 'file');
+                    input.setAttribute('accept', 'image/*');
+                    input.click();
+                    input.onchange = async () => {
+                        const file = input.files[0];
+                        if (file) {
+                            await uploadImage(file);
+                        }
+                    };
+                });
+
+                // Intercept paste for images
+                window.quill.root.addEventListener('paste', (event) => {
+                    const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                    for (let index in items) {
+                        const item = items[index];
+                        if (item.kind === 'file') {
+                            const blob = item.getAsFile();
+                            uploadImage(blob);
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Erreur lors de l'initialisation de Quill:", e);
+                enableSafeMode();
+            }
+        }
+
+        // Handle toggle text update
+        const toggleInput = document.getElementById('bcIsPermanent');
+        const statusText = document.getElementById('toggleStatusText');
+        if (toggleInput && statusText) {
+            toggleInput.addEventListener('change', function() {
+                if (this.checked) {
+                    statusText.textContent = "Permanent";
+                    statusText.classList.remove('temporary');
+                    statusText.classList.add('permanent');
+                } else {
+                    statusText.textContent = "Temporaire";
+                    statusText.classList.remove('permanent');
+                    statusText.classList.add('temporary');
+                }
+            });
+        }
+
+        // Reset modal when opening for "Add"
+        const addBtn = document.querySelector('.btn-add-broadcast');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                document.getElementById('bcId').value = "";
+                document.getElementById('bcTitle').value = "";
+                document.getElementById('bcIsPermanent').checked = false;
+                if (statusText) {
+                    statusText.textContent = "Temporaire";
+                    statusText.classList.remove('permanent');
+                    statusText.classList.add('temporary');
+                }
+                
+                if (window.isSafeMode) {
+                    document.getElementById('editor-fallback').value = "";
+                } else if (window.quill) {
+                    window.quill.root.innerHTML = "";
+                }
+                
+                document.querySelector('#addBroadcastModal .modal-title').innerHTML = '<i class="fas fa-bullhorn me-2"></i> Nouvelle Diffusion';
+            });
+        }
+
+        // Event delegation for edit buttons
+        document.addEventListener('click', function(event) {
+            const editBtn = event.target.closest('.edit-broadcast-btn');
+            if (editBtn) {
+                event.preventDefault();
+                
+                const id = editBtn.getAttribute('data-id');
+                const title = editBtn.getAttribute('data-title');
+                const isPermanent = editBtn.getAttribute('data-permanent') === 'true';
+                const content = editBtn.getAttribute('data-content');
+                
+                console.log("Editing broadcast via delegation:", id, title);
+                
+                document.getElementById('bcId').value = id;
+                document.getElementById('bcTitle').value = title;
+                document.getElementById('bcIsPermanent').checked = isPermanent;
+                
+                // Update toggle UI
+                if (statusText) {
+                    if (isPermanent) {
+                        statusText.textContent = "Permanent";
+                        statusText.classList.remove('temporary');
+                        statusText.classList.add('permanent');
+                    } else {
+                        statusText.textContent = "Temporaire";
+                        statusText.classList.remove('permanent');
+                        statusText.classList.add('temporary');
+                    }
+                }
+
+                if (window.isSafeMode) {
+                    document.getElementById('editor-fallback').value = content;
+                } else if (window.quill) {
+                    window.quill.root.innerHTML = content;
+                }
+
+                document.querySelector('#addBroadcastModal .modal-title').innerHTML = '<i class="fas fa-edit me-2"></i> Modifier la Diffusion';
+                
+                // Show modal
+                const modalEl = document.getElementById('addBroadcastModal');
+                let modal = bootstrap.Modal.getInstance(modalEl);
+                if (!modal) {
+                    modal = new bootstrap.Modal(modalEl);
+                }
+                modal.show();
+            }
+        });
+    });
+
+    async function uploadImage(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch("{{ url_for('broadcast.upload_broadcast_image') }}", {
+                method: 'POST',
+                headers: {
+                    "X-CSRF-Token": "{{ csrf_token() }}"
+                },
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                if (window.quill) {
+                    const range = window.quill.getSelection();
+                    window.quill.insertEmbed(range.index, 'image', result.url);
+                }
+            } else {
+                alert("Erreur d'upload: " + result.error);
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+        }
+    }
+
+    document.getElementById('saveBroadcastBtn')?.addEventListener('click', async () => {
+        const id = document.getElementById('bcId').value;
+        const title = document.getElementById('bcTitle').value;
+        const is_permanent = document.getElementById('bcIsPermanent').checked;
+        
+        let content = "";
+        if (window.isSafeMode) {
+            content = document.getElementById('editor-fallback').value;
+        } else {
+            content = window.quill ? window.quill.root.innerHTML : "";
+        }
+        
+        if(!title || (!window.isSafeMode && window.quill && window.quill.getText().trim().length === 0) || (window.isSafeMode && content.trim().length === 0)) {
+            alert("Veuillez remplir tous les champs obligatoires.");
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('content', content);
+            if(is_permanent) formData.append('is_permanent', 'on');
+
+            const url = id 
+                ? "{{ url_for('broadcast.update_broadcast', id=0) }}".replace('0', id)
+                : "{{ url_for('broadcast.add_broadcast') }}";
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRF-Token": "{{ csrf_token() }}"
+                },
+                body: formData
+            });
+            
+            const result = await response.json();
+            if(result.success) {
+                location.reload();
+            } else {
+                alert("Erreur: " + result.error);
+            }
+        } catch (error) {
+            console.error("Error saving broadcast:", error);
+            alert("Une erreur est survenue.");
+        }
+    });
+
+    async function deleteBroadcast(id) {
+        if(!confirm("Êtes-vous sûr de vouloir supprimer cette diffusion ?")) return;
+        
+        try {
+            const response = await fetch("{{ url_for('broadcast.delete_broadcast', id=0) }}".replace('0', id), {
+                method: "DELETE",
+                headers: {
+                    "X-CSRF-Token": "{{ csrf_token() }}"
+                }
+            });
+            
+            const result = await response.json();
+            if(result.success) {
+                location.reload();
+            }
+        } catch (error) {
+            console.error("Error deleting broadcast:", error);
+        }
+    }
+</script>
+{% endblock %}

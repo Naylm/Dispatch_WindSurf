@@ -8,6 +8,13 @@ import pandas as pd
 from io import BytesIO
 import pdfkit
 from datetime import datetime
+from app.utils.concurrency import (
+    IdempotencyError,
+    IdempotencyReplay,
+    begin_idempotent_request,
+    complete_idempotent_request,
+    get_idempotency_key,
+)
 
 api_bp = Blueprint('api', __name__)
 
@@ -286,7 +293,7 @@ def add_calendar_event():
     except Exception as e:
         import traceback
         traceback.print_exc()
-    return jsonify({"error": "Unknown error"}), 500
+    return jsonify({"error": "Erreur interne du serveur"}), 500
 
 @api_bp.route('/calendar_events/<int:event_id>', methods=['DELETE'])
 def delete_calendar_event(event_id):
@@ -320,7 +327,7 @@ def delete_calendar_event(event_id):
             
     except Exception as e:
         print(f"Error deleting event {event_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne du serveur"}), 500
 
 @api_bp.route('/save-preferences', methods=['POST'])
 def save_preferences():
@@ -333,6 +340,7 @@ def save_preferences():
         
     db = get_db()
     table = "techniciens" if session.get("user_type") == "technicien" else "users"
+    if table not in {"users", "techniciens"}: return jsonify({"error": "Invalid table"}), 400
     
     try:
         # PostgreSQL supports JSONB directly. Passing a dict/list to execute 
@@ -347,7 +355,7 @@ def save_preferences():
         return jsonify({"success": True})
     except Exception as e:
         print(f"Error saving preferences: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne du serveur"}), 500
 
 @api_bp.route('/runner/submit-score', methods=['POST'])
 def submit_runner_score():
@@ -360,15 +368,39 @@ def submit_runner_score():
         
     db = get_db()
     try:
+        score = int(data['score'])
+        if score < 0 or score > 10000000:
+            return jsonify({"error": "Score invalide"}), 400
+
+        idem_key = get_idempotency_key(request, data)
+        idem_state = begin_idempotent_request(
+            db,
+            scope="arcade.runner.submit",
+            key=idem_key,
+            actor=session.get("user", "unknown"),
+            payload={"score": score},
+        )
+        if isinstance(idem_state, IdempotencyReplay):
+            return jsonify(idem_state.body), idem_state.status_code
+
         db.execute(
             "INSERT INTO dispatch_runner_scores (username, score) VALUES (%s, %s)",
-            (session["user"], int(data['score']))
+            (session["user"], score)
         )
+        response = {"success": True}
+        complete_idempotent_request(db, idem_state, status_code=201, body=response)
         db.commit()
-        return jsonify({"success": True}), 201
+        return jsonify(response), 201
+    except IdempotencyError as e:
+        db.rollback()
+        return jsonify({"error": "Erreur interne du serveur"}), e.status_code
+    except ValueError:
+        db.rollback()
+        return jsonify({"error": "Score invalide"}), 400
     except Exception as e:
         print(f"Error submitting runner score: {e}")
-        return jsonify({"error": str(e)}), 500
+        db.rollback()
+        return jsonify({"error": "Erreur interne du serveur"}), 500
 
 @api_bp.route('/runner/leaderboard')
 def get_runner_leaderboard():
@@ -388,7 +420,7 @@ def get_runner_leaderboard():
         return jsonify([dict(s) for s in scores])
     except Exception as e:
         print(f"Error fetching runner leaderboard: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne du serveur"}), 500
 
 
 # ========== GENERIC ARCADE LEADERBOARD ==========
@@ -406,15 +438,42 @@ def submit_arcade_score():
         return jsonify({"error": "Invalid game"}), 400
     db = get_db()
     try:
+        score = int(data['score'])
+        level = int(data.get('level', 1))
+        if score < 0 or score > 10000000:
+            return jsonify({"error": "Score invalide"}), 400
+        if level < 1 or level > 10000:
+            return jsonify({"error": "Niveau invalide"}), 400
+
+        idem_key = get_idempotency_key(request, data)
+        idem_state = begin_idempotent_request(
+            db,
+            scope="arcade.generic.submit",
+            key=idem_key,
+            actor=session.get("user", "unknown"),
+            payload={"game": game, "score": score, "level": level},
+        )
+        if isinstance(idem_state, IdempotencyReplay):
+            return jsonify(idem_state.body), idem_state.status_code
+
         db.execute(
             "INSERT INTO arcade_scores (game_name, username, score, level) VALUES (%s, %s, %s, %s)",
-            (game, session["user"], int(data['score']), int(data.get('level', 1)))
+            (game, session["user"], score, level)
         )
+        response = {"success": True}
+        complete_idempotent_request(db, idem_state, status_code=201, body=response)
         db.commit()
-        return jsonify({"success": True}), 201
+        return jsonify(response), 201
+    except IdempotencyError as e:
+        db.rollback()
+        return jsonify({"error": "Erreur interne du serveur"}), e.status_code
+    except ValueError:
+        db.rollback()
+        return jsonify({"error": "Score ou niveau invalide"}), 400
     except Exception as e:
         print(f"Error submitting arcade score: {e}")
-        return jsonify({"error": str(e)}), 500
+        db.rollback()
+        return jsonify({"error": "Erreur interne du serveur"}), 500
 
 @api_bp.route('/arcade/leaderboard/<game>')
 def get_arcade_leaderboard(game):
@@ -441,5 +500,6 @@ def get_arcade_leaderboard(game):
         return jsonify([dict(s) for s in scores])
     except Exception as e:
         print(f"Error fetching arcade leaderboard: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne du serveur"}), 500
+
 

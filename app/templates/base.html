@@ -75,6 +75,10 @@
         window.CURRENT_USER = {{ session.get('user', '') | tojson }};
     </script>
 
+    {% if session.get('user') %}
+        {% include "_navbar.html" %}
+    {% endif %}
+
     {% block content %}{% endblock %}
 
     <!-- Scripts -->
@@ -82,7 +86,6 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}?v=19.0"></script>
     <script src="{{ url_for('static', filename='js/notification_system.js') }}?v=19.0"></script>
-    <script src="{{ url_for('static', filename='js/home.js') }}?v=19.0"></script>
 
 
 

@@ -134,18 +134,31 @@ class GamesHub {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { window.gamesHub = new GamesHub(); });
+} else {
     window.gamesHub = new GamesHub();
-});
+}
 
 // ========== Shared Arcade Leaderboard Helpers ==========
 window.arcadeLeaderboard = {
+    makeIdempotencyKey(gameName) {
+        const rand = (window.crypto && window.crypto.randomUUID)
+            ? window.crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        return `konami:${gameName}:${rand}`;
+    },
+
     async submitScore(gameName, score, level) {
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             return await fetch('/api/arcade/submit-score', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken || '' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken || '',
+                    'X-Idempotency-Key': this.makeIdempotencyKey(gameName)
+                },
                 body: JSON.stringify({ game: gameName, score, level })
             });
         } catch (e) { console.error(`Failed to submit ${gameName} score:`, e); }

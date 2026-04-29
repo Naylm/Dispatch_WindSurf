@@ -5,6 +5,16 @@ from app.utils.references import invalidate_reference_cache
 from app.utils.incidents import _log_historique, update_relance_schedule, _emit_incident_event, _emit_bulk_refresh
 from app.utils.references import get_reference_data, invalidate_reference_cache
 from app.utils.notifications import emit_new_assignment_notification, emit_reassignment_notification, emit_config_updated
+from app.utils.concurrency import (
+    ConcurrencyConflictError,
+    IdempotencyError,
+    IdempotencyReplay,
+    begin_idempotent_request,
+    complete_idempotent_request,
+    get_idempotency_key,
+    optimistic_incident_update,
+    parse_expected_version,
+)
 from app import socketio
 from datetime import datetime
 
@@ -15,6 +25,8 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user" not in session or session.get("role") not in ("admin", "superadmin"):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                return jsonify({"status": "error", "message": "Accès administrateur requis"}), 403
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
     return decorated_function
@@ -69,6 +81,25 @@ def add_technicien():
     finally:
         db.close()
     return redirect(url_for("admin.techniciens"))
+
+# ---------- PARAMÈTRES GLOBAUX ----------
+
+@admin_bp.route("/api/admin/setting", methods=["POST"])
+@admin_required
+def update_setting():
+    from app.utils.settings import set_setting
+    ALLOWED_KEYS = {"konami_hub_enabled", "maintenance_mode", "max_concurrent_users"}
+    data = request.json
+    key = data.get("key")
+    value = data.get("value")
+    
+    if not key or key not in ALLOWED_KEYS:
+        return jsonify({"status": "error", "message": f"Clé non autorisée: {key}"}), 400
+    
+    if key:
+        set_setting(key, value)
+        return jsonify({"status": "ok", "key": key, "value": value})
+    return jsonify({"status": "error", "message": "Key missing"}), 400
 
 # ---------- GESTION TECHNICIENS (Edit, Toggle, Delete, Order) ----------
 
@@ -126,7 +157,6 @@ def edit_technicien(id):
         db.close()
 
     return redirect(url_for("admin.techniciens"))
-
 @admin_bp.route("/technicien/incidents/<int:id>")
 @admin_required
 def technicien_incidents(id):
@@ -399,11 +429,28 @@ def assign_incident():
     db = None
     try:
         db = get_db()
+        expected_version = parse_expected_version(request)
+        if expected_version is None:
+            return jsonify({"status": "error", "message": "Version attendue manquante"}), 400
+
+        idem_key = get_idempotency_key(request)
+        idem_state = begin_idempotent_request(
+            db,
+            scope="admin.assign_incident",
+            key=idem_key,
+            actor=session.get("user", "unknown"),
+            payload={"id": incident_id, "collaborateur": new_collab, "expected_version": expected_version},
+            incident_id=int(incident_id),
+        )
+        if isinstance(idem_state, IdempotencyReplay):
+            return jsonify(idem_state.body), idem_state.status_code
+        token = idem_state
+
         # Récupérer les données de l'incident AVANT modification
         incident = db.execute(
             """
             SELECT id, numero, site, sujet, urgence, note_dispatch, localisation,
-                   collaborateur, technicien_id
+                   collaborateur, technicien_id, version
             FROM incidents
             WHERE id=%s
             """,
@@ -427,10 +474,21 @@ def assign_incident():
             # Important: utiliser le prenom officiel de la DB pour uniformité
             clean_collab = tech_row["prenom"].strip()
 
-        db.execute(
-            "UPDATE incidents SET collaborateur=%s, technicien_id=%s WHERE id=%s",
-            (clean_collab, tech_id, incident_id),
+        new_version = optimistic_incident_update(
+            db,
+            incident_id=int(incident_id),
+            expected_version=expected_version,
+            set_clause="collaborateur=%s, technicien_id=%s",
+            params=(clean_collab, tech_id),
         )
+
+        if old_collab != clean_collab:
+            _log_historique(db, int(incident_id), "collaborateur", old_collab or "", clean_collab or "", session.get("user", "system"))
+        if incident.get("technicien_id") != tech_id:
+            _log_historique(db, int(incident_id), "technicien_id", str(incident.get("technicien_id")), str(tech_id), session.get("user", "system"))
+
+        response_body = {"status": "ok", "message": "Réaffectation réussie", "version": new_version}
+        complete_idempotent_request(db, token, status_code=200, body=response_body)
         db.commit()
 
         # Préparer les données pour la notification
@@ -448,9 +506,25 @@ def assign_incident():
         emit_reassignment_notification(socketio, incident_data, old_collab, clean_collab)
         
         # Surcharger l'événement pour mettre à jour les cartes (tech + admin)
-        _emit_incident_event("new_assignment", incident_id, db=db, technician_names=[old_collab, clean_collab])
+        _emit_incident_event("new_assignment", incident_id, db=db, technician_names=[old_collab, clean_collab], version=new_version)
         
-        return jsonify({"status": "ok", "message": "Réaffectation réussie"})
+        return jsonify(response_body)
+    except ConcurrencyConflictError as e:
+        if db:
+            db.rollback()
+        return jsonify({
+            "status": "conflict",
+            "message": "Conflit: ce ticket a été modifié par un autre technicien. Rechargez puis recommencez.",
+            "current_version": e.current_version,
+        }), 409
+    except IdempotencyError as e:
+        if db:
+            db.rollback()
+        return jsonify({"status": "error", "message": str(e)}), e.status_code
+    except ValueError as e:
+        if db:
+            db.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         if db: db.rollback()
         current_app.logger.error(f"Erreur assignation: {e}")

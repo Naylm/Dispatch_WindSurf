@@ -78,9 +78,14 @@ def create_app(debug=False):
     gunicorn_workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "1")))
     socketio_debug = os.environ.get("SOCKETIO_DEBUG", "false").lower() == "true"
     
-    socketio_allowed_origins = "*"
     if os.environ.get("SOCKETIO_ALLOWED_ORIGINS"):
         socketio_allowed_origins = [o.strip() for o in os.environ.get("SOCKETIO_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    elif is_production:
+        # SECURITY: Never allow '*' in production
+        socketio_allowed_origins = []
+        print("⚠ WARNING: SOCKETIO_ALLOWED_ORIGINS not set in production. WebSocket connections will be rejected.")
+    else:
+        socketio_allowed_origins = "*"
 
     if redis_url:
         use_redis = True
@@ -103,6 +108,7 @@ def create_app(debug=False):
     from app.routes.stats import stats_bp
     from app.routes.incident import incident_bp
     from app.routes.maintenance import maintenance_bp
+    from app.routes.broadcast import broadcast_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -112,10 +118,47 @@ def create_app(debug=False):
     app.register_blueprint(stats_bp)
     app.register_blueprint(incident_bp)
     app.register_blueprint(maintenance_bp)
+    app.register_blueprint(broadcast_bp)
 
     # Register template filters
     from app.utils.filters import register_filters
     register_filters(app)
+
+    # ── Security Headers ──
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        if is_production:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+            # CSP: permissive enough for Bootstrap CDN, Google Fonts, Socket.IO
+            csp = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.socket.io https://cdnjs.cloudflare.com; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+                "img-src 'self' data: blob:; "
+                "connect-src 'self' wss: ws:; "
+                "frame-ancestors 'self'"
+            )
+            response.headers['Content-Security-Policy'] = csp
+        return response
+
+    # ── Production Error Handler (no detail leaking) ──
+    @app.errorhandler(500)
+    def handle_500(e):
+        app.logger.error(f"Internal Server Error: {e}", exc_info=True)
+        from flask import request as _req
+        is_ajax = (
+            _req.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or _req.is_json
+        )
+        if is_ajax:
+            return _jsonify({"error": "Erreur interne du serveur"}), 500
+        return "<h1>500 - Erreur Interne</h1><p>Une erreur est survenue. Contactez l'administrateur.</p>", 500
 
     # Jinja global: is_admin(role) returns True for 'admin' and 'superadmin'
     app.jinja_env.globals['is_admin'] = lambda role: role in ('admin', 'superadmin')

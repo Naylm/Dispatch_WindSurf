@@ -1,13 +1,36 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from app.utils.db_config import get_db
+from app.utils.settings import get_setting, set_setting
 import os
+import time
 
 auth_bp = Blueprint('auth', __name__)
+
+from app.utils.security import check_rate_limit
+
+auth_bp = Blueprint('auth', __name__)
+
+# ── SQL Table Whitelist ──
+ALLOWED_TABLES = {"users", "techniciens"}
+
+
+def _get_user_table():
+    """Returns the validated table name based on user_type in session."""
+    table = "techniciens" if session.get("user_type") == "technicien" else "users"
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Invalid table: {table}")
+    return table
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        # Rate limiting (Redis sliding window)
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if check_rate_limit("login_ip", client_ip, limit=5, window=60):
+            flash("Trop de tentatives de connexion. Réessayez dans une minute.", "danger")
+            return render_template("login.html")
+
         u = request.form["username"].strip()
         p = request.form["password"].strip()
         db = get_db()
@@ -50,10 +73,10 @@ def login():
                 return redirect(url_for("main.home"))
             else:
                 db.close()
+                # Rate limit recorded by check_rate_limit
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
-        # 2) Try techniciens
         tech = db.execute("""
             SELECT * FROM techniciens
             WHERE actif=1
@@ -94,6 +117,7 @@ def login():
                 return redirect(url_for("main.home"))
             else:
                 db.close()
+                # Rate limit recorded by check_rate_limit
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
         elif tech and not tech["password"]:
@@ -102,6 +126,7 @@ def login():
             return render_template("login.html")
 
         db.close()
+        # Note: rate limit logic records every attempt in the window
         flash("Mauvais identifiants", "danger")
 
     return render_template("login.html")
@@ -217,7 +242,19 @@ def profil():
         flash("Utilisateur introuvable", "danger")
         return redirect(url_for("main.home"))
     
-    return render_template("profil.html", user_data=dict(user_data), role=session.get("role"))
+    
+    konami_hub_enabled = get_setting('konami_hub_enabled', True)
+    return render_template("profil.html", user_data=dict(user_data), role=session.get("role"), konami_hub_enabled=konami_hub_enabled)
+
+@auth_bp.route("/profil/toggle_konami", methods=["POST"])
+def toggle_konami():
+    if "user" not in session or session.get("role") != "superadmin":
+        return redirect(url_for("auth.login"))
+        
+    current_status = get_setting('konami_hub_enabled', True)
+    set_setting('konami_hub_enabled', not current_status)
+    flash(f"Konami Hub {'désactivé' if current_status else 'activé'} avec succès.", "success")
+    return redirect(url_for("auth.profil"))
 
 @auth_bp.route("/profil/update_info", methods=["POST"])
 def update_profile_info():
@@ -362,10 +399,7 @@ def update_profile_photo():
         user_type = session.get("user_type", "user")
         
         # Determine table logic
-        if user_type == "technicien":
-            table = "techniciens"
-        else:
-            table = "users"
+        table = _get_user_table()
             
         old_photo = db.execute(f"SELECT photo_profil FROM {table} WHERE username=%s", (username,)).fetchone()
         
@@ -398,7 +432,7 @@ def delete_profile_photo():
     user_type = session.get("user_type", "user")
     
     try:
-        table = "techniciens" if user_type == "technicien" else "users"
+        table = _get_user_table()
         user = db.execute(f"SELECT photo_profil FROM {table} WHERE username=%s", (username,)).fetchone()
         
         if not user:
@@ -452,7 +486,7 @@ def setup_recovery():
         user_type = session.get("user_type", "user")
 
         try:
-            table = "techniciens" if user_type == "technicien" else "users"
+            table = _get_user_table()
             user = db.execute(f"SELECT * FROM {table} WHERE username=%s", (username,)).fetchone()
 
             if not user:
@@ -497,6 +531,11 @@ def setup_recovery():
 @auth_bp.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if check_rate_limit("forgot_pwd_ip", client_ip, limit=5, window=60):
+            flash("Trop de requêtes. Veuillez patienter une minute.", "danger")
+            return render_template("forgot_password.html")
+
         identity = request.form.get("identity", "").strip()
         
         if not identity:
@@ -546,6 +585,12 @@ def verify_questions():
         return redirect(url_for("auth.forgot_password"))
 
     if request.method == "POST":
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        if check_rate_limit("verify_q_ip", client_ip, limit=5, window=60):
+            flash("Trop de tentatives. Veuillez patienter une minute.", "danger")
+            return render_template("verify_questions.html", 
+                                   q1=session.get("recovery_q1"), 
+                                   q2=session.get("recovery_q2"))
         a1 = request.form.get("answer1", "").strip().lower()
         a2 = request.form.get("answer2", "").strip().lower()
 

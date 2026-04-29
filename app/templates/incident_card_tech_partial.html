@@ -4,7 +4,7 @@
   data-incident-id="{{ i.id }}" data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}"
   data-localisation="{{ i.localisation|lower if i.localisation else '' }}" data-sujet="{{ i.sujet|lower }}"
   data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}" data-date-affectation="{{ i.date_affectation }}"
-  data-technicien="{{ i.collaborateur }}">
+  data-technicien="{{ i.collaborateur }}" data-version="{{ i.version }}">
 
   <div
     class="card-header text-center fw-bold d-flex align-items-center justify-content-center gap-2 border-bottom border-white border-opacity-10"
@@ -99,6 +99,7 @@
           rows="2">{{ note_tech_content }}</textarea>
         <div class="d-flex gap-2">
           <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="tech"
+            data-version="{{ i.version }}"
             title="Enregistrer">
             <i class="fa-solid fa-check"></i>
           </button>
@@ -112,7 +113,7 @@
     {# Système de relances #}
     {% if statut_info and statut_info.has_relances %}
     <div class="relances-wrapper mt-2 p-2 border border-white border-opacity-10 rounded bg-dark bg-opacity-10"
-      data-incident-id="{{ i.id }}">
+      data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
       <small class="fw-bold d-block mb-1 text-muted">📧 Relances&nbsp;:</small>
       <div class="d-flex flex-wrap gap-2">
         <div class="form-check form-check-inline">
@@ -142,7 +143,7 @@
     {# Système de RDV: Dynamic based on status config or if RDV exists #}
     {% if (statut_info and statut_info.has_rdv) or i.date_rdv %}
     <div class="rdv-wrapper mt-2 p-2 border border-warning border-opacity-25 rounded bg-warning bg-opacity-10"
-      data-incident-id="{{ i.id }}">
+      data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
       <div class="d-flex align-items-center gap-2">
         <small class="text-warning fw-bold" style="font-size: 0.75rem;">📅 RDV&nbsp;:</small>
         <input type="datetime-local" class="form-control form-control-xs bg-dark text-warning border-warning rdv-input"
@@ -162,7 +163,7 @@
       <a href="{{ url_for('incident.historique', id=i.id) }}" class="btn btn-sm btn-outline-info history-btn"
         data-url="{{ url_for('incident.historique', id=i.id) }}" title="Voir historique">🕒</a>
       <select class="form-select form-select-sm bg-dark text-white border-secondary status-selector-list flex-grow-1"
-        data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+        data-incident-id="{{ i.id }}" data-current="{{ i.etat }}" data-version="{{ i.version }}">
         {% for st in statuts %}
         <option value="{{ st.nom }}" {% if i.etat==st.nom %}selected{% endif %}>{{ st.nom }}</option>
         {% endfor %}

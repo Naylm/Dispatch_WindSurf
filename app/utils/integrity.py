@@ -5,6 +5,7 @@ Ce script s'assure que toutes les tables nécessaires existent et sont correctem
 import os
 from werkzeug.security import generate_password_hash
 from app.utils.db_config import get_db
+from app.utils.concurrency import ensure_idempotency_tables
 
 DB_INTEGRITY_LOCK_KEY = 8742301
 
@@ -372,7 +373,8 @@ def ensure_database_integrity():
                 date_affectation DATE NOT NULL,
                 archived INTEGER DEFAULT 0,
                 localisation VARCHAR(255) DEFAULT '',
-                version INTEGER NOT NULL DEFAULT 1
+                version INTEGER NOT NULL DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         tables_created.append("incidents")
@@ -433,6 +435,15 @@ def ensure_database_integrity():
             cursor.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
             print("   - Colonne version ajoutee a la table incidents")
 
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='incidents' AND column_name='updated_at'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE incidents ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            print("   - Colonne updated_at ajoutee a la table incidents")
+
         # Migration: ajouter colonnes pour corbeille (soft delete)
         cursor.execute("""
             SELECT column_name
@@ -451,6 +462,44 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN deleted_at TIMESTAMP")
             print("   - Colonne deleted_at ajoutee a la table incidents")
+
+    # Durcissement DB de la concurrence: version positive + timestamp + trigger auto-version
+    cursor.execute("UPDATE incidents SET version=1 WHERE version IS NULL OR version < 1")
+    cursor.execute(
+        "ALTER TABLE incidents DROP CONSTRAINT IF EXISTS chk_incidents_version_positive"
+    )
+    cursor.execute(
+        "ALTER TABLE incidents ADD CONSTRAINT chk_incidents_version_positive CHECK (version > 0)"
+    )
+
+    cursor.execute(
+        """
+        CREATE OR REPLACE FUNCTION incidents_auto_version_update()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF to_jsonb(NEW) - ARRAY['version', 'updated_at']
+               IS DISTINCT FROM to_jsonb(OLD) - ARRAY['version', 'updated_at'] THEN
+                NEW.version := COALESCE(OLD.version, 1) + 1;
+                NEW.updated_at := CURRENT_TIMESTAMP;
+            ELSE
+                NEW.version := COALESCE(OLD.version, 1);
+                NEW.updated_at := COALESCE(OLD.updated_at, CURRENT_TIMESTAMP);
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+        """
+    )
+    cursor.execute("DROP TRIGGER IF EXISTS trg_incidents_auto_version_update ON incidents")
+    cursor.execute(
+        """
+        CREATE TRIGGER trg_incidents_auto_version_update
+        BEFORE UPDATE ON incidents
+        FOR EACH ROW
+        EXECUTE FUNCTION incidents_auto_version_update()
+        """
+    )
+    print("   - Trigger auto-version incidents actif")
 
     # Indexes de performance sur colonnes chaudes incidents
     incident_indexes = [
@@ -1027,6 +1076,10 @@ def ensure_database_integrity():
                 username VARCHAR(255) NOT NULL,
                 score INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                score INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         tables_created.append("dispatch_runner_scores")
@@ -1034,6 +1087,8 @@ def ensure_database_integrity():
         print("   - Table dispatch_runner_scores creee")
     else:
         tables_verified.append("dispatch_runner_scores")
+
+    ensure_idempotency_tables(cursor)
 
     # ========== TABLE: arcade_scores (generic multi-game leaderboard) ==========
     cursor.execute("""
@@ -1059,6 +1114,45 @@ def ensure_database_integrity():
         print("   - Table arcade_scores creee")
     else:
         tables_verified.append("arcade_scores")
+
+    # Table pour les diffusions/annonces (Remplace Teams)
+    cursor.execute("SELECT 1 FROM information_schema.tables WHERE table_name='broadcasts'")
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE TABLE broadcasts (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                is_permanent BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_by VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("broadcasts")
+        print("   - Table broadcasts creee")
+    else:
+        tables_verified.append("broadcasts")
+
+    # Table pour les images des diffusions
+    cursor.execute("SELECT 1 FROM information_schema.tables WHERE table_name='broadcast_images'")
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE TABLE broadcast_images (
+                id SERIAL PRIMARY KEY,
+                filename VARCHAR(255) NOT NULL,
+                original_filename VARCHAR(255),
+                filepath TEXT NOT NULL,
+                uploaded_by VARCHAR(255),
+                file_size INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("broadcast_images")
+        print("   - Table broadcast_images creee")
+    else:
+        tables_verified.append("broadcast_images")
     
     # Normalisation finale après création de toutes les tables
     
@@ -1081,6 +1175,14 @@ def ensure_database_integrity():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_technicien_id ON incidents (technicien_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_archived_technicien ON incidents (archived, technicien_id)")
         print("   - Index sur technicien_id crees")
+
+    # 2. Correction des statuts (legacy cleanup)
+    legacy_status_map = [
+        ('A traiter', 'Non traité'),
+        ('En cours', 'En cours'),
+        ('Suspendu', 'Suspendu'),
+        ('Terminé', 'Traité'),
+    ]
 
     for bad_value, good_value in legacy_status_map:
         # Correction table incidents

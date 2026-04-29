@@ -232,3 +232,53 @@
     color: #000;
     box-shadow: 0 0 15px #00f3ff;
 }
+
+/* ===== Responsive Adjustments ===== */
+@media (max-width: 1200px) {
+    .hub-title {
+        font-size: 2.5rem;
+    }
+    .hub-menu {
+        padding: 2rem;
+        max-width: 480px;
+    }
+    .hub-game-btn {
+        font-size: 1.1rem;
+        padding: 0.6rem 1.2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hub-title {
+        font-size: 2rem;
+        letter-spacing: 3px;
+    }
+    .hub-menu {
+        padding: 1.5rem;
+        max-width: 90%;
+    }
+    .hub-game-btn {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    .hub-bottom-btns {
+        gap: 1rem;
+    }
+}
+
+@media (max-height: 700px) {
+    .hub-menu {
+        padding: 1rem 2rem;
+    }
+    .hub-title {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+    }
+    .hub-game-btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+    .hub-bottom-btns {
+        margin-top: 1rem;
+    }
+}

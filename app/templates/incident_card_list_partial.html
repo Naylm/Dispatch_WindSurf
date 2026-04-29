@@ -3,7 +3,7 @@
   style="background: var(--bg-panel); backdrop-filter: blur(10px); border-radius: var(--radius-md);"
   data-id="{{ i.id }}" data-incident-id="{{ i.id }}" data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}"
   data-sujet="{{ i.sujet|lower }}" data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}"
-  data-technicien="{{ i.collaborateur }}">
+  data-technicien="{{ i.collaborateur }}" data-version="{{ i.version }}">
 
   <div class="d-flex justify-content-between align-items-center">
     <div class="flex-grow-1">
@@ -65,6 +65,7 @@
         <input type="datetime-local"
           class="form-control form-control-xs bg-dark text-warning border-warning rdv-input p-0 px-1"
           style="font-size: 0.7rem; height: 1.5rem;" data-incident-id="{{ i.id }}"
+          data-version="{{ i.version }}"
           value="{{ i.date_rdv|replace(' ', 'T') if i.date_rdv else '' }}" onchange="updateRdv(this)">
       </div>
       {% endif %}
@@ -72,16 +73,16 @@
       {# Relances checkboxes inline #}
       {% if (statut_info and statut_info.has_relances) or i.relance_mail or i.relance_1 or i.relance_2 or
       i.relance_cloture %}
-      <div class="relances-wrapper mt-1 d-flex align-items-center gap-3" data-incident-id="{{ i.id }}">
+      <div class="relances-wrapper mt-1 d-flex align-items-center gap-3" data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
         <small class="text-info fw-bold" style="font-size: 0.7rem;">📧 Relances&nbsp;:</small>
         <div class="d-flex align-items-center gap-2">
-          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_mail" {% if
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_mail" data-version="{{ i.version }}" {% if
             i.relance_mail %}checked{% endif %} onchange="updateRelance(this)" title="Mail">
-          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_1" {% if
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_1" data-version="{{ i.version }}" {% if
             i.relance_1 %}checked{% endif %} onchange="updateRelance(this)" title="R1">
-          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_2" {% if
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_2" data-version="{{ i.version }}" {% if
             i.relance_2 %}checked{% endif %} onchange="updateRelance(this)" title="R2">
-          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_cloture" {%
+          <input type="checkbox" class="relance-checkbox" data-incident-id="{{ i.id }}" data-field="relance_cloture" data-version="{{ i.version }}" {%
             if i.relance_cloture %}checked{% endif %} onchange="updateRelance(this)" title="Fin">
         </div>
       </div>
@@ -102,7 +103,7 @@
 
       <div class="d-flex gap-2">
         <select class="form-select form-select-sm bg-dark text-white border-secondary status-selector-list py-0"
-          data-incident-id="{{ i.id }}" data-current="{{ i.etat }}"
+          data-incident-id="{{ i.id }}" data-current="{{ i.etat }}" data-version="{{ i.version }}"
           style="width: 140px; height: 24px; font-size: 0.8rem;">
           {% for st in statuts %}
           <option value="{{ st.nom }}" {% if i.etat==st.nom %}selected{% endif %}>{{ st.nom }}</option>
@@ -111,7 +112,7 @@
 
         {% if is_admin(session.role) %}
         <select class="form-select form-select-sm bg-dark text-white border-secondary tech-selector-list py-0"
-          data-incident-id="{{ i.id }}" style="width: 120px; height: 24px; font-size: 0.8rem;">
+          data-incident-id="{{ i.id }}" data-version="{{ i.version }}" style="width: 120px; height: 24px; font-size: 0.8rem;">
           <option value="Non affecté" class="text-muted" {% if not i.collaborateur or i.collaborateur=='Non affecté'
             %}selected{% endif %}>--</option>
           {% for t in techniciens %}

@@ -133,24 +133,24 @@ body {
 
 .form-control,
 .form-select {
-    background: var(--bg-input);
-    border: var(--glass-border);
-    color: var(--text-main);
     border-radius: var(--radius-lg);
     padding: 0.75rem 1rem;
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    border: var(--glass-border);
 }
 
 .form-control:focus {
-    background: rgba(15, 23, 42, 0.8);
+    background-color: var(--input-bg) !important;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-glow);
-    color: var(--text-main);
+    color: var(--input-text) !important;
 }
 
 .form-control[readonly] {
-    background: rgba(0, 0, 0, 0.2);
     opacity: 0.7;
     cursor: not-allowed;
+    background-color: var(--bg-surface);
 }
 
 .btn-save {
@@ -196,6 +196,25 @@ body {
 .password-requirements li.invalid {
     color: var(--danger);
     opacity: 0.8;
+}
+
+/* Light Mode Overrides */
+.light-mode .profile-body {
+    background: var(--bg-panel);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .form-section {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .section-title {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .form-control[readonly] {
+    background-color: #f8fafc;
 }
 
 /* Responsive */

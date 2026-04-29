@@ -131,8 +131,8 @@ def wiki():
 @wiki_bp.route("/wiki/category/create", methods=["POST"])
 def create_wiki_category():
     try:
-        if "user" not in session:
-            current_app.logger.error("wiki_category_create: user not in session")
+        if "user" not in session or session.get("role") not in ("admin", "superadmin"):
+            current_app.logger.error("wiki_category_create: unauthorized")
             return jsonify({"error": "Non autorisé"}), 403
         
         # Récupérer les données (form ou JSON)
@@ -176,7 +176,7 @@ def create_wiki_category():
 
 @wiki_bp.route("/wiki/category/<int:id>/edit", methods=["POST"])
 def edit_wiki_category(id):
-    if "user" not in session:
+    if "user" not in session or session.get("role") not in ("admin", "superadmin"):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
             return jsonify({"error": "Non autorisé"}), 403
         flash("Non autorisé", "error")
@@ -220,7 +220,7 @@ def delete_wiki_category(id):
     try:
         current_app.logger.info(f"delete_wiki_category: POST on category_id={id}, form={dict(request.form)}, headers={dict(request.headers)}")
         
-        if "user" not in session:
+        if "user" not in session or session.get("role") not in ("admin", "superadmin"):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": "Non autorisé"}), 403
             return redirect(url_for("auth.login"))
@@ -276,8 +276,7 @@ def delete_wiki_category(id):
 @wiki_bp.route("/wiki/subcategory/create", methods=["POST"])
 def create_wiki_subcategory():
     try:
-        if "user" not in session:
-            current_app.logger.error("wiki_subcategory_create: user not in session")
+        if "user" not in session or session.get("role") not in ("admin", "superadmin"):
             return jsonify({"error": "Non autorisé"}), 403
         
         if request.is_json:
@@ -323,7 +322,7 @@ def create_wiki_subcategory():
 
 @wiki_bp.route("/wiki/subcategory/<int:id>/edit", methods=["POST"])
 def edit_wiki_subcategory(id):
-    if "user" not in session:
+    if "user" not in session or session.get("role") not in ("admin", "superadmin"):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
             return jsonify({"error": "Non autorisé"}), 403
         flash("Non autorisé", "error")
@@ -366,7 +365,7 @@ def delete_wiki_subcategory(id):
     try:
         current_app.logger.info(f"delete_wiki_subcategory: POST on subcategory_id={id}, form={dict(request.form)}, headers={dict(request.headers)}")
         
-        if "user" not in session:
+        if "user" not in session or session.get("role") not in ("admin", "superadmin"):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": "Non autorisé"}), 403
             return redirect(url_for("auth.login"))
@@ -676,7 +675,7 @@ def delete_wiki_article(id):
     try:
         current_app.logger.info(f"delete_wiki_article: POST on article_id={id}")
         
-        if "user" not in session:
+        if "user" not in session or session.get("role") not in ("admin", "superadmin"):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": "Non autorisé"}), 403
             return redirect(url_for("auth.login"))

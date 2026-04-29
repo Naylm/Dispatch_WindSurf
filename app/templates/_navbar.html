@@ -1,0 +1,30 @@
+<nav class="navbar mb-2" id="mainNavbar" style="height: 55px; z-index: 1000; position: sticky; top: 0; background: var(--bg-surface); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+    <div class="container-fluid">
+        <div class="d-flex align-items-center gap-3">
+            <button class="sidebar-toggle-btn btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle" title="Toggle Menu">
+                <span class="fs-5">☰</span>
+            </button>
+            <a href="{{ url_for('main.home') }}" class="navbar-brand d-flex align-items-center" style="font-size: 1.2rem; text-decoration: none; color: var(--text-main);">
+                <span class="text-neon fw-bold">Dispatch Manager</span>
+                <span class="badge bg-glass text-neon ms-2" style="font-size: 0.6em; vertical-align: middle;">V3.0</span>
+                {% if is_admin(session.get('role')) %}
+                <span id="activeConnectionsBadge" class="badge bg-info ms-2" style="font-size: 0.55em; vertical-align: middle; cursor: help; border: 1px solid rgba(255,255,255,0.2);" title="Connexions actives simultanées">? CONNECTÉS</span>
+                {% endif %}
+            </a>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <!-- The notification bell will be injected here by notification_system.js -->
+            <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle"></i> {{ session.get('user', 'Utilisateur') }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="userDropdown" style="background: var(--bg-panel); border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <li><a class="dropdown-item" href="{{ url_for('auth.profil') }}"><i class="fas fa-user me-2"></i> Mon Profil</a></li>
+                    <li><hr class="dropdown-divider border-white border-opacity-10"></li>
+                    <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Se déconnecter</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>

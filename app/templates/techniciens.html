@@ -4,15 +4,10 @@
 
 {% block content %}
 <div class="container py-4">
-  <nav class="navbar mb-4">
-    <div class="container-fluid">
-      <span class="navbar-brand">Gestion des Techniciens</span>
-      <div class="d-flex align-items-center gap-2">
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
-        <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
-      </div>
-    </div>
-  </nav>
+  <div class="page-header mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="h3 mb-0 text-neon">Gestion des Techniciens</h2>
+    <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+  </div>
 
   <!-- Formulaire d'ajout de technicien (Glass) -->
   <div class="card border-0 shadow-sm mb-4"

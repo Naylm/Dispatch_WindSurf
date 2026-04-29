@@ -1,4 +1,4 @@
-﻿# ============================================
+# ============================================
 # Docker Compose - Dispatch Manager v2.0
 # ============================================
 # Stack complÃ¨te : PostgreSQL + Flask App + Nginx
@@ -39,8 +39,9 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432" # Exposer pour accÃ¨s externe (dÃ©bug, pgAdmin, etc.)
+    # SECURITY: Ne PAS exposer le port PostgreSQL en production
+    # ports:
+    #   - "5432:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d dispatch" ]
       interval: 10s
@@ -63,8 +64,8 @@ services:
       - dispatch_uploads:/app/static/uploads
       # Volume pour les données persistantes (backups, etc.)
       - dispatch_data:/app/data
-      # Montage du code source pour développement
-      - .:/app
+      # SECURITY: Ne PAS monter le code source en production
+      # - .:/app  # Décommenter uniquement en développement
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
@@ -78,6 +79,7 @@ services:
       - DB_POOL_MIN=${DB_POOL_MIN:-5}
       - DB_POOL_MAX=${DB_POOL_MAX:-20}
       - WTF_CSRF_ENABLED=true
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SOCKETIO_ALLOWED_ORIGINS=${SOCKETIO_ALLOWED_ORIGINS:-}
       - SOCKETIO_DEBUG=${SOCKETIO_DEBUG:-false}
@@ -116,14 +118,13 @@ services:
     container_name: dispatch_nginx
     restart: unless-stopped
     ports:
-      - "80:80" # HTTP
-      # - "443:443"   # HTTPS (dÃ©commenter si SSL configurÃ©)
+      - "80:80"   # HTTP
+      - "443:443" # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - dispatch_uploads:/var/www/uploads:ro
-      # OPTIONNEL : Certificats SSL (dÃ©commenter si HTTPS activÃ©)
-      # - ./ssl/cert.pem:/etc/nginx/ssl/cert.pem:ro
-      # - ./ssl/key.pem:/etc/nginx/ssl/key.pem:ro
+      # SSL Certificates (Décommenter en production)
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - app
     healthcheck:

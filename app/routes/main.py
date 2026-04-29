@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash
 from app.utils.db_config import get_db
 from app.utils.references import get_reference_data
 from app.utils.constants import TECHNICIAN_FAQ, ADMIN_FAQ
+from app.utils.settings import get_setting
 
 main_bp = Blueprint('main', __name__)
 
@@ -82,8 +83,8 @@ def home():
         if row['category'] in stats_by_category:
             stats_by_category[row['category']] = row['count']
     
-    # Close DB connection if not using 'g' based get_db which handles it automatically at teardown
-    # In this case we are using the 'g' based one from db_config so it's fine.
+    # Récupérer les diffusions actives
+    active_broadcasts = db.execute("SELECT * FROM broadcasts WHERE is_active=TRUE ORDER BY is_permanent DESC, created_at DESC").fetchall()
 
     return render_template(
         "home.html",
@@ -100,6 +101,8 @@ def home():
         statuts=statuts,
         stats_by_category=stats_by_category,
         statuts_by_category=statuts_by_category,
+        active_broadcasts=active_broadcasts,
+        konami_hub_enabled=get_setting('konami_hub_enabled', True),
     )
 
 @main_bp.route("/api/home-content")
@@ -156,6 +159,9 @@ def home_content_api():
         if row['category'] in stats_by_category:
             stats_by_category[row['category']] = row['count']
 
+    # Récupérer les diffusions actives
+    active_broadcasts = db.execute("SELECT * FROM broadcasts WHERE is_active=TRUE ORDER BY is_permanent DESC, created_at DESC").fetchall()
+
     return render_template(
         "home_content.html",
         incidents=incidents,
@@ -168,6 +174,7 @@ def home_content_api():
         statuts=statuts,
         stats_by_category=stats_by_category,
         statuts_by_category=statuts_by_category,
+        active_broadcasts=active_broadcasts,
     )
 
 @main_bp.route("/faq")
@@ -209,8 +216,7 @@ def annuaire():
     users_list = db.execute("""
         SELECT id,
                COALESCE(nom, NULL) as nom,
-               COALESCE(prenom, username) as prenom,
-               COALESCE(dect_number, NULL) as dect_number,
+               COALESCE(prenom, username) as prenom,               COALESCE(dect_number, NULL) as dect_number,
                COALESCE(email, NULL) as email,
                1 as actif,
                role,

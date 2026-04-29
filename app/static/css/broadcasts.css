@@ -1,0 +1,264 @@
+.broadcast-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.broadcast-card {
+    background: var(--bg-panel);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.broadcast-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.broadcast-card.permanent {
+    border-left: 6px solid #6366f1;
+}
+
+.broadcast-card.temporary {
+    border-left: 6px solid #f59e0b;
+}
+
+.broadcast-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.broadcast-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #fff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.broadcast-type-badge {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+}
+
+.broadcast-content {
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+}
+
+.broadcast-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1rem 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.broadcast-content ul {
+    padding-left: 1.25rem;
+}
+
+.broadcast-content li {
+    margin-bottom: 0.5rem;
+}
+
+.broadcast-meta {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.admin-controls {
+    display: flex;
+    gap: 0.8rem;
+    position: relative;
+    z-index: 10;
+}
+
+.admin-controls .btn-delete, .admin-controls .btn-edit {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 11;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.admin-controls .btn-delete {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.admin-controls .btn-delete:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.1);
+}
+
+.admin-controls .btn-edit {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.2);
+}
+
+.admin-controls .btn-edit:hover {
+    background: #fbbf24;
+    color: #000;
+    transform: scale(1.1);
+}
+
+/* Premium Toggle Switch */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 1rem;
+}
+
+.toggle-label {
+    flex-grow: 1;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+input:checked + .slider {
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #6366f1;
+}
+
+input:checked + .slider:before {
+    transform: translateX(30px);
+}
+
+.toggle-status {
+    margin-left: 1rem;
+    font-weight: 600;
+    min-width: 100px;
+}
+
+.toggle-status.permanent { color: #8b5cf6; }
+.toggle-status.temporary { color: #f59e0b; }
+
+.btn-back {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    margin-bottom: 1rem;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateX(-3px);
+}
+
+/* Modal specific styles */
+.broadcast-form .form-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.broadcast-form .form-control, .broadcast-form .form-check-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.broadcast-form .form-control:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+.form-switch .form-check-input {
+    width: 3em !important;
+    height: 1.5em !important;
+    cursor: pointer;
+}

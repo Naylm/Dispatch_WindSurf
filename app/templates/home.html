@@ -510,6 +510,7 @@
 
     <!-- Section: Outils -->
     <li class="sidebar-category">Outils</li>
+    <li><a href="{{ url_for('broadcast.list_broadcasts') }}"><span class="icon">📢</span> Diffusion</a></li>
     <li><a href="{{ url_for('main.annuaire') }}"><span class="icon">&#128222;</span> Annuaire techniciens</a></li>
     <li><a href="{{ url_for('wiki.wiki') }}"><span class="icon">&#128218;</span> Base de connaissances</a></li>
 
@@ -557,23 +558,6 @@
 <!-- Main Content Wrapper (pushed by sidebar on desktop) -->
 <div class="main-content" id="mainContent">
 
-  <!-- Navbar Glass -->
-  <nav class="navbar mb-2" id="mainNavbar" style="height: 55px; z-index: 1000; position: sticky; top: 0;">
-    <div class="container-fluid">
-      <div class="d-flex align-items-center gap-3">
-        <button class="sidebar-toggle-btn btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle"
-          title="Toggle Menu">
-          <span class="fs-5">☰</span>
-        </button>
-        <span class="navbar-brand" style="font-size: 1.2rem;">Dispatch Manager <span
-            class="badge bg-glass text-neon ms-2" style="font-size: 0.6em; vertical-align: middle;">V3.0</span></span>
-      </div>
-      <div class="d-flex gap-2 align-items-center">
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">Se d&eacute;connecter</a>
-      </div>
-    </div>
-  </nav>
 
   <div class="animate-fade-in-up d-block" style="max-width: 600px;">
   </div>
@@ -730,6 +714,7 @@
   </div>
 
   <!-- EASTER EGG: ARCADE HUB -->
+  {% if konami_hub_enabled %}
   <div id="easterEggContainer">
     <!-- Hub Menu -->
     <div class="hub-menu">
@@ -741,6 +726,12 @@
         <button class="hub-game-btn" data-game="breakout">4. Breakout Network</button>
         <button class="hub-game-btn" data-game="snake">5. Snake IT</button>
         <button class="hub-game-btn" data-game="memory">6. Memory Errors</button>
+      </div>
+
+      <!-- Performance Advisory -->
+      <div class="alert alert-warning py-1 px-2 mt-3 mb-0" style="font-size: 0.75rem; background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.2); color: #ffc107;">
+          <i class="fas fa-exclamation-triangle me-1"></i> 
+          <strong>Performance :</strong> Le jeu simultané avec 10+ techniciens peut impacter la latence.
       </div>
       <div class="hub-bottom-btns">
         <button id="hubSoundToggle" class="hub-sound-btn">🔊 SON ON</button>
@@ -883,6 +874,7 @@
       </p>
     </div>
   </div>
+  {% endif %}
 
   <!-- Event Details Modal (Read-only for technicians) -->
   <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel"
@@ -942,6 +934,11 @@
 {% block scripts %}
 <script>console.log("💎 home.html v17 LOADED - DIRECT INJECTION ACTIVE");</script>
 <script src="{{ url_for('static', filename='js/home.js') }}?v=17.0"></script>
+<!-- FullCalendar Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
+
+{% if konami_hub_enabled %}
 <!-- Easter Egg Scripts -->
 <script src="{{ url_for('static', filename='js/konami_sound.js') }}?v=20.0"></script>
 <script src="{{ url_for('static', filename='js/games_hub.js') }}?v=20.0"></script>
@@ -951,6 +948,7 @@
 <script src="{{ url_for('static', filename='js/breakout_network.js') }}?v=20.0"></script>
 <script src="{{ url_for('static', filename='js/snake_it.js') }}?v=20.0"></script>
 <script src="{{ url_for('static', filename='js/memory_errors.js') }}?v=20.0"></script>
+{% endif %}
 <script>
   // Thème dark/light géré par static/js/theme.js
 
@@ -1012,6 +1010,14 @@
   socket.on('connect_error', (error) => {
     console.error('❌ Erreur de connexion Socket.IO:', error);
     window.socketConnected = false;
+  });
+
+  socket.on('active_connections_count', (data) => {
+    const badge = document.getElementById('activeConnectionsBadge');
+    if (badge && data && typeof data.count !== 'undefined') {
+      const plural = data.count > 1 ? 'S' : '';
+      badge.innerHTML = `<i class="fas fa-users me-1"></i> ${data.count} CONNECTÉ${plural}`;
+    }
   });
 
   window._reloadingIncidents = window._reloadingIncidents || new Map();

@@ -3,7 +3,7 @@
   style="background: var(--bg-panel); backdrop-filter: blur(10px);" data-id="{{ i.id }}" data-incident-id="{{ i.id }}"
   data-numero="{{ i.numero|lower }}" data-site="{{ i.site|lower }}" data-sujet="{{ i.sujet|lower }}"
   data-urgence="{{ i.urgence|lower }}" data-etat="{{ i.etat|lower }}"
-  data-technicien="{{ (i.collaborateur|trim if i.collaborateur else 'Non affecté') }}">
+  data-technicien="{{ (i.collaborateur|trim if i.collaborateur else 'Non affecté') }}" data-version="{{ i.version }}">
 
   <div class="card-body p-1 px-2 d-flex flex-column">
     <!-- Header: Numero + Actions -->
@@ -89,7 +89,7 @@
     <!-- SECTION RDV: Dynamic based on status config or if RDV exists -->
     {% if (statut_info and statut_info.has_rdv) or i.date_rdv %}
     <div class="rdv-wrapper mb-2 p-1 rounded border border-warning border-opacity-25 bg-warning bg-opacity-10"
-      data-incident-id="{{ i.id }}">
+      data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
       <div class="d-flex align-items-center gap-2">
         <small class="text-warning fw-bold" style="font-size: 0.75rem;">📅 RDV&nbsp;:</small>
         <!-- Use ISO format for input value but display formatted date if needed -->
@@ -106,7 +106,7 @@
     {% if (statut_info and statut_info.has_relances) or i.relance_mail or i.relance_1 or i.relance_2 or
     i.relance_cloture %}
     <div class="relances-wrapper mb-2 p-1 px-2 rounded border border-info border-opacity-25 bg-info bg-opacity-10"
-      data-incident-id="{{ i.id }}">
+      data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
       <div class="d-flex align-items-center justify-content-between">
         <small class="text-info fw-bold me-2" style="font-size: 0.7rem; white-space: nowrap;">📧 Relances</small>
         <div class="d-flex align-items-center flex-wrap gap-2">
@@ -175,6 +175,7 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
           <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="dispatch"
+            data-version="{{ i.version }}"
             title="Enregistrer">
             <i class="fa-solid fa-check"></i>
           </button>
@@ -209,6 +210,7 @@
             <i class="fas fa-times"></i>
           </button>
           <button class="btn btn-xs note-save-btn" data-incident-id="{{ i.id }}" data-note-type="tech"
+            data-version="{{ i.version }}"
             title="Enregistrer">
             <i class="fas fa-check"></i>
           </button>
@@ -224,7 +226,7 @@
         <div class="flex-grow-1">
           <select
             class="form-select form-select-sm bg-dark text-white border-secondary shadow-none status-selector-col py-0 ps-1"
-            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}">
+            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}" data-current="{{ i.etat }}" data-version="{{ i.version }}">
             {% for st in statuts %}
             <option value="{{ st.nom }}" {% if i.etat==st.nom %}selected{% endif %}>{{ st.nom }}</option>
             {% endfor %}
@@ -236,7 +238,7 @@
         <div style="width: 40%;">
           <select
             class="form-select form-select-sm bg-dark text-white border-secondary shadow-none tech-selector-col py-0 ps-1"
-            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}">
+            style="font-size: 0.75rem; height: 1.5rem;" data-incident-id="{{ i.id }}" data-version="{{ i.version }}">
             <option value="Non affecté" class="text-muted" {% if not i.collaborateur or i.collaborateur=='Non affecté'
               %}selected{% endif %}>--</option>
             {% for t in techniciens %}
