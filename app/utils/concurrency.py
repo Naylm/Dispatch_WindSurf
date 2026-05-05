@@ -163,6 +163,12 @@ def release_idempotent_request(db, token: Optional[IdempotencyToken]) -> None:
 
 
 def optimistic_incident_update(db, *, incident_id: int, expected_version: int, set_clause: str, params: tuple[Any, ...]):
+    """Met à jour un incident avec contrôle de version optimiste.
+
+    Note: le trigger PostgreSQL `trg_incidents_auto_version_update` incrémente automatiquement
+    la colonne `version` sur chaque UPDATE. `RETURNING version` retourne la valeur POST-trigger
+    (c'est-à-dire expected_version + 1). L'appelant n'a pas besoin d'inclure version dans set_clause.
+    """
     result = db.execute(
         f"UPDATE incidents SET {set_clause} WHERE id=%s AND version=%s RETURNING version",
         (*params, incident_id, expected_version),

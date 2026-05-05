@@ -390,7 +390,7 @@
 <script>
   function updateGlobalSetting(key, value) {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    fetch('/api/admin/setting', {
+    fetch('/admin/setting', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

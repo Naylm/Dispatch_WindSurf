@@ -5,22 +5,25 @@ from app import socketio
 from flask_socketio import emit
 
 def _can_access_incident(db, incident):
-    """Vérifie si l'utilisateur connecté peut accéder à l'incident"""
+    """Vérifie si l'utilisateur connecté peut accéder à l'incident.
+    Utilise le tech_id mis en cache dans la session pour éviter une requête DB à chaque appel."""
     if session.get("role") in ["admin", "superadmin"]:
         return True
-    
-    # Vérifier l'accès technicien
+
     tech_id = incident.get("technicien_id")
     current_user = session.get("user")
     if not current_user:
         return False
-        
-    # Query tech id from username
-    tech = db.execute("SELECT id FROM techniciens WHERE username=%s", (current_user,)).fetchone()
-    if tech and tech["id"] == tech_id:
-        return True
-        
-    return False
+
+    cached_tech_id = session.get("tech_id")
+    if cached_tech_id is None:
+        tech = db.execute("SELECT id FROM techniciens WHERE username=%s", (current_user,)).fetchone()
+        if not tech:
+            return False
+        cached_tech_id = tech["id"]
+        session["tech_id"] = cached_tech_id
+
+    return cached_tech_id == tech_id
 
 def _is_api_or_ajax_request():
     """Détecte si la requête est une API ou AJAX"""
@@ -122,8 +125,8 @@ def update_relance_schedule(db, incident_id, new_etat=None, new_urgence=None, ch
     if not inc:
         return
 
-    etat = new_etat or inc["etat"]
-    urgence = new_urgence or inc["urgence"]
+    etat = new_etat if new_etat is not None else inc["etat"]
+    urgence = new_urgence if new_urgence is not None else inc["urgence"]
 
     statut_info = db.execute(
         "SELECT has_relances FROM statuts WHERE nom=%s",

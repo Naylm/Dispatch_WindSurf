@@ -112,13 +112,13 @@ def create_app(debug=False):
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
-    app.register_blueprint(admin_bp)
+    app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(wiki_bp, url_prefix='/wiki')
     app.register_blueprint(stats_bp)
-    app.register_blueprint(incident_bp)
+    app.register_blueprint(incident_bp, url_prefix='/incident')
     app.register_blueprint(maintenance_bp)
-    app.register_blueprint(broadcast_bp)
+    app.register_blueprint(broadcast_bp, url_prefix='/broadcast')
 
     # Register template filters
     from app.utils.filters import register_filters

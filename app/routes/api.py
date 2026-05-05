@@ -188,7 +188,7 @@ def calendar_events():
         
     # 2. Process manual calendar events
     manual_query = """
-        SELECT c.id, c.title, c.description, c.start_time, c.end_time, c.created_by, c.incident_id, t.prenom, t.photo_profil
+        SELECT c.id, c.title, c.description, c.start_time, c.end_time, c.created_by, c.incident_id, c.technicien_id, t.prenom, t.photo_profil
         FROM calendar_events c
         LEFT JOIN techniciens t ON c.technicien_id = t.id
     """

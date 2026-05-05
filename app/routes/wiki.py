@@ -117,7 +117,7 @@ def wiki():
         LIMIT 5
     """).fetchall()
     
-    db.close()
+
     
     return render_template(
         "wiki_v2.html",
@@ -161,7 +161,7 @@ def create_wiki_category():
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (name, icon, description, color, position, session["user"]))
         db.commit()
-        db.close()
+
         
         # Si c'est une requête AJAX, retourner JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
@@ -212,9 +212,6 @@ def edit_wiki_category(id):
             return jsonify({"error": f"Erreur serveur: {str(e)}"}), 500
         flash(f"Erreur lors de la modification: {str(e)}", "error")
         return redirect(url_for("wiki.wiki"))
-    finally:
-        db.close()
-
 @wiki_bp.route("/wiki/category/<int:id>/delete", methods=["POST"])
 def delete_wiki_category(id):
     try:
@@ -239,7 +236,7 @@ def delete_wiki_category(id):
             # Supprimer la catégorie
             db.execute("DELETE FROM wiki_categories WHERE id=%s", (id,))
             db.commit()
-            db.close()
+
             
             current_app.logger.info(f"delete_wiki_category: Category {id} deleted successfully")
             
@@ -255,7 +252,7 @@ def delete_wiki_category(id):
             
         except Exception as db_error:
             db.rollback()
-            db.close()
+
             current_app.logger.exception(f"delete_wiki_category: Database error for category {id}")
             raise
             
@@ -307,7 +304,7 @@ def create_wiki_subcategory():
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (name, category_id, icon, description, position, session["user"]))
         db.commit()
-        db.close()
+
         
         # Si c'est une requête AJAX, retourner JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
@@ -357,9 +354,6 @@ def edit_wiki_subcategory(id):
             return jsonify({"error": f"Erreur serveur: {str(e)}"}), 500
         flash(f"Erreur lors de la modification: {str(e)}", "error")
         return redirect(url_for("wiki.wiki"))
-    finally:
-        db.close()
-
 @wiki_bp.route("/wiki/subcategory/<int:id>/delete", methods=["POST"])
 def delete_wiki_subcategory(id):
     try:
@@ -384,7 +378,7 @@ def delete_wiki_subcategory(id):
             # Supprimer la sous-catégorie (les articles seront orphelins ou supprimés selon cascade)
             db.execute("DELETE FROM wiki_subcategories WHERE id=%s", (id,))
             db.commit()
-            db.close()
+
             
             current_app.logger.info(f"delete_wiki_subcategory: Subcategory {id} deleted successfully")
             
@@ -400,7 +394,7 @@ def delete_wiki_subcategory(id):
             
         except Exception as db_error:
             db.rollback()
-            db.close()
+
             current_app.logger.exception(f"delete_wiki_subcategory: Database error for subcategory {id}")
             raise
             
@@ -427,7 +421,7 @@ def create_wiki_article():
         db = get_db()
         categories = db.execute("SELECT * FROM wiki_categories ORDER BY name").fetchall()
         subcategories = db.execute("SELECT * FROM wiki_subcategories ORDER BY name").fetchall()
-        db.close()
+
         return render_template("wiki_article_edit_v2.html", 
                              categories=[dict(c) for c in categories],
                              subcategories=[dict(s) for s in subcategories],
@@ -494,9 +488,6 @@ def create_wiki_article():
         current_app.logger.exception("wiki_article_create: ERROR")
         flash(f"Erreur lors de la création de l'article: {str(e)}", "error")
         return redirect(request.referrer or url_for("wiki.wiki"))
-    finally:
-        db.close()
-    
     flash("Article créé avec succès!", "success")
     return redirect(url_for("wiki.view_wiki_article", id=article_id))
 
@@ -597,9 +588,6 @@ def view_wiki_article(id):
         current_app.logger.exception(f"view_wiki_article: EXCEPTION for article {id}: {e}")
         flash(f"Erreur lors de l'affichage de l'article: {str(e)}", "error")
         return redirect(url_for("wiki.wiki"))
-    finally:
-        db.close()
-
 @wiki_bp.route("/wiki/article/<int:id>/edit", methods=["GET", "POST"])
 def edit_wiki_article(id):
     if "user" not in session:
@@ -615,7 +603,7 @@ def edit_wiki_article(id):
     if request.method == "GET":
         categories = db.execute("SELECT * FROM wiki_categories ORDER BY name").fetchall()
         subcategories = db.execute("SELECT * FROM wiki_subcategories ORDER BY name").fetchall()
-        db.close()
+
         return render_template("wiki_article_edit_v2.html",
                              article=dict(article),
                              categories=[dict(c) for c in categories],
@@ -665,7 +653,7 @@ def edit_wiki_article(id):
     """, (title, content, subcategory_id, icon, tags, status, owner, summary, session["user"], id))
     
     db.commit()
-    db.close()
+
     
     flash("Article mis à jour avec succès!", "success")
     return redirect(url_for("wiki.view_wiki_article", id=id))
@@ -692,7 +680,7 @@ def delete_wiki_article(id):
             
             db.execute("DELETE FROM wiki_articles WHERE id=%s", (id,))
             db.commit()
-            db.close()
+
             
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({
@@ -706,7 +694,7 @@ def delete_wiki_article(id):
             
         except Exception as db_error:
             db.rollback()
-            db.close()
+
             raise
             
     except CSRFError as e:
@@ -732,7 +720,7 @@ def move_wiki_article(id):
     db.execute("UPDATE wiki_articles SET subcategory_id=%s WHERE id=%s", 
               (new_subcategory_id, id))
     db.commit()
-    db.close()
+
     
     flash("Article déplacé avec succès!", "success")
     return redirect(url_for("wiki.view_wiki_article", id=id))
@@ -804,9 +792,6 @@ def vote_wiki_article(id):
         except Exception:
             db.rollback()
             raise
-        finally:
-            db.close()
-            
     except Exception as e:
         current_app.logger.exception(f"vote_wiki_article: exception for article {id}")
         return jsonify({"success": False, "error": "Erreur interne"}), 500
@@ -851,7 +836,7 @@ def upload_wiki_image():
             VALUES (%s, %s, %s, %s, %s)
         """, (unique_filename, original_filename, filepath, session["user"], file_size))
         db.commit()
-        db.close()
+
         
         image_url = url_for('static', filename=f'uploads/wiki/{unique_filename}')
         
@@ -887,9 +872,6 @@ def wiki_search_suggestions():
         result = [{"title": s['title'], "id": s['id']} for s in suggestions]
     except Exception:
         result = []
-    finally:
-        db.close()
-    
     return jsonify({"suggestions": result})
 
 @wiki_bp.route("/wiki/search")
@@ -949,7 +931,7 @@ def search_wiki():
     except Exception:
         pass
     
-    db.close()
+
     
     return render_template("wiki_search_results_v2.html",
                          query=query,
@@ -995,9 +977,6 @@ def mark_article_updated(id):
     except Exception as e:
         db.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
-    finally:
-        db.close()
-
 @wiki_bp.route("/wiki/article/<int:id>/feedback", methods=["POST"])
 def submit_wiki_feedback(id):
     if "user" not in session:
@@ -1051,9 +1030,6 @@ def submit_wiki_feedback(id):
     except Exception as e:
         db.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
-    finally:
-        db.close()
-
 @wiki_bp.route("/wiki/admin")
 def wiki_admin_dashboard():
     if "user" not in session or session.get("role") not in ["admin", "superadmin"]:
@@ -1098,7 +1074,7 @@ def wiki_admin_dashboard():
         LIMIT 20
     """).fetchall()
     
-    db.close()
+
     
     return render_template("wiki_admin_dashboard.html",
                          outdated_articles=[dict(a) for a in outdated_articles],
@@ -1133,7 +1109,7 @@ def wiki_review_needed():
         ORDER BY a.updated_at ASC
     """).fetchall()
     
-    db.close()
+
     
     return render_template("wiki_review_needed.html",
                          articles=[dict(a) for a in articles_to_review],
@@ -1160,11 +1136,11 @@ def wiki_mark_reviewed(id):
         """, (id,))
 
         db.commit()
-        db.close()
+
 
         return jsonify({"success": True, "message": "Article marqué comme révisé"})
 
     except Exception as e:
         db.rollback()
-        db.close()
+
         return jsonify({"error": str(e)}), 500

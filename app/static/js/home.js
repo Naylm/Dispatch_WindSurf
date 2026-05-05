@@ -374,7 +374,7 @@ window.saveNote = function (button, incidentId, noteType) {
     saveBtn.textContent = originalText;
     return;
   }
-  let route = (noteType === 'dispatch') ? '/edit_note_dispatch/' + incidentId : '/edit_note_inline/' + incidentId;
+  let route = (noteType === 'dispatch') ? '/incident/edit_note_dispatch/' + incidentId : '/incident/edit_note_inline/' + incidentId;
   let payload = (noteType === 'dispatch') ? { note_dispatch: newValue, expected_version: expectedVersion } : { note: newValue, expected_version: expectedVersion };
   const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   fetch(route, {
@@ -619,7 +619,7 @@ window.initTechView = function () {
       const ver = window.getIncidentVersion(id, s);
       const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
-      fetch(`/update_etat/${id}`, {
+      fetch(`/incident/update_etat/${id}`, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'X-Incident-Version': String(ver) },
         body: new URLSearchParams({ etat: val, expected_version: String(ver) })
@@ -641,7 +641,7 @@ window.initTechView = function () {
       if (confirm(`Affecter le ticket à ${val} ?`)) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         const ver = window.getIncidentVersion(id, s);
-        fetch('/incidents/assign', {
+        fetch('/admin/incidents/assign', {
           method: 'POST',
           headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded', 'X-Incident-Version': String(ver) },
           body: new URLSearchParams({ id: id, collaborateur: val, expected_version: String(ver) })
@@ -669,7 +669,7 @@ window.updateRdv = function (input) {
   const ver = window.getIncidentVersion(id, input);
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   input.style.opacity = '0.5';
-  fetch(`/api/incident/${id}/rdv`, {
+  fetch(`/incident/api/${id}/rdv`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Incident-Version': String(ver) },
     body: JSON.stringify({ date_rdv: input.value, expected_version: ver })
@@ -689,7 +689,7 @@ window.updateRelance = function (checkbox) {
   wrapper.querySelectorAll('.relance-checkbox').forEach(cb => { payload[cb.dataset.field] = cb.checked; });
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   wrapper.style.opacity = '0.7';
-  fetch(`/api/incident/${id}/relances`, {
+  fetch(`/incident/api/${id}/relances`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Incident-Version': String(ver) },
     body: JSON.stringify(payload)

@@ -3,9 +3,12 @@ Script de vérification et garantie de l'intégrité de la base de données Post
 Ce script s'assure que toutes les tables nécessaires existent et sont correctement structurées
 """
 import os
+import logging
 from werkzeug.security import generate_password_hash
 from app.utils.db_config import get_db
 from app.utils.concurrency import ensure_idempotency_tables
+
+logger = logging.getLogger(__name__)
 
 DB_INTEGRITY_LOCK_KEY = 8742301
 
@@ -19,7 +22,7 @@ def _bootstrap_admin_user(cursor):
         return
 
     if not bootstrap_username or not bootstrap_password:
-        print(
+        logger.info(
             "   - BOOTSTRAP_ADMIN_USERNAME et BOOTSTRAP_ADMIN_PASSWORD doivent etre definis ensemble (bootstrap ignore)"
         )
         return
@@ -29,7 +32,7 @@ def _bootstrap_admin_user(cursor):
         (bootstrap_username,),
     ).fetchone()
     if existing:
-        print(f"   - Compte bootstrap '{bootstrap_username}' deja present")
+        logger.info(f"   - Compte bootstrap '{bootstrap_username}' deja present")
         return
 
     cursor.execute(
@@ -41,9 +44,9 @@ def _bootstrap_admin_user(cursor):
         (bootstrap_username, generate_password_hash(bootstrap_password), "admin", 1),
     )
     if cursor.rowcount:
-        print(f"   - Compte admin bootstrap cree: {bootstrap_username} (reset mot de passe force)")
+        logger.info(f"   - Compte admin bootstrap cree: {bootstrap_username} (reset mot de passe force)")
     else:
-        print(f"   - Compte bootstrap '{bootstrap_username}' deja present")
+        logger.info(f"   - Compte bootstrap '{bootstrap_username}' deja present")
 
 
 def _warn_if_no_admin_user(cursor):
@@ -52,7 +55,7 @@ def _warn_if_no_admin_user(cursor):
     ).fetchone()
     admin_count = admin_count_row["cnt"] if admin_count_row else 0
     if admin_count == 0:
-        print(
+        logger.info(
             "   - ATTENTION: aucun compte admin dans users. "
             "Definir BOOTSTRAP_ADMIN_USERNAME/BOOTSTRAP_ADMIN_PASSWORD ou creer un admin manuellement."
         )
@@ -83,9 +86,9 @@ def _bootstrap_superadmin_user(cursor):
                 "UPDATE users SET role='superadmin' WHERE id=%s",
                 (existing["id"],),
             )
-            print(f"   - Compte superadmin '{sa_username}': role restaure a superadmin")
+            logger.info(f"   - Compte superadmin '{sa_username}': role restaure a superadmin")
         else:
-            print(f"   - Compte superadmin '{sa_username}' deja present")
+            logger.info(f"   - Compte superadmin '{sa_username}' deja present")
         return
 
     cursor.execute(
@@ -97,13 +100,13 @@ def _bootstrap_superadmin_user(cursor):
         (sa_username, generate_password_hash(sa_password), "superadmin", 0),
     )
     if cursor.rowcount:
-        print(f"   - Compte superadmin cree: {sa_username}")
+        logger.info(f"   - Compte superadmin cree: {sa_username}")
 
 
 def ensure_database_integrity():
     """Garantit que toutes les tables nécessaires existent avec la bonne structure"""
     
-    print("Verification de l'integrite de la base de donnees PostgreSQL...")
+    logger.info("Verification de l'integrite de la base de donnees PostgreSQL...")
     
     conn = get_db()
     cursor = conn.cursor()
@@ -141,7 +144,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN force_password_reset INTEGER DEFAULT 0")
-            print("   - Colonne force_password_reset ajoutee a la table users")
+            logger.info("   - Colonne force_password_reset ajoutee a la table users")
         
         # Migration: ajouter colonne 'email' pour email
         cursor.execute("""
@@ -151,7 +154,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
-            print("   - Colonne email ajoutee a la table users")
+            logger.info("   - Colonne email ajoutee a la table users")
         
         # Migration: ajouter colonne 'dect_number' pour numéro de téléphone DECT
         cursor.execute("""
@@ -161,7 +164,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN dect_number VARCHAR(20)")
-            print("   - Colonne dect_number ajoutee a la table users")
+            logger.info("   - Colonne dect_number ajoutee a la table users")
         
         # Migration: ajouter colonne 'photo_profil' pour photo de profil
         cursor.execute("""
@@ -171,7 +174,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN photo_profil VARCHAR(255)")
-            print("   - Colonne photo_profil ajoutee a la table users")
+            logger.info("   - Colonne photo_profil ajoutee a la table users")
         
         # Migration: ajouter colonne 'prenom' pour prénom
         cursor.execute("""
@@ -181,10 +184,10 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN prenom VARCHAR(255)")
-            print("   - Colonne prenom ajoutee a la table users")
+            logger.info("   - Colonne prenom ajoutee a la table users")
             # Initialiser prenom avec username pour les utilisateurs existants
             cursor.execute("UPDATE users SET prenom = username WHERE prenom IS NULL")
-            print("   - Prenom initialise avec username pour les utilisateurs existants")
+            logger.info("   - Prenom initialise avec username pour les utilisateurs existants")
         
         # Migration: ajouter colonne 'nom' pour nom de famille
         cursor.execute("""
@@ -194,7 +197,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN nom VARCHAR(255)")
-            print("   - Colonne nom ajoutee a la table users")
+            logger.info("   - Colonne nom ajoutee a la table users")
 
         # Migration: ajouter colonnes de récupération de mot de passe
         for col_name in ['question1', 'answer1', 'question2', 'answer2']:
@@ -205,7 +208,7 @@ def ensure_database_integrity():
             """)
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT")
-                print(f"   - Colonne {col_name} ajoutee a la table users")
+                logger.info(f"   - Colonne {col_name} ajoutee a la table users")
 
     _bootstrap_admin_user(cursor)
     _warn_if_no_admin_user(cursor)
@@ -242,7 +245,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN force_password_reset INTEGER DEFAULT 0")
-            print("   - Colonne force_password_reset ajoutee a la table techniciens")
+            logger.info("   - Colonne force_password_reset ajoutee a la table techniciens")
         
         # Migration: s'assurer que la colonne ordre existe
         cursor.execute("""
@@ -252,14 +255,14 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN ordre INTEGER DEFAULT 0")
-            print("   - Colonne ordre ajoutee a la table techniciens")
+            logger.info("   - Colonne ordre ajoutee a la table techniciens")
             # Initialiser l'ordre pour les techniciens existants basé sur leur id
             cursor.execute("""
                 UPDATE techniciens 
                 SET ordre = id 
                 WHERE ordre = 0 OR ordre IS NULL
             """)
-            print("   - Ordre initialise pour les techniciens existants")
+            logger.info("   - Ordre initialise pour les techniciens existants")
 
         # Migration: ajouter colonne 'nom' pour nom de famille
         cursor.execute("""
@@ -269,7 +272,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN nom VARCHAR(255)")
-            print("   - Colonne nom ajoutee a la table techniciens")
+            logger.info("   - Colonne nom ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'username' pour identifiant de connexion
         cursor.execute("""
@@ -279,14 +282,14 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN username VARCHAR(255) UNIQUE")
-            print("   - Colonne username ajoutee a la table techniciens")
+            logger.info("   - Colonne username ajoutee a la table techniciens")
             # Générer des usernames temporaires depuis prenom (en minuscules)
             cursor.execute("""
                 UPDATE techniciens
                 SET username = LOWER(prenom)
                 WHERE username IS NULL
             """)
-            print("   - Usernames generes depuis prenom pour techniciens existants")
+            logger.info("   - Usernames generes depuis prenom pour techniciens existants")
 
         # Migration: ajouter colonne 'email' pour mail CHU
         cursor.execute("""
@@ -296,7 +299,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN email VARCHAR(255) UNIQUE")
-            print("   - Colonne email ajoutee a la table techniciens")
+            logger.info("   - Colonne email ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'dect_number' pour numéro de téléphone DECT
         cursor.execute("""
@@ -306,7 +309,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN dect_number VARCHAR(20)")
-            print("   - Colonne dect_number ajoutee a la table techniciens")
+            logger.info("   - Colonne dect_number ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'matricule' pour identifiant interne
         cursor.execute("""
@@ -316,7 +319,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN matricule VARCHAR(50)")
-            print("   - Colonne matricule ajoutee a la table techniciens")
+            logger.info("   - Colonne matricule ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'photo_profil' pour photo de profil
         cursor.execute("""
@@ -326,7 +329,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN photo_profil VARCHAR(255)")
-            print("   - Colonne photo_profil ajoutee a la table techniciens")
+            logger.info("   - Colonne photo_profil ajoutee a la table techniciens")
 
         # Migration: ajouter colonne 'created_at' pour date de création
         cursor.execute("""
@@ -336,7 +339,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE techniciens ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-            print("   - Colonne created_at ajoutee a la table techniciens")
+            logger.info("   - Colonne created_at ajoutee a la table techniciens")
 
         # Migration: ajouter colonnes de récupération de mot de passe
         for col_name in ['question1', 'answer1', 'question2', 'answer2']:
@@ -347,7 +350,7 @@ def ensure_database_integrity():
             """)
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE techniciens ADD COLUMN {col_name} TEXT")
-                print(f"   - Colonne {col_name} ajoutee a la table techniciens")
+                logger.info(f"   - Colonne {col_name} ajoutee a la table techniciens")
 
     # ========== TABLE: incidents ==========
     cursor.execute("""
@@ -388,7 +391,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN note_dispatch TEXT")
-            print("   - Colonne note_dispatch ajoutee a la table incidents")
+            logger.info("   - Colonne note_dispatch ajoutee a la table incidents")
 
         # Migration: ajouter colonnes pour système de relances
         for col_name in ['relance_mail', 'relance_1', 'relance_2', 'relance_cloture']:
@@ -399,7 +402,7 @@ def ensure_database_integrity():
             """)
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE incidents ADD COLUMN {col_name} BOOLEAN DEFAULT FALSE")
-                print(f"   - Colonne {col_name} ajoutee a la table incidents")
+                logger.info(f"   - Colonne {col_name} ajoutee a la table incidents")
         
         # Migration: ajouter colonne date_rdv pour système de rendez-vous
         cursor.execute("""
@@ -409,7 +412,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN date_rdv TIMESTAMP")
-            print("   - Colonne date_rdv ajoutee a la table incidents")
+            logger.info("   - Colonne date_rdv ajoutee a la table incidents")
 
         # Migration: ajouter colonnes pour relance planifiee
         for col_name, col_def in [
@@ -423,7 +426,7 @@ def ensure_database_integrity():
             """)
             if not cursor.fetchone():
                 cursor.execute(f"ALTER TABLE incidents ADD COLUMN {col_name} {col_def}")
-                print(f"   - Colonne {col_name} ajoutee a la table incidents")
+                logger.info(f"   - Colonne {col_name} ajoutee a la table incidents")
 
         # Migration: version pour synchronisation temps reel des incidents
         cursor.execute("""
@@ -433,7 +436,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1")
-            print("   - Colonne version ajoutee a la table incidents")
+            logger.info("   - Colonne version ajoutee a la table incidents")
 
         cursor.execute("""
             SELECT column_name
@@ -442,7 +445,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-            print("   - Colonne updated_at ajoutee a la table incidents")
+            logger.info("   - Colonne updated_at ajoutee a la table incidents")
 
         # Migration: ajouter colonnes pour corbeille (soft delete)
         cursor.execute("""
@@ -452,7 +455,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE")
-            print("   - Colonne is_deleted ajoutee a la table incidents")
+            logger.info("   - Colonne is_deleted ajoutee a la table incidents")
 
         cursor.execute("""
             SELECT column_name
@@ -461,7 +464,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE incidents ADD COLUMN deleted_at TIMESTAMP")
-            print("   - Colonne deleted_at ajoutee a la table incidents")
+            logger.info("   - Colonne deleted_at ajoutee a la table incidents")
 
     # Durcissement DB de la concurrence: version positive + timestamp + trigger auto-version
     cursor.execute("UPDATE incidents SET version=1 WHERE version IS NULL OR version < 1")
@@ -499,7 +502,7 @@ def ensure_database_integrity():
         EXECUTE FUNCTION incidents_auto_version_update()
         """
     )
-    print("   - Trigger auto-version incidents actif")
+    logger.info("   - Trigger auto-version incidents actif")
 
     # Indexes de performance sur colonnes chaudes incidents
     incident_indexes = [
@@ -511,7 +514,7 @@ def ensure_database_integrity():
     ]
     for index_name, index_sql in incident_indexes:
         cursor.execute(index_sql)
-        print(f"   - Index verifie: {index_name}")
+        logger.info(f"   - Index verifie: {index_name}")
 
     # Migration de normalisation: corriger les anciennes valeurs d'etat mojibake
     legacy_status_map = [
@@ -625,7 +628,7 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE priorites ADD COLUMN is_urgent BOOLEAN DEFAULT FALSE")
             cursor.execute("UPDATE priorites SET is_urgent=TRUE WHERE nom IN ('Haute', 'Critique', 'Immédiate')")
-            print("   - Colonne is_urgent ajoutee a la table priorites")
+            logger.info("   - Colonne is_urgent ajoutee a la table priorites")
     
     # ========== TABLE: sites ==========
     cursor.execute("""
@@ -720,7 +723,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE statuts ADD COLUMN has_relances BOOLEAN DEFAULT FALSE")
-            print("   - Colonne has_relances ajoutee a la table statuts")
+            logger.info("   - Colonne has_relances ajoutee a la table statuts")
         
         # Migration: ajouter colonne 'has_rdv' pour système de rendez-vous
         cursor.execute("""
@@ -730,7 +733,7 @@ def ensure_database_integrity():
         """)
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE statuts ADD COLUMN has_rdv BOOLEAN DEFAULT FALSE")
-            print("   - Colonne has_rdv ajoutee a la table statuts")
+            logger.info("   - Colonne has_rdv ajoutee a la table statuts")
     
     # ========== TABLES WIKI V2 ==========
     
@@ -835,9 +838,9 @@ def ensure_database_integrity():
         if not cursor.fetchone():
             try:
                 cursor.execute(f"ALTER TABLE wiki_articles ADD COLUMN {col_name} {col_def}")
-                print(f"   - Colonne {col_name} ajoutee a wiki_articles")
+                logger.info(f"   - Colonne {col_name} ajoutee a wiki_articles")
             except Exception as e:
-                print(f"   - Erreur lors de l'ajout de {col_name}: {e}")
+                logger.info(f"   - Erreur lors de l'ajout de {col_name}: {e}")
     
     # Table: wiki_history
     cursor.execute("""
@@ -957,7 +960,7 @@ def ensure_database_integrity():
         tables_created.append("wiki_article_tags")
         
         # Migration: migrer les tags existants depuis le champ TEXT vers la structure normalisée
-        print("   - Migration des tags existants...")
+        logger.info("   - Migration des tags existants...")
         cursor.execute("SELECT id, tags FROM wiki_articles WHERE tags IS NOT NULL AND tags != ''")
         articles_with_tags = cursor.fetchall()
         
@@ -989,7 +992,7 @@ def ensure_database_integrity():
                         tag_count += 1
         
         if tag_count > 0:
-            print(f"   - {tag_count} tag(s) migre(s) depuis les articles existants")
+            logger.info(f"   - {tag_count} tag(s) migre(s) depuis les articles existants")
     else:
         tables_verified.append("wiki_article_tags")
     
@@ -1055,11 +1058,11 @@ def ensure_database_integrity():
                     coalesce(tags, '')
                 ))
             """)
-            print("   - Index full-text GIN cree pour wiki_articles")
+            logger.info("   - Index full-text GIN cree pour wiki_articles")
         except Exception as e:
-            print(f"   - Erreur lors de la creation de l'index full-text: {e}")
+            logger.info(f"   - Erreur lors de la creation de l'index full-text: {e}")
     else:
-        print("   - Index full-text deja existant")
+        logger.info("   - Index full-text deja existant")
     
     # ========== TABLE: dispatch_runner_scores ==========
     cursor.execute("""
@@ -1076,15 +1079,11 @@ def ensure_database_integrity():
                 username VARCHAR(255) NOT NULL,
                 score INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(255) NOT NULL,
-                score INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         tables_created.append("dispatch_runner_scores")
         cursor.execute("CREATE INDEX idx_runner_scores_score ON dispatch_runner_scores (score DESC)")
-        print("   - Table dispatch_runner_scores creee")
+        logger.info("   - Table dispatch_runner_scores creee")
     else:
         tables_verified.append("dispatch_runner_scores")
 
@@ -1111,7 +1110,7 @@ def ensure_database_integrity():
         """)
         tables_created.append("arcade_scores")
         cursor.execute("CREATE INDEX idx_arcade_scores_game ON arcade_scores (game_name, score DESC)")
-        print("   - Table arcade_scores creee")
+        logger.info("   - Table arcade_scores creee")
     else:
         tables_verified.append("arcade_scores")
 
@@ -1131,7 +1130,7 @@ def ensure_database_integrity():
             )
         """)
         tables_created.append("broadcasts")
-        print("   - Table broadcasts creee")
+        logger.info("   - Table broadcasts creee")
     else:
         tables_verified.append("broadcasts")
 
@@ -1150,7 +1149,7 @@ def ensure_database_integrity():
             )
         """)
         tables_created.append("broadcast_images")
-        print("   - Table broadcast_images creee")
+        logger.info("   - Table broadcast_images creee")
     else:
         tables_verified.append("broadcast_images")
     
@@ -1163,7 +1162,7 @@ def ensure_database_integrity():
     """)
     if not cursor.fetchone():
         cursor.execute("ALTER TABLE incidents ADD COLUMN technicien_id INTEGER REFERENCES techniciens(id) ON DELETE SET NULL")
-        print("   - Colonne technicien_id ajoutee a la table incidents")
+        logger.info("   - Colonne technicien_id ajoutee a la table incidents")
         
         # Migrer données
         cursor.execute("SELECT id, prenom FROM techniciens")
@@ -1174,7 +1173,7 @@ def ensure_database_integrity():
         # Ajouter les index sur technicien_id maintenant que la colonne existe
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_technicien_id ON incidents (technicien_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_incidents_archived_technicien ON incidents (archived, technicien_id)")
-        print("   - Index sur technicien_id crees")
+        logger.info("   - Index sur technicien_id crees")
 
     # 2. Correction des statuts (legacy cleanup)
     legacy_status_map = [
@@ -1191,7 +1190,7 @@ def ensure_database_integrity():
             (good_value, bad_value),
         )
         if cursor.rowcount:
-            print(f"   - {cursor.rowcount} incident(s) corriges: {bad_value} -> {good_value}")
+            logger.info(f"   - {cursor.rowcount} incident(s) corriges: {bad_value} -> {good_value}")
             
         # Correction table statuts
         cursor.execute(
@@ -1199,7 +1198,56 @@ def ensure_database_integrity():
             (good_value, bad_value),
         )
         if cursor.rowcount:
-            print(f"   - {cursor.rowcount} statut(s) corriges: {bad_value} -> {good_value}")
+            logger.info(f"   - {cursor.rowcount} statut(s) corriges: {bad_value} -> {good_value}")
+
+    # ========== TABLE: app_settings ==========
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'app_settings'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE app_settings (
+                key VARCHAR(255) PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        tables_created.append("app_settings")
+        logger.info("   - Table app_settings creee")
+
+        import json as _json
+        import os as _os
+        _settings_file = _os.path.join(_os.path.dirname(__file__), '..', '..', 'data', 'settings.json')
+        if _os.path.exists(_settings_file):
+            try:
+                with open(_settings_file, 'r') as _f:
+                    _data = _json.load(_f)
+                for _k, _v in _data.items():
+                    cursor.execute(
+                        "INSERT INTO app_settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
+                        (_k, _json.dumps(_v)),
+                    )
+                logger.info(f"   - {len(_data)} setting(s) migre(s) depuis settings.json")
+            except Exception as _e:
+                logger.info(f"   - Avertissement: migration settings.json echouee: {_e}")
+    else:
+        tables_verified.append("app_settings")
+
+    # Index composite sur broadcasts (perf)
+    cursor.execute("""
+        SELECT indexname FROM pg_indexes
+        WHERE tablename='broadcasts' AND indexname='idx_broadcasts_active_permanent'
+    """)
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE INDEX idx_broadcasts_active_permanent
+            ON broadcasts (is_active, is_permanent DESC, created_at DESC)
+        """)
+        logger.info("   - Index idx_broadcasts_active_permanent cree")
 
     # Commit toutes les modifications
     conn.commit()
@@ -1208,33 +1256,33 @@ def ensure_database_integrity():
     conn.close()
     
     # Afficher le résumé
-    print("\n" + "="*60)
-    print("RESUME DE LA VERIFICATION DE LA BASE DE DONNEES")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("RESUME DE LA VERIFICATION DE LA BASE DE DONNEES")
+    logger.info("="*60)
     
     if tables_created:
-        print(f"\n{len(tables_created)} table(s) creee(s):")
+        logger.info(f"\n{len(tables_created)} table(s) creee(s):")
         for table in tables_created:
-            print(f"   - {table}")
+            logger.info(f"   - {table}")
     
     if tables_verified:
-        print(f"\n{len(tables_verified)} table(s) verifiee(s) (deja existantes):")
+        logger.info(f"\n{len(tables_verified)} table(s) verifiee(s) (deja existantes):")
         for table in tables_verified:
-            print(f"   - {table}")
+            logger.info(f"   - {table}")
     
-    print(f"\nIntegrite de la base: OK")
-    print(f"Type: PostgreSQL")
-    print("\nLa base de donnees est prete!")
-    print("="*60 + "\n")
+    logger.info(f"\nIntegrite de la base: OK")
+    logger.info(f"Type: PostgreSQL")
+    logger.info("\nLa base de donnees est prete!")
+    logger.info("="*60 + "\n")
     
     return True
 
 if __name__ == "__main__":
     try:
         ensure_database_integrity()
-        print("Verification terminee avec succes!")
+        logger.info("Verification terminee avec succes!")
     except Exception as e:
-        print(f"ERREUR lors de la verification: {e}")
+        logger.info(f"ERREUR lors de la verification: {e}")
         import traceback
         traceback.print_exc()
         exit(1)

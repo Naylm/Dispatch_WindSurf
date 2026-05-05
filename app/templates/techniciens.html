@@ -386,7 +386,7 @@
               "<div class='mb-2'><b>#" + inc.numero + "</b> - " + inc.site + " - " + inc.sujet +
               "<select class='form-select d-inline ms-2' style='width:180px;display:inline-block' name='incident_" + inc.id + "' required>";
             data.autres_techs.forEach(t => {
-              html += "<option value='" + t.prenom + "'>" + t.prenom + "</option>";
+              html += "<option value='" + t.id + "'>" + t.prenom + " " + (t.nom || '') + "</option>";
             });
             html += "</select></div>";
           });
@@ -406,7 +406,7 @@
             // Ajouter le token CSRF
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-            fetch('/technicien/transfer_delete/' + id, {
+            fetch('/admin/technicien/transfer_delete/' + id, {
               method: "POST",
               headers: {
                 'X-CSRFToken': csrfToken

@@ -17,6 +17,8 @@ from app.utils.concurrency import (
 )
 from app import socketio
 from datetime import datetime
+import secrets
+import string
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -53,7 +55,9 @@ def add_technicien():
         flash("Tous les champs sont obligatoires", "error")
         return redirect(url_for("admin.techniciens"))
 
-    hashed_password = generate_password_hash("0000")
+    alphabet = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(8))
+    hashed_password = generate_password_hash(temp_password)
     db = get_db()
     try:
         existing = db.execute("SELECT id FROM techniciens WHERE username=%s", (username,)).fetchone()
@@ -74,17 +78,15 @@ def add_technicien():
             VALUES (%s, %s, %s, %s, %s, %s, %s, 1, %s, 1)
         """, (nom, prenom, username, email, dect_number, hashed_password, role, new_ordre))
         db.commit()
-        flash(f"Technicien {prenom} {nom} ajouté avec succès! Mot de passe par défaut: 0000", "success")
+        flash(f"Technicien {prenom} {nom} ajouté avec succès! Mot de passe temporaire : {temp_password} (changement forcé à la première connexion)", "success")
     except Exception as e:
         db.rollback()
         flash(f"Erreur lors de l'ajout : {str(e)}", "error")
-    finally:
-        db.close()
     return redirect(url_for("admin.techniciens"))
 
 # ---------- PARAMÈTRES GLOBAUX ----------
 
-@admin_bp.route("/api/admin/setting", methods=["POST"])
+@admin_bp.route("/setting", methods=["POST"])
 @admin_required
 def update_setting():
     from app.utils.settings import set_setting
@@ -153,8 +155,6 @@ def edit_technicien(id):
     except Exception as e:
         db.rollback()
         flash(f"Erreur lors de la modification : {str(e)}", "error")
-    finally:
-        db.close()
 
     return redirect(url_for("admin.techniciens"))
 @admin_bp.route("/technicien/incidents/<int:id>")
@@ -169,7 +169,7 @@ def technicien_incidents(id):
         "SELECT * FROM incidents WHERE technicien_id=%s", (id,)
     ).fetchall()
     autres_techs = db.execute(
-        "SELECT id, prenom FROM techniciens WHERE id != %s", (id,)
+        "SELECT id, prenom, nom FROM techniciens WHERE id != %s AND actif=1", (id,)
     ).fetchall()
 
     return jsonify(
@@ -193,17 +193,21 @@ def transfer_and_delete_technicien(id):
         for key, value in request.form.items():
             if key.startswith("incident_"):
                 incident_id = int(key.split("_")[1])
-                nouveau_collab = value
+                try:
+                    new_tech_id = int(value)
+                except (ValueError, TypeError):
+                    db.rollback()
+                    return jsonify({"status": "error", "message": f"ID technicien cible invalide: {value}"}), 400
                 new_tech = db.execute(
-                    "SELECT id FROM techniciens WHERE prenom=%s AND actif=1",
-                    (nouveau_collab,),
+                    "SELECT id, prenom FROM techniciens WHERE id=%s AND actif=1",
+                    (new_tech_id,),
                 ).fetchone()
                 if not new_tech:
                     db.rollback()
-                    return jsonify({"status": "error", "message": f"Technicien cible invalide: {nouveau_collab}"}), 400
+                    return jsonify({"status": "error", "message": f"Technicien cible introuvable (id={new_tech_id})"}), 400
                 db.execute(
                     "UPDATE incidents SET collaborateur=%s, technicien_id=%s WHERE id=%s",
-                    (nouveau_collab, new_tech["id"], incident_id),
+                    (new_tech["prenom"], new_tech["id"], incident_id),
                 )
 
         # Puis supprimer le technicien
@@ -213,16 +217,12 @@ def transfer_and_delete_technicien(id):
     except Exception as e:
         db.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        db.close()
-
 @admin_bp.route("/technicien/delete/<int:id>", methods=["POST"])
 @admin_required
 def delete_technicien(id):
     db = get_db()
     db.execute("DELETE FROM techniciens WHERE id=%s", (id,))
     db.commit()
-    db.close()
     return redirect(url_for("admin.techniciens"))
 
 @admin_bp.route("/toggle_technicien/<int:id>", methods=["POST"])
@@ -238,7 +238,6 @@ def toggle_technicien(id):
         db.commit()
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            db.close()
             return jsonify({
                 "success": True, 
                 "new_state": new_state,
@@ -247,7 +246,6 @@ def toggle_technicien(id):
             
         flash(f"Technicien {'activé' if new_state == 1 else 'désactivé'} avec succès!", "success")
     
-    db.close()
     return redirect(url_for("admin.techniciens"))
 
 @admin_bp.route("/techniciens/update_order", methods=["POST"])
@@ -268,8 +266,6 @@ def update_techniciens_order():
         db.rollback()
         current_app.logger.error(f"Erreur lors de la mise à jour de l'ordre: {e}")
         return jsonify({"error": str(e)}), 500
-    finally:
-        db.close()
 
 @admin_bp.route("/force_password_reset", methods=["POST"])
 @admin_required
@@ -293,8 +289,6 @@ def force_password_reset():
     except Exception as e:
         db.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
-    finally:
-        db.close()
 
 
 # ---------- CONFIGURATION ----------
@@ -414,8 +408,6 @@ def delete_incident(id):
             return jsonify({"error": str(e)}), 500
         flash("Erreur lors de la suppression", "error")
         return redirect(url_for("main.home"))
-    finally:
-        db.close()
 
 # ----------- DRAG & DROP INCIDENTS (DASHBOARD ADMIN) -----------
 @admin_bp.route("/incidents/assign", methods=["POST"])
@@ -529,8 +521,6 @@ def assign_incident():
         if db: db.rollback()
         current_app.logger.error(f"Erreur assignation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        if db: db.close()
 
 # ---------- CONFIGURATION SUB-ROUTES ----------
 

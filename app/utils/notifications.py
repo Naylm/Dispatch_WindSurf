@@ -1,4 +1,4 @@
-﻿"""
+"""
 Helpers for realtime notifications.
 Notifications are emitted only to authorized Socket.IO rooms.
 """

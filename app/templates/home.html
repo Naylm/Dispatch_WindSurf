@@ -1061,7 +1061,7 @@
       if (oldCard || isActiveView) {
         // Ajout d'un cache-buster pour empêcher le navigateur de réutiliser un ancien 404 ou 500
         const noCache = new Date().getTime();
-        fetch(`/api/incident/${incidentId}?view=${v.viewType}&_cb=${noCache}`, {
+        fetch(`/incident/api/${incidentId}?view=${v.viewType}&_cb=${noCache}`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",

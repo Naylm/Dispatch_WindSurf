@@ -14,7 +14,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@broadcast_bp.route("/broadcasts")
+@broadcast_bp.route("/")
 def list_broadcasts():
     if "user" not in session:
         return redirect(url_for("auth.login"))
@@ -30,7 +30,7 @@ def list_broadcasts():
     role = session.get("role", "").lower()
     return render_template("broadcasts.html", broadcasts=broadcasts, role=role)
 
-@broadcast_bp.route("/admin/broadcasts/add", methods=["POST"])
+@broadcast_bp.route("/add", methods=["POST"])
 def add_broadcast():
     if "user" not in session or session.get("role") not in ("admin", "superadmin"):
         return jsonify({"success": False, "error": "Non autorisé"}), 403
@@ -51,7 +51,7 @@ def add_broadcast():
     
     return jsonify({"success": True})
 
-@broadcast_bp.route("/admin/broadcasts/delete/<int:id>", methods=["DELETE"])
+@broadcast_bp.route("/delete/<int:id>", methods=["DELETE"])
 def delete_broadcast(id):
     if "user" not in session or session.get("role") not in ("admin", "superadmin"):
         return jsonify({"success": False, "error": "Non autorisé"}), 403
@@ -62,7 +62,7 @@ def delete_broadcast(id):
     
     return jsonify({"success": True})
 
-@broadcast_bp.route("/admin/broadcasts/update/<int:id>", methods=["POST"])
+@broadcast_bp.route("/update/<int:id>", methods=["POST"])
 def update_broadcast(id):
     if "user" not in session or session.get("role") not in ("admin", "superadmin"):
         return jsonify({"success": False, "error": "Non autorisé"}), 403
@@ -84,7 +84,7 @@ def update_broadcast(id):
     
     return jsonify({"success": True})
 
-@broadcast_bp.route("/admin/broadcasts/upload", methods=["POST"])
+@broadcast_bp.route("/upload", methods=["POST"])
 def upload_broadcast_image():
     try:
         if "user" not in session or session.get("role") not in ("admin", "superadmin"):
@@ -105,7 +105,7 @@ def upload_broadcast_image():
         if file_size > MAX_FILE_SIZE:
             return jsonify({"error": "Fichier trop volumineux (max 5MB)"}), 400
 
-        UPLOAD_FOLDER = os.path.join('app', 'static', 'uploads', 'broadcasts')
+        UPLOAD_FOLDER = os.path.join(current_app.static_folder, 'uploads', 'broadcasts')
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
         original_filename = secure_filename(file.filename)

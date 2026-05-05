@@ -5,8 +5,6 @@ from app.utils.settings import get_setting, set_setting
 import os
 import time
 
-auth_bp = Blueprint('auth', __name__)
-
 from app.utils.security import check_rate_limit
 
 auth_bp = Blueprint('auth', __name__)
@@ -44,36 +42,23 @@ def login():
         
         if user:
             current_app.logger.debug(f"Login attempt for user: {u}")
-            password_valid = False
             is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
-            
-            if is_password_hashed:
-                password_valid = check_password_hash(user["password"], p)
-            elif user["password"]:
-                password_valid = (user["password"] == p)
-            
-            if password_valid:
+
+            if not is_password_hashed:
+                flash("Mot de passe non sécurisé. Contactez l'administrateur.", "danger")
+                return render_template("login.html")
+
+            if check_password_hash(user["password"], p):
                 session["user"] = user["username"]
                 session["role"] = user["role"]
                 session["user_type"] = "user"
                 session.permanent = True
                 current_app.logger.info(f"Login success: {user['username']} (role: {user['role']})")
-
-                force_reset = user.get("force_password_reset", 0)
-                if not is_password_hashed:
-                    force_reset = 1
-                    db.execute("UPDATE users SET force_password_reset=1 WHERE username=%s", (user["username"],))
-                    db.commit()
-
-                db.close()
-                if force_reset == 1:
+                if user.get("force_password_reset", 0) == 1:
                     session["force_password_reset"] = True
                     return redirect(url_for("auth.change_password_forced"))
-
                 return redirect(url_for("main.home"))
             else:
-                db.close()
-                # Rate limit recorded by check_rate_limit
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
 
@@ -86,47 +71,32 @@ def login():
 
         if tech and tech["password"]:
             current_app.logger.debug(f"Login attempt for technician: {u}")
-            password_valid = False
             is_password_hashed = tech["password"].startswith("pbkdf2:") or tech["password"].startswith("scrypt:")
-            
-            if is_password_hashed:
-                password_valid = check_password_hash(tech["password"], p)
-            else:
-                password_valid = (tech["password"] == p)
-            
-            if password_valid:
+
+            if not is_password_hashed:
+                flash("Mot de passe non sécurisé. Contactez l'administrateur.", "danger")
+                return render_template("login.html")
+
+            if check_password_hash(tech["password"], p):
                 session["user"] = tech["username"]
                 session["role"] = tech["role"] or "technicien"
                 session["user_type"] = "technicien"
                 session["prenom"] = tech["prenom"]
+                session["tech_id"] = tech["id"]
                 session["user_display_name"] = f"{tech['prenom']} {tech['nom']}".strip()
                 session.permanent = True
                 current_app.logger.info(f"Technician login success: {tech['username']}")
-
-                force_reset = tech.get("force_password_reset", 0)
-                if not is_password_hashed:
-                    force_reset = 1
-                    db.execute("UPDATE techniciens SET force_password_reset=1 WHERE id=%s", (tech["id"],))
-                    db.commit()
-
-                db.close()
-                if force_reset == 1:
+                if tech.get("force_password_reset", 0) == 1:
                     session["force_password_reset"] = True
                     return redirect(url_for("auth.change_password_forced"))
-
                 return redirect(url_for("main.home"))
             else:
-                db.close()
-                # Rate limit recorded by check_rate_limit
                 flash("Mauvais identifiants", "danger")
                 return render_template("login.html")
         elif tech and not tech["password"]:
-            db.close()
             flash("Aucun mot de passe défini. Contactez l'administrateur.", "danger")
             return render_template("login.html")
 
-        db.close()
-        # Note: rate limit logic records every attempt in the window
         flash("Mauvais identifiants", "danger")
 
     return render_template("login.html")
@@ -171,20 +141,11 @@ def change_password_forced():
             user = db.execute("SELECT * FROM techniciens WHERE username=%s AND actif=1", (username,)).fetchone()
 
         if not user:
-            db.close()
             flash("Utilisateur introuvable", "danger")
             return redirect(url_for("auth.logout"))
 
-        password_valid = False
         is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
-        
-        if is_password_hashed:
-            password_valid = check_password_hash(user["password"], current_password)
-        else:
-            password_valid = (user["password"] == current_password)
-        
-        if not password_valid:
-            db.close()
+        if not is_password_hashed or not check_password_hash(user["password"], current_password):
             flash("Mot de passe actuel incorrect", "danger")
             return render_template("change_password_forced.html")
 
@@ -196,7 +157,6 @@ def change_password_forced():
             db.execute("UPDATE techniciens SET password=%s, force_password_reset=0 WHERE username=%s", (hashed_password, username))
 
         db.commit()
-        db.close()
 
         session.pop("force_password_reset", None)
         flash("Mot de passe réinitialisé avec succès!", "success")
@@ -235,8 +195,6 @@ def profil():
             FROM users 
             WHERE username=%s
         """, (username,)).fetchone()
-    
-    db.close()
     
     if not user_data:
         flash("Utilisateur introuvable", "danger")
@@ -294,8 +252,6 @@ def update_profile_info():
         db.rollback()
         current_app.logger.error(f"Erreur mise à jour profil: {e}")
         flash("Erreur lors de la mise à jour", "danger")
-    finally:
-        db.close()
     
     return redirect(url_for("auth.profil"))
 
@@ -335,13 +291,7 @@ def update_profile_password():
             return redirect(url_for("auth.profil"))
         
         is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
-        
-        if is_password_hashed:
-            password_valid = check_password_hash(user["password"], current_password)
-        else:
-            password_valid = (user["password"] == current_password)
-        
-        if not password_valid:
+        if not is_password_hashed or not check_password_hash(user["password"], current_password):
             flash("Mot de passe actuel incorrect", "danger")
             return redirect(url_for("auth.profil"))
         
@@ -359,8 +309,6 @@ def update_profile_password():
         db.rollback()
         current_app.logger.error(f"Erreur changement mot de passe: {e}")
         flash("Erreur lors du changement de mot de passe", "danger")
-    finally:
-        db.close()
     
     return redirect(url_for("auth.profil"))
 
@@ -417,8 +365,6 @@ def update_profile_photo():
         flash("Erreur lors de l'upload de la photo", "danger")
         if os.path.exists(filepath):
             os.remove(filepath)
-    finally:
-        db.close()
     
     return redirect(url_for("auth.profil"))
 
@@ -456,8 +402,6 @@ def delete_profile_photo():
         db.rollback()
         current_app.logger.error(f"Erreur suppression photo: {e}")
         flash("Erreur lors de la suppression de la photo", "danger")
-    finally:
-        db.close()
     
     return redirect(url_for("auth.profil"))
 
@@ -495,12 +439,7 @@ def setup_recovery():
 
             # Verify password
             is_password_hashed = user["password"] and (user["password"].startswith("pbkdf2:") or user["password"].startswith("scrypt:"))
-            if is_password_hashed:
-                password_valid = check_password_hash(user["password"], password)
-            else:
-                password_valid = (user["password"] == password)
-
-            if not password_valid:
+            if not is_password_hashed or not check_password_hash(user["password"], password):
                 flash("Mot de passe incorrect.", "danger")
                 return redirect(url_for("auth.profil"))
 
@@ -521,8 +460,6 @@ def setup_recovery():
             db.rollback()
             current_app.logger.error(f"Error setup recovery: {e}")
             flash("Erreur lors de la configuration.", "danger")
-        finally:
-            db.close()
         
         return redirect(url_for("auth.profil"))
 
@@ -557,8 +494,6 @@ def forgot_password():
                 WHERE (LOWER(username)=LOWER(%s) OR LOWER(email)=LOWER(%s)) AND actif=1
             """, (identity, identity)).fetchone()
         
-        db.close()
-
         if user:
             if not user["question1"] or not user["question2"]:
                 flash("Ce compte n'a pas configuré de questions de sécurité. Veuillez contacter un administrateur.", "warning")
@@ -597,8 +532,6 @@ def verify_questions():
         db = get_db()
         table = "techniciens" if session["recovery_user_type"] == "technicien" else "users"
         user = db.execute(f"SELECT answer1, answer2 FROM {table} WHERE id=%s", (session["recovery_user_id"],)).fetchone()
-        db.close()
-
         if user and check_password_hash(user["answer1"], a1) and check_password_hash(user["answer2"], a2):
             session["recovery_verified"] = True
             return redirect(url_for("auth.reset_password_recovery"))
@@ -647,7 +580,5 @@ def reset_password_recovery():
             db.rollback()
             current_app.logger.error(f"Reset pwd error: {e}")
             flash("Erreur lors de la réinitialisation.", "danger")
-        finally:
-            db.close()
 
     return render_template("reset_password_recovery.html")

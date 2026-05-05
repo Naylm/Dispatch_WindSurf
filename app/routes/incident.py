@@ -42,7 +42,7 @@ def _json_conflict_response(exc: ConcurrencyConflictError):
         payload["current_version"] = exc.current_version
     return jsonify(payload), 409
 
-@incident_bp.route("/incident/<int:id>")
+@incident_bp.route("/<int:id>")
 def incident_detail_api(id):
    # Alias for api_incident from original app?
    # In original app, it was @app.route("/api/incident/<int:id>") line 1052
@@ -50,7 +50,7 @@ def incident_detail_api(id):
    # I'll put it here.
    return api_incident(id)
 
-@incident_bp.route("/api/incident/<int:id>")
+@incident_bp.route("/api/<int:id>")
 def api_incident(id):
     """API pour récupérer le HTML d'un seul incident (pour rechargement partiel)"""
     if "user" not in session:
@@ -398,7 +398,7 @@ def edit_note_dispatch(id):
     db.commit()
     return jsonify(response)
 
-@incident_bp.route("/api/incident/<int:id>/relances", methods=["POST"])
+@incident_bp.route("/api/<int:id>/relances", methods=["POST"])
 def update_relances(id):
     if "user" not in session:
         return jsonify({"error": "Non authentifie"}), 401
@@ -517,7 +517,7 @@ def update_relances(id):
     response_body["version"] = event_payload.get("version", new_version)
     return jsonify(response_body)
 
-@incident_bp.route("/api/incident/<int:id>/rdv", methods=["POST"])
+@incident_bp.route("/api/<int:id>/rdv", methods=["POST"])
 def update_rdv(id):
     if "user" not in session:
         return jsonify({"error": "Non authentifie"}), 401
@@ -761,8 +761,6 @@ def valider(id):
         import logging
         logging.error(f"Erreur validation incident {id}: {e}")
         flash("Erreur lors de la validation", "danger")
-    finally:
-        db.close()
     
     return redirect(url_for("main.home"))
 
