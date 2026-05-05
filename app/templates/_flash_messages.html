@@ -3,9 +3,23 @@
 <div class="mb-3" id="flash-messages-container">
   {% for category, message in messages %}
   {% set alert_class = 'danger' if category == 'error' else category %}
-  <div class="alert alert-{{ alert_class }} alert-dismissible fade show shadow-lg" role="alert"
+  {% set has_password = 'Mot de passe temporaire' in message %}
+  <div class="alert alert-{{ alert_class }} alert-dismissible fade show shadow-lg{% if has_password %} flash-persistent{% endif %}" role="alert"
     style="pointer-events: auto;">
-    {{ message }}
+    {% if has_password %}
+      {% set parts = message.split('Mot de passe temporaire : ') %}
+      {% set pwd_and_rest = parts[1].split(' (') %}
+      {{ parts[0] }}Mot de passe temporaire :
+      <strong id="temp-pwd-value">{{ pwd_and_rest[0] }}</strong>
+      <button type="button" class="btn btn-sm btn-outline-light ms-2 py-0" onclick="
+        navigator.clipboard.writeText('{{ pwd_and_rest[0] }}');
+        this.textContent='✓ Copié';
+        this.classList.replace('btn-outline-light','btn-success');
+      " title="Copier le mot de passe">📋 Copier</button>
+      {% if pwd_and_rest|length > 1 %} ({{ pwd_and_rest[1] }}{% endif %}
+    {% else %}
+      {{ message }}
+    {% endif %}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
   {% endfor %}
@@ -13,7 +27,7 @@
 <script>
   (function () {
     setTimeout(function () {
-      const alerts = document.querySelectorAll('#flash-messages-container .alert');
+      const alerts = document.querySelectorAll('#flash-messages-container .alert:not(.flash-persistent)');
       alerts.forEach(function (alert) {
         if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
           const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
@@ -28,7 +42,7 @@
           setTimeout(() => alert.remove(), 150);
         }
       });
-    }, 2000);
+    }, 4000);
   })();
 </script>
 {% endif %}
