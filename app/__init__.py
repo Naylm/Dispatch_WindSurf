@@ -139,9 +139,9 @@ def create_app(debug=False):
                 "default-src 'self'; "
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.socket.io https://cdnjs.cloudflare.com; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-                "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+                "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
                 "img-src 'self' data: blob:; "
-                "connect-src 'self' wss: ws:; "
+                "connect-src 'self' https://cdn.jsdelivr.net https://cdn.socket.io wss: ws:; "
                 "frame-ancestors 'self'"
             )
             response.headers['Content-Security-Policy'] = csp

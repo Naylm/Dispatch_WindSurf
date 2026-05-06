@@ -11,9 +11,9 @@
     #editor-fallback {
         width: 100%;
         height: 300px;
-        background: rgba(255,255,255,0.05);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.1);
+        background: var(--bg-input);
+        color: var(--text-main);
+        border: 1px solid var(--input-border);
         border-radius: 8px;
         padding: 1rem;
         display: none; /* Hidden by default */
@@ -65,22 +65,22 @@
     .ql-container {
         font-family: inherit;
         font-size: 1rem;
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--bg-input);
         border-bottom-left-radius: 8px;
         border-bottom-right-radius: 8px;
-        color: white;
+        color: var(--text-main);
         min-height: 200px;
     }
     .ql-toolbar {
-        background: rgba(255, 255, 255, 0.1);
+        background: var(--bg-surface);
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
-        border-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: var(--input-border) !important;
     }
-    .ql-stroke { stroke: #ccc !important; }
-    .ql-fill { fill: #ccc !important; }
-    .ql-picker { color: #ccc !important; }
-    .ql-editor.ql-blank::before { color: rgba(255,255,255,0.3) !important; }
+    .ql-stroke { stroke: var(--text-secondary) !important; }
+    .ql-fill { fill: var(--text-secondary) !important; }
+    .ql-picker { color: var(--text-main) !important; }
+    .ql-editor.ql-blank::before { color: var(--text-tertiary) !important; }
 </style>
 {% endblock %}
 

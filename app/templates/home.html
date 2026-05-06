@@ -652,10 +652,12 @@
                 placeholder="Ex: Réunion technique">
             </div>
             <div class="mb-3">
-              <label for="eventIncidentNumero" class="form-label">Lier à un incident (Optionnel)</label>
-              <input type="text" class="form-control" id="eventIncidentNumero" name="incident_numero"
-                placeholder="Ex: 2403-001">
-              <small class="text-muted">Si le numéro existe, l'événement sera lié au ticket.</small>
+              <label for="eventIncidentSelect" class="form-label">Lier à un incident (Optionnel)</label>
+              <select class="form-select" id="eventIncidentSelect" name="incident_id">
+                <option value="">-- Aucun incident --</option>
+                <!-- Options chargées dynamiquement -->
+              </select>
+              <small class="text-muted">Sélectionnez un incident actif pour lier cet événement.</small>
             </div>
             <div class="row">
               <div class="col-md-6 mb-3">
@@ -692,12 +694,17 @@
           <h5 class="modal-title m-0" id="calendarModalLabel"><i class="fas fa-calendar-alt me-2"></i> Calendrier
             Collaboratif</h5>
           <div class="d-flex align-items-center gap-3">
-            <div class="form-check form-switch mb-0" title="Afficher uniquement mes événements">
-              <input class="form-check-input" type="checkbox" role="switch" id="myEventsToggle"
-                style="cursor: pointer;">
-              <label class="form-check-label small opacity-75" for="myEventsToggle" style="cursor: pointer;">Mes
-                évènements</label>
-            </div>
+            {% if session.role in ('admin', 'superadmin') %}
+            <select id="calendarTechFilter" class="form-select form-select-sm" style="width: 150px;">
+              <option value="">👥 Tous les techs</option>
+              {% for tech in techniciens %}
+              <option value="{{ tech.prenom }}">{{ tech.prenom }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+            <button type="button" class="btn btn-sm" id="myEventsBtn" title="Afficher mes RDV" style="color: #e2e8f0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+              📅 <span style="color: #e2e8f0;">Mes RDV</span> <span class="badge bg-primary ms-1" id="myEventsCount">0</span>
+            </button>
             <button type="button" class="btn btn-sm btn-outline-primary shadow-sm" data-bs-toggle="modal"
               data-bs-target="#addCalendarEventModal" style="border-radius: 20px;">
               ➕ Ajouter Événement
@@ -706,8 +713,31 @@
               aria-label="Fermer"></button>
           </div>
         </div>
-        <div class="modal-body" style="height: calc(100vh - 160px); padding: 1.5rem; overflow: hidden;">
-          <div id="calendar" style="height: 100%;"></div>
+        <div class="modal-body" style="height: calc(100vh - 160px); padding: 1.5rem; overflow: auto;">
+          <div id="calendar" style="min-height: 100%;"></div>
+          <div id="siteLegend" class="mt-3 d-flex flex-wrap gap-2 justify-content-center" style="font-size: 0.8rem;">
+            <!-- Légende des couleurs des sites injectée ici -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Liste de Mes RDV -->
+  <div class="modal fade" id="myRDVListModal" tabindex="-1" aria-labelledby="myRDVListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content" style="background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.1);">
+        <div class="modal-header border-bottom border-white border-opacity-10">
+          <h5 class="modal-title" id="myRDVListModalLabel"><i class="fas fa-calendar-check me-2"></i> Mes Rendez-vous</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+          <div id="myRDVListContainer">
+            <!-- Liste des RDV injectée ici -->
+          </div>
+        </div>
+        <div class="modal-footer border-top border-white border-opacity-10">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
         </div>
       </div>
     </div>
@@ -897,14 +927,17 @@
             <p class="mb-2"><i class="fas fa-info-circle fa-fw me-2 opacity-75"></i><strong>Sujet : </strong> <span
                 id="detailSujet"></span></p>
             <p class="mb-2"><i class="fas fa-building fa-fw me-2 opacity-75"></i><strong>Site : </strong> <span
-                id="detailSite"></span></p>
+                id="detailSiteBadge" class="badge bg-secondary"></span></p>
             <p class="mb-2"><i class="fas fa-calendar-alt fa-fw me-2 opacity-75"></i><strong>Date RDV : </strong> <span
                 id="detailDate" class="text-warning"></span></p>
-            <p class="mb-2" id="detailStatutContainer"><i class="fas fa-tasks fa-fw me-2 opacity-75"></i><strong>Statut
-                : </strong> <span id="detailStatut"></span></p>
+            <p class="mb-2" id="detailPrioriteContainer"><i
+                class="fas fa-flag fa-fw me-2 opacity-75"></i><strong>Priorité : </strong> <span
+                id="detailPriorite" class="badge"></span></p>
             <p class="mb-2" id="detailUrgenceContainer"><i
                 class="fas fa-exclamation-triangle fa-fw me-2 opacity-75"></i><strong>Urgence : </strong> <span
-                id="detailUrgence"></span></p>
+                id="detailUrgence" class="badge"></span></p>
+            <p class="mb-2" id="detailStatutContainer"><i class="fas fa-tasks fa-fw me-2 opacity-75"></i><strong>Statut
+                : </strong> <span id="detailStatut" class="badge bg-info"></span></p>
             <p class="mb-0 text-muted small" id="detailNotesContainer"><i
                 class="fas fa-sticky-note fa-fw me-2 opacity-75"></i><strong>Notes : </strong> <br><span
                 id="detailNotes" class="fst-italic"></span></p>
@@ -954,16 +987,18 @@
 
 
   // Socket.IO & AJAX refresh
-  // Rendre le socket accessible globalement
-  window.socket = io({
-    transports: ['websocket', 'polling'],
-    upgrade: true,
-    rememberUpgrade: true,
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: Infinity
-  });
+  // Utiliser le socket global de base.html ou créer un nouveau si besoin
+  if (!window.socket) {
+    window.socket = io({
+      transports: ['websocket', 'polling'],
+      upgrade: true,
+      rememberUpgrade: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity
+    });
+  }
 
   const socket = window.socket;
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -1012,13 +1047,8 @@
     window.socketConnected = false;
   });
 
-  socket.on('active_connections_count', (data) => {
-    const badge = document.getElementById('activeConnectionsBadge');
-    if (badge && data && typeof data.count !== 'undefined') {
-      const plural = data.count > 1 ? 'S' : '';
-      badge.innerHTML = `<i class="fas fa-users me-1"></i> ${data.count} CONNECTÉ${plural}`;
-    }
-  });
+  // NOTE: Le handler 'active_connections_count' est géré globalement par notification_system.js
+  // Ne pas dupliquer ici pour éviter les conflits
 
   window._reloadingIncidents = window._reloadingIncidents || new Map();
   window._pendingCardReloads = window._pendingCardReloads || new Map();
@@ -1283,6 +1313,35 @@
     }
   });
 
+  // Handler pour les événements calendrier - NOTIFICATIONS TEMPS RÉEL
+  socket.on('calendar_event_added', (data) => {
+    console.log('📅 Nouvel événement calendrier:', data);
+    if (window.calendarInstance) {
+      window.calendarInstance.refetchEvents();
+    }
+    // Notification toast
+    if (window.showNotification) {
+      window.showNotification(`📅 Nouvel événement: ${data.title}`, 'info');
+    }
+  });
+
+  socket.on('calendar_event_updated', (data) => {
+    console.log('📅 Événement calendrier mis à jour:', data);
+    if (window.calendarInstance) {
+      window.calendarInstance.refetchEvents();
+    }
+  });
+
+  socket.on('calendar_event_deleted', (data) => {
+    console.log('📅 Événement calendrier supprimé:', data);
+    if (window.calendarInstance) {
+      window.calendarInstance.refetchEvents();
+    }
+    if (window.showNotification && data.deleted_by !== '{{ session.user }}') {
+      window.showNotification('📅 Un événement a été supprimé', 'warning');
+    }
+  });
+
 
   // Fonction utilitaire simple pour mettre à jour un badge (utilisée pour la mise à jour locale)
   window.updateStatusBadge = function (incidentId, newStatus, couleur, textColor) {
@@ -1341,9 +1400,16 @@
     const columnsView = document.querySelector('#columnsView .row');
     const scrollPosition = columnsView ? columnsView.scrollLeft : 0;
 
-    fetch('{{ url_for("main.home_content_api") }}')
-      .then((resp) => resp.text())
+    fetch('{{ url_for("main.home_content_api") }}', { credentials: 'same-origin' })
+      .then((resp) => {
+        if (!resp.ok) {
+          console.error('Erreur rafraîchissement:', resp.status);
+          return;
+        }
+        return resp.text();
+      })
       .then((html) => {
+        if (!html) return;
         document.getElementById('incident-content').innerHTML = html;
         if (window.enableDragDrop) enableDragDrop();
 
@@ -1584,22 +1650,107 @@
       bsModal.show();
     });
 
-    calendarModalEl.addEventListener('shown.bs.modal', function () {
+    calendarModalEl.addEventListener('shown.bs.modal', function onModalShown() {
       const calendarEl = document.getElementById('calendar');
       if (!calendarEl) return;
 
       if (!calendarInstance) {
-        // Init the toggle listener
-        const myEventsToggle = document.getElementById('myEventsToggle');
-        if (myEventsToggle) {
-          myEventsToggle.addEventListener('change', () => {
-            if (calendarInstance) calendarInstance.refetchEvents();
+        // Init the "Mes RDV" button
+        let mineOnly = false;
+        const myEventsBtn = document.getElementById('myEventsBtn');
+        const myEventsCount = document.getElementById('myEventsCount');
+        
+        if (myEventsBtn) {
+          myEventsBtn.addEventListener('click', () => {
+            // Ouvrir la modal avec la liste détaillée des RDV
+            const myRDVModal = new bootstrap.Modal(document.getElementById('myRDVListModal'));
+            
+            // Charger et afficher la liste des RDV
+            const container = document.getElementById('myRDVListContainer');
+            const currentUser = '{{ session.user }}';
+            
+            // Récupérer les événements du calendrier
+            const allEvents = calendarInstance.getEvents();
+            const myEvents = allEvents.filter(e => {
+              const props = e.extendedProps || {};
+              return (props.collaborateur || '').toLowerCase().includes(currentUser.toLowerCase());
+            });
+            
+            // Trier par date (du plus récent au plus ancien)
+            myEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+            
+            if (myEvents.length === 0) {
+              container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-calendar-day fa-3x mb-3 opacity-50"></i><p>Aucun rendez-vous trouvé</p></div>';
+            } else {
+              let html = '<div class="list-group">';
+              myEvents.forEach(event => {
+                const props = event.extendedProps || {};
+                const dateStr = new Date(event.start).toLocaleDateString('fr-FR', { 
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit'
+                });
+                const isManual = props.is_manual;
+                const numero = props.numero || props.incident_numero || 'N/A';
+                const site = props.site || props.incident_site || 'N/A';
+                const urgence = props.urgence || '--';
+                const priorite = props.priorite || '--';
+                const notes = props.description || props.incident_notes || 'Aucune note';
+                
+                html += `
+                  <div class="list-group-item list-group-item-action flex-column align-items-start mb-2" style="background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                    <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                      <h6 class="mb-1 fw-bold">
+                        <span class="badge me-2" style="background: ${props.site_color || 'var(--bs-secondary)'};">${site}</span>
+                        ${isManual ? '<i class="fas fa-thumbtack text-purple me-1" title="Événement manuel"></i>' : ''}
+                        ${numero}
+                      </h6>
+                      <small class="text-warning">${dateStr}</small>
+                    </div>
+                    <p class="mb-1"><strong>${event.title}</strong></p>
+                    <div class="d-flex gap-2 mb-2">
+                      <span class="badge ${(urgence === 'critique' ? 'bg-danger' : urgence === 'haute' ? 'bg-warning text-dark' : urgence === 'moyenne' ? 'bg-info' : 'bg-success')}">Urgence: ${urgence}</span>
+                      <span class="badge ${(priorite === 'critique' ? 'bg-danger' : priorite === 'haute' ? 'bg-warning text-dark' : priorite === 'moyenne' ? 'bg-info' : 'bg-success')}">Priorité: ${priorite}</span>
+                    </div>
+                    <p class="mb-1 small text-muted"><i class="fas fa-sticky-note me-1"></i>${notes}</p>
+                    ${props.incident_id ? `<a href="/edit_incident/${props.incident_id}" class="btn btn-sm btn-outline-primary mt-2" target="_blank"><i class="fas fa-external-link-alt me-1"></i>Voir le ticket</a>` : ''}
+                  </div>
+                `;
+              });
+              html += '</div>';
+              container.innerHTML = html;
+            }
+            
+            myRDVModal.show();
           });
         }
+        
+        // Fonction pour mettre à jour le compteur et la légende
+        window.updateMyEventsCount = function(events) {
+          if (!myEventsCount) return;
+          const currentUser = '{{ session.user }}';
+          const myEvents = events.filter(e => {
+            const props = e.extendedProps || {};
+            return (props.collaborateur || '').toLowerCase().includes(currentUser.toLowerCase());
+          });
+          myEventsCount.textContent = myEvents.length;
+        };
+        
+        // Fonction pour afficher la légende des sites
+        window.updateSiteLegend = function(siteColors) {
+          const legend = document.getElementById('siteLegend');
+          if (!legend || !siteColors) return;
+          
+          let html = '<span class="me-2 fw-bold">Sites:</span>';
+          Object.entries(siteColors).forEach(([site, color]) => {
+            html += `<span class="badge me-1" style="background:${color};color:white;text-shadow:0 1px 2px rgba(0,0,0,0.3);">${site}</span>`;
+          });
+          legend.innerHTML = html;
+        };
 
         // Create calendar on first open
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
           initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+          editable: true, // Enable drag & drop
           headerToolbar: {
             left: 'prev,next today',
             center: 'title',
@@ -1641,22 +1792,25 @@
           nowIndicator: true,
           navLinks: true, // can click day/week names to navigate views
           businessHours: {
-            daysOfWeek: [1, 2, 3, 4, 5], // Mon - Fri
-            startTime: '08:00',
-            endTime: '18:00',
-          },
-          events: function (info, successCallback, failureCallback) {
-            const toggle = document.getElementById('myEventsToggle');
-            const mineOnly = toggle && toggle.checked ? '1' : '0';
-            fetch('/api/calendar_events?mine_only=' + mineOnly)
-              .then(res => res.json())
-              .then(data => successCallback(data))
-              .catch(err => failureCallback(err));
-          },
-          eventTimeFormat: {
             hour: '2-digit',
             minute: '2-digit',
             meridiem: false
+          },
+          events: function (info, successCallback, failureCallback) {
+            fetch('/api/calendar_events?mine_only=0')
+              .then(res => res.json())
+              .then(data => {
+                const events = data.events || data;
+                window.siteColorsMap = data.site_colors || {};
+                updateSiteLegend(data.site_colors);
+                
+                // Appliquer le filtre technicien si présent
+                const filteredEvents = window.filterEventsByTech ? window.filterEventsByTech(events) : events;
+                
+                updateMyEventsCount(filteredEvents);
+                successCallback(filteredEvents);
+              })
+              .catch(err => failureCallback(err));
           },
           eventClick: function (info) {
             info.jsEvent.preventDefault();
@@ -1668,17 +1822,35 @@
 
             // If it's a manual event, OR if the user is a tech viewing a regular event, show the modal.
             if (isManual || isTech) {
-              document.getElementById('detailNumero').textContent = props.numero || (isManual ? 'Manuel' : '??');
-              document.getElementById('detailSujet').textContent = info.event.title;
-              document.getElementById('detailSite').textContent = props.site || '--';
+              // Pour événements manuels liés à un incident, utiliser les infos de l'incident
+              const displayNumero = props.incident_numero || props.numero || (isManual ? 'Manuel' : '??');
+              const displaySujet = props.incident_sujet || info.event.title;
+              const displaySite = props.incident_site || props.site || '--';
+              const displayEtat = props.incident_etat || props.etat || '--';
+              
+              document.getElementById('detailNumero').textContent = displayNumero;
+              document.getElementById('detailSujet').textContent = displaySujet;
+              
+              // Badge Site avec couleur
+              const detailSiteBadge = document.getElementById('detailSiteBadge');
+              if (detailSiteBadge) {
+                detailSiteBadge.textContent = displaySite;
+                detailSiteBadge.style.backgroundColor = props.site_color || 'var(--bs-secondary)';
+              }
+              
               document.getElementById('detailTechName').textContent = props.collaborateur || 'Non assigné';
               document.getElementById('detailDate').textContent = FullCalendar.formatDate(info.event.start, {
                 year: 'numeric', month: 'long', day: 'numeric',
                 hour: '2-digit', minute: '2-digit', locale: 'fr'
               });
 
-              const notes = props.description || 'Aucune note';
-              document.getElementById('detailNotes').textContent = notes;
+              // Notes : combiner description événement + infos incident
+              let notes = props.description || '';
+              if (props.incident_numero) {
+                notes = notes ? `${notes}\n\n` : '';
+                notes += `🔗 Lié au ticket [${props.incident_numero}]\n📍 ${props.incident_site || 'N/A'}\n📊 ${props.incident_etat || 'N/A'}`;
+              }
+              document.getElementById('detailNotes').textContent = notes || 'Aucune note';
 
               const avatarContainer = document.getElementById('detailAvatarContainer');
               if (props.photo_profil) {
@@ -1687,11 +1859,35 @@
                 avatarContainer.innerHTML = `<i class="fas fa-user-circle fa-4x text-muted opacity-30"></i>`;
               }
 
+              // Badge Priorité avec couleur
+              const detailPriorite = document.getElementById('detailPriorite');
+              if (detailPriorite) {
+                detailPriorite.textContent = props.priorite || '--';
+                const prioColors = {
+                  'critique': 'bg-danger',
+                  'haute': 'bg-warning text-dark',
+                  'moyenne': 'bg-info',
+                  'basse': 'bg-success'
+                };
+                detailPriorite.className = `badge ${prioColors[(props.priorite || '').toLowerCase()] || 'bg-secondary'}`;
+              }
+
+              // Badge Urgence avec couleur
+              const detailUrgence = document.getElementById('detailUrgence');
+              if (detailUrgence) {
+                detailUrgence.textContent = props.urgence || '--';
+                const urgenceColors = {
+                  'critique': 'bg-danger',
+                  'haute': 'bg-warning text-dark',
+                  'moyenne': 'bg-info',
+                  'basse': 'bg-success'
+                };
+                detailUrgence.className = `badge ${urgenceColors[(props.urgence || '').toLowerCase()] || 'bg-secondary'}`;
+              }
+
+              // Badge Statut
               const detailStatut = document.getElementById('detailStatut');
               if (detailStatut) detailStatut.textContent = props.etat || props.status || '--';
-
-              const detailUrgence = document.getElementById('detailUrgence');
-              if (detailUrgence) detailUrgence.textContent = props.urgence || '--';
 
               const footer = document.getElementById('eventDetailsFooter');
               const deleteBtn = document.getElementById('deleteEventBtn');
@@ -1800,92 +1996,60 @@
               `
             };
           },
-          eventDidMount: function (info) {
-            // Premium Light Mode Look: Light background with Dark Text
-            if (document.body.classList.contains('light-mode')) {
-              const bg = info.el.style.backgroundColor;
-              if (bg && bg.startsWith('rgb')) {
-                // Convert to 15% opacity
-                const rgba = bg.replace('rgb', 'rgba').replace(')', ', 0.15)');
-                info.el.style.backgroundColor = rgba;
-                info.el.style.borderLeft = `4px solid ${bg}`;
-                info.el.style.color = '#111827';
-              }
+          eventDrop: function (info) {
+            // Handle drag & drop to update event time
+            const event = info.event;
+            const props = event.extendedProps;
+            
+            // Only allow drag & drop for manual events
+            if (!props.is_manual) {
+              info.revert();
+              return;
             }
-
-            // Add Bootstrap tooltip for more info
-            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-              const props = info.event.extendedProps;
-
-              let avatarHtml = '<i class="fas fa-user-circle fa-lg text-muted border rounded-circle p-1"></i>';
-              if (props.photo_profil) {
-                const avatarUrl = `/static/uploads/avatars/${props.photo_profil}`;
-                avatarHtml = `<img src="${avatarUrl}" class="tooltip-avatar" alt="Avatar" style="width: 35px !important; height: 35px !important; border-radius: 50% !important; object-fit: cover !important; border: 2px solid rgba(255,255,255,0.2) !important;">`;
+            
+            const eventId = event.id.replace('manual_', '');
+            const newStart = event.start.toISOString();
+            const newEnd = event.end ? event.end.toISOString() : null;
+            
+            fetch(`/api/calendar_events/${eventId}`, {
+              headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
               }
-
-              const safeDescription = props.description ? props.description.replace(/"/g, '&quot;').substring(0, 150) + (props.description.length > 150 ? '...' : '') : 'Aucune note';
-
-              let tooltipTitle = '';
-
-              if (props.is_manual) {
-                tooltipTitle = `
-                      <div class="text-start p-2" style="font-size: 0.9em; min-width: 220px;">
-                          <div class="d-flex align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
-                              <div class="me-3">${avatarHtml}</div>
-                              <div>
-                                  <h6 class="m-0 event-tooltip-title">${props.collaborateur || 'Utilisateur'}</h6>
-                                  <small class="event-tooltip-muted">Événement manuel</small>
-                              </div>
-                          </div>
-                          <div class="mb-2 event-tooltip-text"><strong>${info.event.title}</strong></div>
-                          <div class="event-tooltip-muted fst-italic" style="white-space: pre-wrap;">${safeDescription}</div>
-                      </div>
-                  `;
-              } else {
-                // Determine icon based on urgency
-                let urgIcon = '🟢';
-                if (props.urgence === 'critique') urgIcon = '🔴';
-                else if (props.urgence === 'haute') urgIcon = '🟠';
-                else if (props.urgence === 'moyenne') urgIcon = '🟡';
-
-                tooltipTitle = `
-                      <div class="text-start p-2" style="font-size: 0.9em; min-width: 250px;">
-                          <div class="d-flex align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
-                              <div class="me-3">${avatarHtml}</div>
-                              <div>
-                                  <h6 class="m-0 event-tooltip-title">${props.collaborateur || 'Non assigné'}</h6>
-                                  <small class="event-tooltip-muted">${props.numero}</small>
-                              </div>
-                          </div>
-                          <div class="mb-1 event-tooltip-text"><i class="fas fa-building fa-fw me-1 event-tooltip-muted"></i> <strong>Site:</strong> ${props.site}</div>
-                          <div class="mb-1 event-tooltip-text"><i class="fas fa-tasks fa-fw me-1 event-tooltip-muted"></i> <strong>Statut:</strong> ${props.etat}</div>
-                          <div class="mb-2 event-tooltip-text">${urgIcon} <strong>Urgence:</strong> ${props.urgence}</div>
-                          <div class="mt-2 pt-2 border-top border-secondary border-opacity-25">
-                             <div class="event-tooltip-muted small fst-italic" style="white-space: pre-wrap; max-height: 80px; overflow-y: hidden;">${safeDescription}</div>
-                          </div>
-                      </div>
-                  `;
+            }).then(res => res.json()).then(data => {
+              if (data.success) {
+                info.event.remove();
+                const modalInst = bootstrap.Modal.getInstance(document.getElementById('eventDetailsModal'));
+                if (modalInst) modalInst.hide();
               }
-
-              const allowList = bootstrap.Tooltip.Default.allowList;
-              if (!allowList.img) allowList.img = ['src', 'alt', 'title', 'width', 'height'];
-              if (!allowList.img.includes('class')) allowList.img.push('class');
-              if (!allowList.img.includes('style')) allowList.img.push('style');
-
-              new bootstrap.Tooltip(info.el, {
-                title: tooltipTitle,
-                html: true,
-                placement: 'top',
-                trigger: 'hover',
-                container: 'body',
-                customClass: 'calendar-tooltip-lg',
-                allowList: allowList
-              });
-            }
+            });
           }
         });
+        
+        // Gestion du filtre technicien pour admin
+        const techFilter = document.getElementById('calendarTechFilter');
+        if (techFilter) {
+          techFilter.addEventListener('change', () => {
+            calendarInstance.refetchEvents();
+          });
+        }
+        
+        // Fonction pour filtrer les événements par technicien
+        window.filterEventsByTech = function(events) {
+          const techFilter = document.getElementById('calendarTechFilter');
+          if (!techFilter || !techFilter.value) return events;
+          
+          const selectedTech = techFilter.value.toLowerCase();
+          return events.filter(e => {
+            const props = e.extendedProps || {};
+            return (props.collaborateur || '').toLowerCase().includes(selectedTech);
+          });
+        };
       }
-      calendarInstance.render();
+      if (calendarInstance) {
+        calendarInstance.render();
+      }
+      // Supprimer l'event listener après première ouverture pour éviter le warning VDOM
+      calendarModalEl.removeEventListener('shown.bs.modal', onModalShown);
     });
 
     // Auto-calculate end time (Default 30 min duration)
@@ -1909,6 +2073,36 @@
         endTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
       }
     };
+    
+    // Charger les incidents actifs quand le modal d'ajout s'ouvre
+    const addEventModalEl = document.getElementById('addCalendarEventModal');
+    if (addEventModalEl) {
+      addEventModalEl.addEventListener('shown.bs.modal', function () {
+        // Auto-focus sur le titre
+        document.getElementById('eventTitle')?.focus();
+        
+        // Charger la liste des incidents actifs
+        const incidentSelect = document.getElementById('eventIncidentSelect');
+        if (incidentSelect) {
+          // Garder l'option "Aucun"
+          incidentSelect.innerHTML = '<option value="">-- Aucun incident --</option>';
+          
+          fetch('/api/incidents/active')
+            .then(res => res.json())
+            .then(incidents => {
+              if (Array.isArray(incidents)) {
+                incidents.forEach(inc => {
+                  const option = document.createElement('option');
+                  option.value = inc.id;
+                  option.textContent = inc.label;
+                  incidentSelect.appendChild(option);
+                });
+              }
+            })
+            .catch(err => console.error('Erreur chargement incidents:', err));
+        }
+      });
+    }
 
     // Handle form submission for new calendar events
     const addEventForm = document.getElementById('addCalendarEventForm');
@@ -1950,9 +2144,29 @@
               modal.hide();
               addEventForm.reset();
 
-              // Refetch calendar events
+              // Refetch calendar events - Solution robuste contre page blanche
               if (calendarInstance) {
+                // Solution 1: Refetch avec render forcé
                 calendarInstance.refetchEvents();
+                
+                // Solution 2: Forcer un re-render après un délai
+                setTimeout(() => {
+                  calendarInstance.render();
+                  
+                  // Solution 3: Si toujours blanc, forcer changement de vue puis revenir
+                  setTimeout(() => {
+                    const currentView = calendarInstance.view.type;
+                    calendarInstance.changeView('listWeek');
+                    setTimeout(() => {
+                      calendarInstance.changeView(currentView);
+                    }, 50);
+                  }, 200);
+                }, 100);
+              }
+              
+              // Notification de succès
+              if (window.showNotification) {
+                window.showNotification('✅ Événement créé avec succès', 'success');
               }
             } else {
               alert('Erreur: ' + (result.error || 'Erreur inconnue'));
@@ -1968,6 +2182,82 @@
           });
       });
     }
+    
+    // ========== SYSTÈME DE RAPPELS AVANT RDV ==========
+    // Vérifie toutes les minutes les événements dans les 15/30 prochaines minutes
+    
+    const REMINDER_KEY = 'calendar_reminders_notified';
+    const REMINDER_MINUTES = [30, 15, 5]; // Alertes à 30min, 15min, 5min avant
+    
+    function checkUpcomingEvents() {
+      if (!window.calendarInstance) return;
+      
+      const now = new Date();
+      const events = window.calendarInstance.getEvents();
+      const currentUser = '{{ session.user }}';
+      const userRole = '{{ session.role }}';
+      
+      // Récupérer les événements déjà notifiés
+      const notifiedEvents = JSON.parse(localStorage.getItem(REMINDER_KEY) || '{}');
+      const today = now.toDateString();
+      
+      // Nettoyer les notifications d'hier
+      if (notifiedEvents.date !== today) {
+        notifiedEvents.events = {};
+        notifiedEvents.date = today;
+      }
+      
+      events.forEach(event => {
+        const props = event.extendedProps;
+        const startTime = event.start;
+        
+        // Ne notifier que pour les événements assignés à l'utilisateur ou créés par lui
+        const isRelevant = props.collaborateur === currentUser || 
+                           props.created_by === currentUser ||
+                           userRole === 'admin' || 
+                           userRole === 'superadmin';
+        
+        if (!isRelevant || !startTime || event.end < now) return;
+        
+        const diffMs = startTime - now;
+        const diffMinutes = Math.floor(diffMs / 60000);
+        
+        // Vérifier si on doit notifier
+        REMINDER_MINUTES.forEach(minutes => {
+          if (diffMinutes > 0 && diffMinutes <= minutes) {
+            const notifyKey = `${event.id}_${minutes}`;
+            
+            if (!notifiedEvents.events[notifyKey]) {
+              // Marquer comme notifié
+              notifiedEvents.events[notifyKey] = true;
+              
+              // Afficher la notification
+              const title = event.title || 'Rendez-vous';
+              const timeStr = startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              
+              if (window.showNotification) {
+                window.showNotification(
+                  `⏰ ${title} dans ${minutes} minutes (${timeStr})`,
+                  'warning',
+                  10000 // 10 secondes d'affichage
+                );
+              }
+              
+              console.log(`🔔 Rappel: ${title} dans ${minutes} minutes`);
+            }
+          }
+        });
+      });
+      
+      // Sauvegarder les notifications
+      localStorage.setItem(REMINDER_KEY, JSON.stringify(notifiedEvents));
+    }
+    
+    // Vérifier immédiatement puis toutes les minutes
+    setTimeout(checkUpcomingEvents, 5000); // Première vérif après 5s
+    setInterval(checkUpcomingEvents, 60000); // Puis toutes les minutes
+    
+    console.log('✅ Système de rappels calendrier activé');
   }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>

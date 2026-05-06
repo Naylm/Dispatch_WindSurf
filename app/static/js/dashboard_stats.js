@@ -201,6 +201,10 @@ function applyFilters() {
 
 function updateKPIs(kpis) {
     const container = document.getElementById('kpiCards');
+    if (!kpis) {
+        console.warn('Pas de données KPI');
+        return;
+    }
     const variations = kpis.variations || {};
     
     const kpiData = [
@@ -269,15 +273,24 @@ function updateKPIs(kpis) {
 // =====================
 
 function updateCharts(chartsData) {
-    updateChartParTechnicien(chartsData.par_technicien);
-    updateChartParSite(chartsData.par_site);
-    updateChartTopSujets(chartsData.top_sujets);
-    updateChartEvolution(chartsData.evolution);
-    updateChartPerformance(chartsData.par_technicien);
+    if (!chartsData) {
+        console.warn('Aucune donnée de graphiques disponible');
+        return;
+    }
+    updateChartParTechnicien(chartsData.par_technicien || []);
+    updateChartParSite(chartsData.par_site || []);
+    updateChartTopSujets(chartsData.top_sujets || []);
+    updateChartEvolution(chartsData.evolution || []);
+    updateChartPerformance(chartsData.par_technicien || []);
 }
 
 function updateChartParTechnicien(data) {
     const ctx = document.getElementById('chartParTechnicien').getContext('2d');
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('Pas de données pour le graphique par technicien');
+        return;
+    }
     
     // Grouper par technicien
     const techMap = {};
@@ -340,6 +353,11 @@ function updateChartParTechnicien(data) {
 function updateChartParSite(data) {
     const ctx = document.getElementById('chartParSite').getContext('2d');
     
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('Pas de données pour le graphique par site');
+        return;
+    }
+    
     const labels = data.map(d => d.site);
     const values = data.map(d => d.count);
     const colors = generateColors(values.length);
@@ -383,6 +401,11 @@ function updateChartParSite(data) {
 function updateChartTopSujets(data) {
     const ctx = document.getElementById('chartTopSujets').getContext('2d');
     
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('Pas de données pour le graphique top sujets');
+        return;
+    }
+    
     const labels = data.map(d => d.sujet);
     const values = data.map(d => d.count);
     
@@ -422,6 +445,11 @@ function updateChartTopSujets(data) {
 
 function updateChartEvolution(data) {
     const ctx = document.getElementById('chartEvolution').getContext('2d');
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('Pas de données pour le graphique évolution');
+        return;
+    }
     
     const labels = data.map(d => d.date);
     const totals = data.map(d => d.total);
@@ -488,6 +516,11 @@ function updateChartEvolution(data) {
 
 function updateChartPerformance(data) {
     const ctx = document.getElementById('chartPerformance').getContext('2d');
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('Pas de données pour le graphique performance');
+        return;
+    }
     
     const techMap = {};
     data.forEach(item => {

@@ -552,6 +552,34 @@ def ensure_database_integrity():
     else:
         tables_verified.append("historique")
     
+    # ========== TABLE: calendar_events ==========
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'calendar_events'
+        )
+    """)
+    if not cursor.fetchone()['exists']:
+        cursor.execute("""
+            CREATE TABLE calendar_events (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                start_time TIMESTAMP NOT NULL,
+                end_time TIMESTAMP,
+                created_by VARCHAR(255) NOT NULL,
+                technicien_id INTEGER,
+                incident_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (technicien_id) REFERENCES techniciens(id) ON DELETE SET NULL,
+                FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE
+            )
+        """)
+        tables_created.append("calendar_events")
+    else:
+        tables_verified.append("calendar_events")
+    
     # ========== TABLE: sujets ==========
     cursor.execute("""
         SELECT EXISTS (

@@ -357,63 +357,101 @@ window.enterEditMode = function (button) {
   }, 10);
 };
 
-window.saveNote = function (button, incidentId, noteType) {
+window.saveNote = async function (button, incidentId, noteType, retryCount = 0) {
   const wrapper = button.closest('.note-wrapper');
+  if (!wrapper) {
+    console.error('saveNote: Impossible de trouver .note-wrapper parent');
+    alert('Erreur: Structure HTML invalide. Rechargez la page.');
+    return;
+  }
   const textarea = wrapper.querySelector('.note-edit-textarea');
+  if (!textarea) {
+    console.error('saveNote: Impossible de trouver textarea');
+    alert('Erreur: Champ de texte introuvable.');
+    return;
+  }
   const newValue = textarea.value.trim();
   const saveBtn = button;
   saveBtn.disabled = true;
   saveBtn.classList.add('saving');
-  const originalText = saveBtn.textContent;
-  saveBtn.textContent = 'Sauvegarde...';
-  const expectedVersion = window.getIncidentVersion(incidentId, button);
+  const originalHTML = saveBtn.innerHTML;  // Sauvegarder l'HTML complet (icône FontAwesome)
+  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';  // Icône de chargement
+  
+  let expectedVersion = window.getIncidentVersion(incidentId, button);
+  
+  // Si pas de version locale et qu'on a déjà retry, essayer de récupérer depuis le DOM
+  if (!expectedVersion && retryCount > 0) {
+    await window.reloadIncidentCard?.(incidentId);
+    expectedVersion = window.getIncidentVersion(incidentId, button);
+  }
+  
   if (!expectedVersion) {
     alert('Version locale manquante. Rechargez la page.');
     saveBtn.disabled = false;
     saveBtn.classList.remove('saving');
-    saveBtn.textContent = originalText;
+    saveBtn.innerHTML = originalHTML;
     return;
   }
+  
   let route = (noteType === 'dispatch') ? '/incident/edit_note_dispatch/' + incidentId : '/incident/edit_note_inline/' + incidentId;
   let payload = (noteType === 'dispatch') ? { note_dispatch: newValue, expected_version: expectedVersion } : { note: newValue, expected_version: expectedVersion };
   const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-  fetch(route, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrfToken,
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-Incident-Version': String(expectedVersion),
-      'X-Idempotency-Key': window.makeIdempotencyKey(`note_${noteType}`, incidentId)
-    },
-    body: JSON.stringify(payload)
-  })
-    .then(async response => {
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        throw new Error(errBody.message || errBody.error || ('HTTP error ' + response.status));
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data.success) {
-        if (data.version) window.setIncidentVersion(incidentId, data.version);
-        window.updateViewMode(wrapper, newValue, noteType);
-        wrapper.classList.add('note-save-animation');
-        setTimeout(() => wrapper.classList.remove('note-save-animation'), 500);
-        saveBtn.textContent = '✓ Sauvegardé';
-        setTimeout(() => { saveBtn.textContent = originalText; }, 1000);
-      } else throw new Error(data.error || 'Erreur sauvegarde');
-    })
-    .catch(err => {
-      console.error('Erreur:', err);
-      alert('Erreur: ' + err.message);
-      saveBtn.textContent = originalText;
-    })
-    .finally(() => {
-      saveBtn.disabled = false;
-      saveBtn.classList.remove('saving');
+  
+  try {
+    const response = await fetch(route, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Incident-Version': String(expectedVersion),
+        'X-Idempotency-Key': window.makeIdempotencyKey(`note_${noteType}_${retryCount}`, incidentId)
+      },
+      body: JSON.stringify(payload)
     });
+    
+    const data = await response.json().catch(() => ({}));
+    
+    // Gestion automatique des conflits - retry avec nouvelle version
+    if (!response.ok && data.status === 'conflict' && retryCount < 2) {
+      saveBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Conflit...';
+      // Attendre un peu puis récupérer la nouvelle version
+      await new Promise(r => setTimeout(r, 300));
+      await window.reloadIncidentCard?.(incidentId);
+      return window.saveNote(button, incidentId, noteType, retryCount + 1);
+    }
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || ('HTTP error ' + response.status));
+    }
+    
+    if (data.success) {
+      console.log('✅ Sauvegarde réussie, mise à jour UI...');
+      if (data.version) window.setIncidentVersion(incidentId, data.version);
+      console.log('✅ Appel de updateViewMode...');
+      window.updateViewMode(wrapper, newValue, noteType);
+      console.log('✅ updateViewMode appelée');
+      wrapper.classList.add('note-save-animation');
+      setTimeout(() => wrapper.classList.remove('note-save-animation'), 500);
+      saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+      setTimeout(() => {
+        if (!saveBtn.disabled) saveBtn.innerHTML = originalHTML;
+      }, 2000);
+    } else {
+      throw new Error(data.error || 'Erreur sauvegarde');
+    }
+  } catch (err) {
+    console.error('Erreur:', err);
+    if (err.message?.includes('conflict') && retryCount < 2) {
+      // Retry automatique en cas de conflit
+      return window.saveNote(button, incidentId, noteType, retryCount + 1);
+    }
+    alert('Erreur: ' + err.message);
+    saveBtn.innerHTML = originalHTML;
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.classList.remove('saving');
+  }
 };
 
 window.cancelEdit = function (button) {
@@ -423,19 +461,48 @@ window.cancelEdit = function (button) {
 };
 
 window.updateViewMode = function (wrapper, newText, noteType) {
+  if (!wrapper) {
+    console.error('updateViewMode: wrapper is null');
+    return;
+  }
+  
   const viewContent = wrapper.querySelector('.note-view-mode .note-content');
   const textarea = wrapper.querySelector('.note-edit-textarea');
+  const editMode = wrapper.querySelector('.note-edit-mode');
+  const viewMode = wrapper.querySelector('.note-view-mode');
+  
+  console.log('📝 updateViewMode: editMode=', editMode, 'viewMode=', viewMode);
+  
   if (viewContent) {
-    if (newText && newText.trim() !== '') viewContent.textContent = newText;
-    else {
+    if (newText && newText.trim() !== '') {
+      viewContent.textContent = newText;
+    } else {
       let emptyMsg = (noteType === 'dispatch') ? 'Pas de note dispatch' : (noteType === 'tech' ? 'Pas encore de note' : 'Pas de note');
       viewContent.innerHTML = `<span class="note-empty">${emptyMsg}</span>`;
     }
   }
-  textarea.value = newText;
-  wrapper.querySelector('.note-edit-mode').style.display = 'none';
-  wrapper.querySelector('.note-view-mode').style.display = 'block';
-  setTimeout(() => window.checkNoteOverflow(wrapper), 10);
+  
+  if (textarea) textarea.value = newText;
+  
+  // Changer l'affichage immédiatement
+  if (editMode) {
+    editMode.style.display = 'none';
+    console.log('✅ editMode caché');
+  } else {
+    console.error('❌ editMode non trouvé!');
+  }
+  
+  if (viewMode) {
+    viewMode.style.display = 'block';
+    console.log('✅ viewMode affiché');
+  } else {
+    console.error('❌ viewMode non trouvé!');
+  }
+  
+  console.log('✅ Note sauvegardée, passage en mode vue');
+  if (window.checkNoteOverflow) {
+    window.checkNoteOverflow(wrapper);
+  }
 };
 
 window.toggleNoteExpansion = function (btn, event) {
@@ -625,9 +692,18 @@ window.initTechView = function () {
         body: new URLSearchParams({ etat: val, expected_version: String(ver) })
       }).then(r => r.json()).then(d => {
         if (d.status === 'ok') {
-          s.dataset.current = val;
           if (d.version) window.setIncidentVersion(id, d.version);
-          if (window.reloadIncidentCard) window.reloadIncidentCard(id);
+          if (window.reloadIncidentCard) {
+            window.reloadIncidentCard(id).then(() => {
+              // Mettre à jour le dataset.current après rechargement de la carte
+              setTimeout(() => {
+                const newSelect = document.querySelector(`.status-selector-col[data-incident-id="${id}"], .status-selector-list[data-incident-id="${id}"]`);
+                if (newSelect) newSelect.dataset.current = val;
+              }, 100);
+            });
+          } else {
+            s.dataset.current = val;
+          }
         } else { alert(d.message || 'Erreur'); s.value = old; }
       }).catch(() => { s.value = old; });
     }

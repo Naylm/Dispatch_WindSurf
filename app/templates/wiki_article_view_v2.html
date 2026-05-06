@@ -357,22 +357,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Navbar -->
-<!-- Navbar (Glass) -->
-<nav class="navbar navbar-expand-lg mb-4 rounded-4 shadow-sm"
-    style="background: var(--bg-panel); backdrop-filter: blur(10px); border: 1px solid var(--border-color);">
-    <div class="container-fluid px-4">
-        <span class="navbar-brand fw-bold text-neon"><i class="fas fa-book-reader me-2"></i>Base de Connaissances</span>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('wiki.wiki') }}"
-                class="btn btn-outline-primary btn-sm btn-back border-0 bg-dark bg-opacity-25">← Retour au Wiki</a>
-            <a href="{{ url_for('main.home') }}"
-                class="btn btn-outline-secondary btn-sm border-0 bg-dark bg-opacity-25">Accueil</a>
-            <button id="themeToggle" class="btn btn-outline-secondary btn-sm border-0 bg-dark bg-opacity-25">🌙</button>
-        </div>
-    </div>
-</nav>
-
 <div class="container py-4">
     {% include "_flash_messages.html" %}
     <!-- Fil d'Ariane -->

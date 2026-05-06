@@ -13,21 +13,6 @@
         <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
     </div>
 
-    {# Consommer tous les messages flash pour éviter qu'ils persistent, mais n'afficher que ceux pertinents pour le
-    profil #}
-    {% set all_messages = get_flashed_messages(with_categories=true) %}
-    {% if all_messages %}
-    {% for category, message in all_messages %}
-    {% if 'profil' in message|lower or 'mot de passe' in message|lower or 'photo' in message|lower or 'informations' in
-    message|lower or 'utilisateur' in message|lower %}
-    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show"
-        role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endif %}
-    {% endfor %}
-    {% endif %}
 
     <div class="profile-card">
         <div class="profile-header">

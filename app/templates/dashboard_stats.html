@@ -9,17 +9,10 @@
 
 {% block content %}
 <div class="container-fluid px-3 px-md-4 py-4">
-  <!-- Navbar -->
-  <!-- Navbar -->
-  <nav class="navbar mb-4">
-    <div class="container-fluid">
-      <span class="navbar-brand">📊 Dashboard Statistiques</span>
-      <div class="d-flex gap-2">
-        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" title="Changer de thème">🌙</button>
-        <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
-      </div>
-    </div>
-  </nav>
+  <div class="page-header mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="h3 mb-0 text-neon">📊 Dashboard Statistiques</h2>
+    <a href="{{ url_for('main.home') }}" class="btn btn-outline-primary btn-sm">← Retour</a>
+  </div>
 
   <!-- ===================== -->
   <!-- SECTION 1 : FILTRES -->
@@ -303,12 +296,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.min.js"></script>
 
-<script src="{{ url_for('static', filename='js/dashboard_stats.js') }}"></script>
 <script>
-  // Initialiser les données de référence
-  const TECHNICIENS = {{ techniciens | tojson }};
-  const SITES = {{ sites | tojson }};
-  const STATUTS = {{ statuts | tojson }};
-  const PRIORITES = {{ priorites | tojson }};
+  // Initialiser les données de référence globales
+  window.REF_DATA = {
+    TECHNICIENS: {{ techniciens | tojson }},
+    SITES: {{ sites | tojson }},
+    STATUTS: {{ statuts | tojson }},
+    PRIORITES: {{ priorites | tojson }}
+  };
 </script>
+<script src="{{ url_for('static', filename='js/dashboard_stats.js') }}"></script>
 {% endblock %}

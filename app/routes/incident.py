@@ -130,11 +130,18 @@ def edit_incident(id):
             date_aff = request.form["date_affectation"]
             localisation = (request.form.get("localisation") or "").strip()
             
+            # Get collaborateur from technicien_id to keep them in sync
+            collaborateur = "Non affecté"
+            if technicien_id:
+                tech = db.execute("SELECT prenom FROM techniciens WHERE id=%s", (technicien_id,)).fetchone()
+                if tech:
+                    collaborateur = tech['prenom']
+            
             payload = request.form.to_dict()
             expected_version = parse_expected_version(request, payload)
             
-            set_clause = "numero=%s, site=%s, sujet=%s, urgence=%s, technicien_id=%s, etat=%s, notes=%s, note_dispatch=%s, date_affectation=%s, localisation=%s"
-            params = (numero, site, sujet, urgence, technicien_id, etat, notes, note_dispatch, date_aff, localisation)
+            set_clause = "numero=%s, site=%s, sujet=%s, urgence=%s, technicien_id=%s, collaborateur=%s, etat=%s, notes=%s, note_dispatch=%s, date_affectation=%s, localisation=%s"
+            params = (numero, site, sujet, urgence, technicien_id, collaborateur, etat, notes, note_dispatch, date_aff, localisation)
 
             new_version = optimistic_incident_update(
                 db, 
@@ -145,7 +152,7 @@ def edit_incident(id):
             )
             
             # Log changes if any
-            fields = ["numero", "site", "sujet", "urgence", "technicien_id", "etat", "notes", "note_dispatch", "date_affectation", "localisation"]
+            fields = ["numero", "site", "sujet", "urgence", "technicien_id", "collaborateur", "etat", "notes", "note_dispatch", "date_affectation", "localisation"]
             for f_name in fields:
                 old_val = incident[f_name]
                 new_val = request.form.get(f_name)

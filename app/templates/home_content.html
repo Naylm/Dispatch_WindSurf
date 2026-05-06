@@ -106,15 +106,19 @@
             <div class="card shadow-sm incident-col-card">
                 <div class="card-header text-center fw-bold bg-primary text-white">
                     {{ tech.prenom }}
+                    {% set ns = namespace(tech_incidents=[]) %}
+                    {% for i in incidents %}
+                        {% if (i.collaborateur and i.collaborateur|trim|lower == tech.prenom|trim|lower) or (i.technicien_id and i.technicien_id == tech.id) %}
+                            {% set ns.tech_incidents = ns.tech_incidents + [i] %}
+                        {% endif %}
+                    {% endfor %}
                     <span class="badge bg-light text-primary ms-1" id="tech-count-{{ tech.prenom }}">
-                        {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
-                        {{ tech_incidents|length }}
+                        {{ ns.tech_incidents|length }}
                     </span>
                 </div>
                 <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="{{ tech.prenom|trim }}">
-                    {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
-                    {% if tech_incidents|length > 0 %}
-                    {% for i in tech_incidents %}
+                    {% if ns.tech_incidents|length > 0 %}
+                    {% for i in ns.tech_incidents %}
                     {% include "incident_card_partial.html" %}
                     {% endfor %}
                     {% else %}
@@ -130,22 +134,24 @@
                 <div class="card-header text-center fw-bold bg-warning text-dark">
                     Non affecté
                     <span class="badge bg-dark text-warning ms-1" id="tech-count-non-affecte">
-                        {% set unassigned_incidents = [] %}
+                        {% set ns_unassigned = namespace(incidents=[]) %}
                         {% for i in incidents %}
-                        {% set ns = namespace(found=false) %}
-                        {% for t in techniciens %}
-                        {% if i.collaborateur == t.prenom %}{% set ns.found = true %}{% endif %}
+                            {% set ns_found = namespace(found=false) %}
+                            {% for t in techniciens %}
+                                {% if i.collaborateur|trim|lower == t.prenom|trim|lower or (i.technicien_id and i.technicien_id == t.id) %}
+                                    {% set ns_found.found = true %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if not ns_found.found %}
+                                {% set ns_unassigned.incidents = ns_unassigned.incidents + [i] %}
+                            {% endif %}
                         {% endfor %}
-                        {% if not ns.found and i.collaborateur != 'Client' %}{% set unassigned_incidents =
-                        unassigned_incidents +
-                        [i] %}{% endif %}
-                        {% endfor %}
-                        {{ unassigned_incidents|length }}
+                        {{ ns_unassigned.incidents|length }}
                     </span>
                 </div>
                 <div class="incident-list-col d-flex flex-column gap-2 p-2" data-technicien="Non affecté">
-                    {% if unassigned_incidents|length > 0 %}
-                    {% for i in unassigned_incidents %}
+                    {% if ns_unassigned.incidents|length > 0 %}
+                    {% for i in ns_unassigned.incidents %}
                     {% include "incident_card_partial.html" %}
                     {% endfor %}
                     {% else %}
@@ -163,27 +169,32 @@
 <div id="grouped-view" class="view-container" style="display: none;">
     <div class="accordion" id="groupedAccordion">
         {% for tech in techniciens %}
-        {% set tech_incidents = incidents|selectattr("collaborateur", "equalto", tech.prenom)|list %}
+        {% set ns_group = namespace(tech_incidents=[]) %}
+        {% for i in incidents %}
+            {% if i.collaborateur|trim|lower == tech.prenom|trim|lower or (i.technicien_id and i.technicien_id == tech.id) %}
+                {% set ns_group.tech_incidents = ns_group.tech_incidents + [i] %}
+            {% endif %}
+        {% endfor %}
         <div class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden tech-group-container"
             data-technicien="{{ tech.prenom }}" style="background: var(--bg-surface);">
             <h2 class="accordion-header" id="heading-{{ loop.index }}">
                 <button
-                    class="accordion-button {% if tech_incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-white"
+                    class="accordion-button {% if ns_group.tech_incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-white"
                     type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}"
-                    aria-expanded="{% if tech_incidents|length > 0 %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if ns_group.tech_incidents|length > 0 %}true{% else %}false{% endif %}"
                     aria-controls="collapse-{{ loop.index }}" style="background: rgba(255,255,255,0.05);">
                     {{ tech.prenom }}
-                    <span class="badge bg-primary ms-3 fs-6">{{ tech_incidents|length }} incident(s)</span>
+                    <span class="badge bg-primary ms-3 fs-6">{{ ns_group.tech_incidents|length }} incident(s)</span>
                 </button>
             </h2>
             <div id="collapse-{{ loop.index }}"
-                class="accordion-collapse collapse {% if tech_incidents|length > 0 %}show{% endif %}"
+                class="accordion-collapse collapse {% if ns_group.tech_incidents|length > 0 %}show{% endif %}"
                 aria-labelledby="heading-{{ loop.index }}">
                 <div class="accordion-body p-3">
-                    {% if tech_incidents|length > 0 %}
+                    {% if ns_group.tech_incidents|length > 0 %}
                     <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3 incident-list-grouped"
                         data-technicien="{{ tech.prenom|trim }}">
-                        {% for i in tech_incidents %}
+                        {% for i in ns_group.tech_incidents %}
                         <div class="col">
                             {% include "incident_card_grouped_partial.html" %}
                         </div>
@@ -201,27 +212,39 @@
         {% endfor %}
 
         <!-- Accordéon pour les non affectés -->
+        {% set ns_unassigned_group = namespace(incidents=[]) %}
+        {% for i in incidents %}
+            {% set ns_found_group = namespace(found=false) %}
+            {% for t in techniciens %}
+                {% if i.collaborateur|trim|lower == t.prenom|trim|lower or (i.technicien_id and i.technicien_id == t.id) %}
+                    {% set ns_found_group.found = true %}
+                {% endif %}
+            {% endfor %}
+            {% if not ns_found_group.found %}
+                {% set ns_unassigned_group.incidents = ns_unassigned_group.incidents + [i] %}
+            {% endif %}
+        {% endfor %}
         <div class="accordion-item border-0 mb-3 rounded shadow-sm overflow-hidden border border-warning tech-group-container"
             data-technicien="Non affecté" style="background: var(--bg-surface);">
             <h2 class="accordion-header" id="heading-unassigned">
                 <button
-                    class="accordion-button {% if unassigned_incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-warning"
+                    class="accordion-button {% if ns_unassigned_group.incidents|length == 0 %}collapsed{% endif %} fw-bold fs-5 text-warning"
                     type="button" data-bs-toggle="collapse" data-bs-target="#collapse-unassigned"
-                    aria-expanded="{% if unassigned_incidents|length > 0 %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if ns_unassigned_group.incidents|length > 0 %}true{% else %}false{% endif %}"
                     aria-controls="collapse-unassigned" style="background: rgba(255, 193, 7, 0.1);">
                     Non affecté
-                    <span class="badge bg-warning text-dark ms-3 fs-6">{{ unassigned_incidents|length }}
+                    <span class="badge bg-warning text-dark ms-3 fs-6">{{ ns_unassigned_group.incidents|length }}
                         incident(s)</span>
                 </button>
             </h2>
             <div id="collapse-unassigned"
-                class="accordion-collapse collapse {% if unassigned_incidents|length > 0 %}show{% endif %}"
+                class="accordion-collapse collapse {% if ns_unassigned_group.incidents|length > 0 %}show{% endif %}"
                 aria-labelledby="heading-unassigned">
                 <div class="accordion-body p-3">
-                    {% if unassigned_incidents|length > 0 %}
+                    {% if ns_unassigned_group.incidents|length > 0 %}
                     <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-3 incident-list-grouped"
                         data-technicien="Non affecté">
-                        {% for i in unassigned_incidents %}
+                        {% for i in ns_unassigned_group.incidents %}
                         <div class="col">
                             {% include "incident_card_grouped_partial.html" %}
                         </div>

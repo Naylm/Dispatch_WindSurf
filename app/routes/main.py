@@ -3,6 +3,7 @@ from app.utils.db_config import get_db
 from app.utils.references import get_reference_data
 from app.utils.constants import TECHNICIAN_FAQ, ADMIN_FAQ
 from app.utils.settings import get_setting
+from app.utils.incident_queries import get_incidents_query_for_admin, get_stats_query_for_admin
 
 main_bp = Blueprint('main', __name__)
 
@@ -51,10 +52,12 @@ def home():
     statuts_by_category = ref_data['statuts_by_category']
 
     if session["role"] in ("admin", "superadmin"):
-        incidents = db.execute(
-            "SELECT * FROM incidents WHERE archived=0 AND is_deleted=FALSE ORDER BY id ASC"
-        ).fetchall()
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
+        # Get incidents assigned to active technicians (via collaborateur OR technicien_id) OR unassigned
+        active_tech_names = [t['prenom'] for t in techniciens]
+        active_tech_ids = [t['id'] for t in techniciens]
+        query, params = get_incidents_query_for_admin(active_tech_names, active_tech_ids)
+        incidents = db.execute(query, params).fetchall()
     else:
         if current_tech_id:
             incidents = db.execute(
@@ -68,13 +71,20 @@ def home():
             ).fetchall()
         techniciens = []
 
-    stats_results = db.execute("""
-        SELECT s.category, COUNT(*) as count
-        FROM incidents i
-        JOIN statuts s ON i.etat = s.nom
-        WHERE i.archived=0 AND i.is_deleted=FALSE
-        GROUP BY s.category
-    """).fetchall()
+    # Stats query - for admin, filter by active technicians to match incident query
+    if session["role"] in ("admin", "superadmin"):
+        active_tech_names = [t['prenom'] for t in techniciens]
+        active_tech_ids = [t['id'] for t in techniciens]
+        query, params = get_stats_query_for_admin(active_tech_names, active_tech_ids)
+        stats_results = db.execute(query, params).fetchall()
+    else:
+        stats_results = db.execute("""
+            SELECT s.category, COUNT(*) as count
+            FROM incidents i
+            JOIN statuts s ON i.etat = s.nom
+            WHERE i.archived=0 AND i.is_deleted=FALSE
+            GROUP BY s.category
+        """).fetchall()
 
     stats_by_category = {
         'en_cours': 0, 'suspendu': 0, 'transfere': 0, 'traite': 0
@@ -82,7 +92,7 @@ def home():
     for row in stats_results:
         if row['category'] in stats_by_category:
             stats_by_category[row['category']] = row['count']
-    
+
     # Récupérer les diffusions actives
     active_broadcasts = db.execute("SELECT * FROM broadcasts WHERE is_active=TRUE ORDER BY is_permanent DESC, created_at DESC").fetchall()
 
@@ -127,10 +137,12 @@ def home_content_api():
     statuts_by_category = ref_data['statuts_by_category']
 
     if session["role"] in ("admin", "superadmin"):
-        incidents = db.execute(
-            "SELECT * FROM incidents WHERE archived=0 AND is_deleted=FALSE ORDER BY id ASC"
-        ).fetchall()
         techniciens = db.execute("SELECT * FROM techniciens WHERE actif=1 ORDER BY ordre ASC, id ASC").fetchall()
+        # Get incidents assigned to active technicians (via collaborateur OR technicien_id) OR unassigned
+        active_tech_names = [t['prenom'] for t in techniciens]
+        active_tech_ids = [t['id'] for t in techniciens]
+        query, params = get_incidents_query_for_admin(active_tech_names, active_tech_ids)
+        incidents = db.execute(query, params).fetchall()
     else:
         if current_tech_id:
             incidents = db.execute(
@@ -144,13 +156,20 @@ def home_content_api():
             ).fetchall()
         techniciens = []
 
-    stats_results = db.execute("""
-        SELECT s.category, COUNT(*) as count
-        FROM incidents i
-        JOIN statuts s ON i.etat = s.nom
-        WHERE i.archived=0 AND i.is_deleted=FALSE
-        GROUP BY s.category
-    """).fetchall()
+    # Stats query - for admin, filter by active technicians to match incident query
+    if session["role"] in ("admin", "superadmin"):
+        active_tech_names = [t['prenom'] for t in techniciens]
+        active_tech_ids = [t['id'] for t in techniciens]
+        query, params = get_stats_query_for_admin(active_tech_names, active_tech_ids)
+        stats_results = db.execute(query, params).fetchall()
+    else:
+        stats_results = db.execute("""
+            SELECT s.category, COUNT(*) as count
+            FROM incidents i
+            JOIN statuts s ON i.etat = s.nom
+            WHERE i.archived=0 AND i.is_deleted=FALSE
+            GROUP BY s.category
+        """).fetchall()
 
     stats_by_category = {
         'en_cours': 0, 'suspendu': 0, 'transfere': 0, 'traite': 0

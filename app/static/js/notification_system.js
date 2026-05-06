@@ -1052,3 +1052,112 @@ if (!window.notificationSystem) {
 } else {
     console.log('ℹ️ Système de notifications déjà actif');
 }
+
+// Handler global pour les utilisateurs connectés (toutes les pages)
+(function initActiveConnectionsHandler() {
+    const badge = document.getElementById('activeConnectionsBadge');
+    if (!badge) return; // Pas de badge sur cette page
+    
+    function updateBadge(count, users) {
+        const plural = count > 1 ? 'S' : '';
+        const text = count === 0 ? '0 CONNECTÉ' : `${count} CONNECTÉ${plural}`;
+        const newHtml = `<i class="fas fa-users me-1"></i> ${text}`;
+        if (badge.innerHTML !== newHtml) {
+            badge.innerHTML = newHtml;
+            console.log(`👥 Utilisateurs connectés: ${count}`, users);
+        }
+        
+        // Mettre à jour la liste déroulante
+        const usersList = document.getElementById('connectedUsersList');
+        if (usersList && users) {
+            const headerStyle = 'color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; padding: 8px 16px;';
+            const itemStyle = 'color: #e2e8f0; padding: 6px 16px;';
+            const emptyStyle = 'color: #94a3b8; padding: 8px 16px; font-style: italic;';
+            
+            if (users.length === 0) {
+                usersList.innerHTML = `
+                    <li class="dropdown-header" style="${headerStyle}">Utilisateurs connectés</li>
+                    <li><span class="dropdown-item-text" style="${emptyStyle}"><i class="fas fa-user-slash me-2"></i>Aucun utilisateur connecté</span></li>
+                `;
+            } else {
+                let html = `<li class="dropdown-header" style="${headerStyle}">${users.length} utilisateur${users.length > 1 ? 's' : ''} connecté${users.length > 1 ? 's' : ''}</li>`;
+                users.forEach(user => {
+                    html += `<li><span class="dropdown-item-text" style="${itemStyle}"><i class="fas fa-user-circle text-success me-2" style="color: #22c55e;"></i>${user}</span></li>`;
+                });
+                usersList.innerHTML = html;
+            }
+        }
+    }
+    
+    // Handler Socket.IO
+    function handleSocketData(data) {
+        if (data && typeof data.count !== 'undefined') {
+            updateBadge(data.count, data.users || []);
+        }
+    }
+    
+    // Attacher au socket dès qu'il est disponible
+    function attachSocketHandler() {
+        if (window.socket) {
+            window.socket.off('active_connections_count', handleSocketData);
+            window.socket.on('active_connections_count', handleSocketData);
+            window.socket.emit('request_connection_count');
+            console.log('✅ Handler socket attaché');
+            return true;
+        }
+        return false;
+    }
+    
+    // Fallback HTTP : interroger l'API toutes les 10 secondes
+    async function fetchConnectionsHttp() {
+        try {
+            const response = await fetch('/api/active_connections', { 
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data && typeof data.count !== 'undefined') {
+                    updateBadge(data.count, data.users || []);
+                    console.log('👥 Données HTTP reçues:', data.count);
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ Fallback HTTP indisponible');
+        }
+    }
+    
+    // Essayer d'attacher au socket immédiatement et toutes les 2s
+    if (!attachSocketHandler()) {
+        const attachInterval = setInterval(() => {
+            if (attachSocketHandler()) clearInterval(attachInterval);
+        }, 2000);
+    }
+    
+    // Si après 3s on a toujours "?", utiliser le fallback HTTP
+    setTimeout(() => {
+        if (badge.textContent.includes('?')) {
+            console.log('⚠️ Fallback HTTP activé');
+            fetchConnectionsHttp();
+            // Continuer à interroger toutes les 10s
+            setInterval(fetchConnectionsHttp, 10000);
+        }
+    }, 3000);
+    
+    // Survol
+    const setupHover = setInterval(() => {
+        if (window.bootstrap) {
+            let hoverTimeout;
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(badge);
+            badge.addEventListener('mouseenter', () => {
+                hoverTimeout = setTimeout(() => dropdown.show(), 400);
+            });
+            badge.addEventListener('mouseleave', () => clearTimeout(hoverTimeout));
+            const dropdownMenu = badge.nextElementSibling;
+            if (dropdownMenu) {
+                dropdownMenu.addEventListener('mouseleave', () => dropdown.hide());
+            }
+            clearInterval(setupHover);
+        }
+    }, 500);
+})();

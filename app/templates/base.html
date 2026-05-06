@@ -75,7 +75,7 @@
         window.CURRENT_USER = {{ session.get('user', '') | tojson }};
     </script>
 
-    {% if session.get('user') %}
+    {% if session.get('user') and request.endpoint != 'auth.change_password_forced' %}
         {% include "_navbar.html" %}
     {% endif %}
 
@@ -84,8 +84,43 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <!-- Initialisation Socket.IO globale -->
+    <script>
+        // Initialiser socket globalement pour toutes les pages
+        if (!window.socket) {
+            window.socket = io({
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rememberUpgrade: true,
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: Infinity
+            });
+            window.socketConnected = false;
+            
+            window.socket.on('connect', () => {
+                console.log('✅ Socket.IO connecté (global), SID:', window.socket.id);
+                window.socketConnected = true;
+            });
+            
+            window.socket.on('disconnect', (reason) => {
+                console.log('❌ Socket.IO déconnecté, raison:', reason);
+                window.socketConnected = false;
+            });
+            
+            window.socket.on('connect_error', (error) => {
+                console.error('❌ Erreur connexion Socket.IO:', error);
+                window.socketConnected = false;
+            });
+        }
+    </script>
+    
     <script src="{{ url_for('static', filename='js/theme.js') }}?v=19.0"></script>
+    {% if request.endpoint != 'auth.change_password_forced' %}
     <script src="{{ url_for('static', filename='js/notification_system.js') }}?v=19.0"></script>
+    {% endif %}
 
 
 

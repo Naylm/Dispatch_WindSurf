@@ -43,14 +43,44 @@ def register_socket_handlers(socketio):
 
         # Track active connections and broadcast count
         active_sids[request.sid] = user or "anonymous"
-        socketio.emit('active_connections_count', {'count': len(active_sids)}, room='role:admin')
+        
+        # Build list of connected users (unique, remove 'anonymous')
+        connected_users = list(set([u for u in active_sids.values() if u and u != "anonymous"]))
+        
+        # Emit to all connected clients (not just admin room) so everyone gets updates
+        socketio.emit('active_connections_count', {
+            'count': len(active_sids),
+            'users': connected_users
+        })
+        
+        # Also send directly to the connecting client
+        socketio.emit('active_connections_count', {
+            'count': len(active_sids),
+            'users': connected_users
+        }, to=request.sid)
 
     @socketio.on('disconnect')
     def handle_disconnect():
         logger.info(f"❌ Client Socket.IO déconnecté: {request.sid}")
         if request.sid in active_sids:
             del active_sids[request.sid]
-        socketio.emit('active_connections_count', {'count': len(active_sids)}, room='role:admin')
+        # Build list of connected users (unique, remove 'anonymous')
+        connected_users = list(set([u for u in active_sids.values() if u and u != "anonymous"]))
+        # Broadcast to all clients
+        socketio.emit('active_connections_count', {
+            'count': len(active_sids),
+            'users': connected_users
+        })
+
+    @socketio.on('request_connection_count')
+    def handle_request_connection_count():
+        """Permet à un client de demander le nombre d'utilisateurs connectés"""
+        connected_users = list(set([u for u in active_sids.values() if u and u != "anonymous"]))
+        socketio.emit('active_connections_count', {
+            'count': len(active_sids),
+            'users': connected_users
+        }, to=request.sid)
+        logger.info(f"📊 Client {request.sid} a demandé le nombre de connexions: {len(active_sids)}")
 
 
     @socketio.on('join_tech_room')
